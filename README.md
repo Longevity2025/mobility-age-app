@@ -58,5 +58,5 @@ To update the live version:
 
 ## 📜 License
 This project is intended for educational, testing, and research use.  
-All rights reserved © Longevity2025.
+All rights reserved © Castle Connolly Private Health Partners
 
