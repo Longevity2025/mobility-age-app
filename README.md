@@ -14,9 +14,7 @@ Normative data (age- and sex-specific means and SDs) are built into the app. Cal
 ---
 
 ## 🌐 Live App
-👉 [Open the Mobility Age App](https://YOUR-USERNAME.github.io/mobility-age-app/)  
-
-*(replace `YOUR-USERNAME` with your GitHub username — this will be the live link once Pages is enabled).*
+👉 [Open the Mobility Age App](https://longevity2025.github.io/mobility-age-app/)
 
 ---
 
@@ -60,6 +58,5 @@ To update the live version:
 
 ## 📜 License
 This project is intended for educational, testing, and research use.  
-All rights reserved © [Your Name / Organization].
+All rights reserved © Longevity2025.
 
----
