@@ -1,224 +1,308 @@
-<!DOCTYPE html>
-<html lang="en">
+
+<!doctype html>
+<html>
 <head>
-  <meta charset="utf-8" />
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Mobility Age Calculator — FINAL (Gmail‑friendly)</title>
-  <style>
-body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#f7f7fb;color:#111}
-.container{max-width:980px;margin:24px auto;padding:16px 20px;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.06)}
-h1{font-size:22px;margin:0 0 4px} .muted{color:#6b7280;font-size:12px}
-.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
-.row-6{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
-.card{border:1px solid #e5e7eb;border-radius:10px;padding:12px}
-label{font-size:12px;color:#374151;margin-bottom:4px;display:block}
-input,select{width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px}
-button{border:0;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer}
-.btn{background:#2563eb;color:#fff} .btn:hover{background:#1d4ed8}
-.btn-lite{background:#f3f4f6} .btn-lite:hover{background:#e5e7eb}
-.table{width:100%;border-collapse:collapse;font-size:14px}
-.table th,.table td{padding:8px 10px;text-align:left;border-bottom:1px solid #eee}
-.kv{font-size:12px;color:#6b7280}
-.header{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:16px}
-.badge{display:inline-block;background:#ecfdf5;color:#065f46;padding:4px 8px;border:1px solid #a7f3d0;border-radius:999px;font-size:12px}
-.err{display:none;margin-bottom:12px;padding:10px;border-radius:8px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;font-size:13px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mobility Age — v9.26 (caps added)</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:#fafafa;color:#111}
+  .wrap{max-width:980px;margin:24px auto;padding:0 12px}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .row{display:grid;grid-template-columns:220px 1fr;gap:10px;align-items:center}
+  input,select{font:inherit;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
+  input[type=number]{width:100%}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{border-bottom:1px solid #e5e7eb;padding:8px;text-align:left}
+  .note{font-size:12px;color:#666}
+  #ok{display:block;background:#dcfce7;border:1px solid #86efac;color:#065f46;padding:10px;border-radius:10px;margin-bottom:10px}
+  #dbg{display:block;background:#eef2ff;border:1px solid #c7d2fe;color:#1e3a8a;padding:10px;border-radius:10px;margin-top:8px;white-space:pre-wrap}
+  #err{display:none;background:#fee2e2;border:1px solid #fecaca;color:#7f1d1d;padding:10px;border-radius:10px;margin-top:10px;white-space:pre-wrap}
+  #hb{font-size:12px;color:#0a0;margin-top:6px}
+  .toolbar{display:flex;gap:8px;margin:8px 0}
+  .btn{background:#111;color:#fff;border-radius:10px;padding:8px 12px;border:none;cursor:pointer}
+  .btn:active{transform:translateY(1px)}
 </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
+<div class="wrap">
+  <div id="ok">Script booting…</div>
+  <div id="hb">Heartbeat: (starting…)</div>
+  <div class="toolbar">
+    <button id="clearBtn" class="btn">Clear All</button>
+  </div>
+  <div id="dbg"></div>
+  <div id="err"></div>
+  <h1>Mobility Age — v9.26</h1>
+  <p class="note">Capped MAEs: Sit &amp; Reach ≥ 21, TUG ≥ 21, VO₂ ≥ 21. Auto-calc every 0.5s after all fields are filled.</p>
+  <div class="card">
+    <h2>Inputs</h2>
+    <div class="grid-2">
       <div>
-        <h1>Mobility Age Calculator <span class="muted">(Embedded Norms)</span></h1>
-        <div>
-          <span id="boot" class="badge">Boot: pending…</span>
-          <span id="core" class="badge">Core: pending…</span>
-          <span id="normsStatus" class="badge">Norms: pending…</span>
-        </div>
+        <div class="row"><label>Tester</label><input id="tester" placeholder="e.g., Jane Doe"></div>
+        <div class="row"><label>Test Date</label><input id="testDate" type="date"></div>
+        <div class="row"><label>Location</label><input id="location" placeholder="e.g., Clinic A"></div>
+        <div class="row"><label>Member Name</label><input id="memberName" placeholder="e.g., John Smith"></div>
+        <div class="row"><label>Phone (xxx-xxx-xxxx)</label><input id="phone" placeholder="555-123-4567"></div>
       </div>
       <div>
-        <button id="btnPrint" class="btn-lite" onclick="window.print()">Print / Save PDF</button>
-        <button id="btnReset" class="btn-lite" onclick="doReset()">Reset</button>
+        <div class="row"><label>Sex</label>
+          <select id="sex">
+            <option value="" selected disabled>— Select —</option>
+            <option>Male</option>
+            <option>Female</option>
+          </select>
+        </div>
+        <div class="row"><label>Age</label><input id="age" type="number" min="1" placeholder="Age in years"></div>
       </div>
     </div>
-
-    <div id="err" class="err"></div>
-
-    <h3>Inputs</h3>
-    <div class="row-6">
-      <div><label>Name</label><input id="inpName" type="text" placeholder="Optional" /></div>
+    <h3>Tests</h3>
+    <div class="grid-2">
       <div>
-        <label>Sex</label>
-        <select id="inpSex">
-          <option value="">Select</option>
-          <option value="Female">Female</option>
-          <option value="Male">Male</option>
-        </select>
+        <div class="row"><label>Sit &amp; Reach (in)</label><input id="sit" type="number" step="0.01" placeholder="inches"></div>
+        <div class="row"><label>TUG (sec)</label><input id="tug" type="number" step="0.01" placeholder="seconds"></div>
+        <div class="row"><label>Mid-Thigh Pull (percentile)</label><input id="mtp" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
       </div>
-      <div><label>Age (years)</label><input id="inpAge" type="number" min="20" max="89" step="1" placeholder="e.g., 72" /></div>
-    </div>
-
-    <div class="row" style="margin-top:16px">
-      <div class="card"><label>Timed Up & Go (TUG), seconds</label><input id="inpTUG" type="number" step="0.01" placeholder="e.g., 8.7" /><div class="kv">Lower is better</div></div>
-      <div class="card"><label>Sit & Reach, inches</label><input id="inpSR" type="number" step="0.1" placeholder="e.g., 12" /></div>
-      <div class="card"><label>VO<sub>2</sub>max, ml/kg/min</label><input id="inpVO2" type="number" step="0.1" placeholder="e.g., 34" /></div>
-    </div>
-
-    <div class="row" style="margin-top:12px">
-      <div class="card"><label>MTP, percentile (0–100)</label><input id="inpMTPpct" type="number" step="0.1" min="0" max="100" placeholder="e.g., 60" /></div>
-      <div class="card">
-        <label>Grip, percentiles (R & L)</label>
-        <div class="row" style="grid-template-columns:1fr 1fr;gap:8px">
-          <input id="inpGripR" type="number" step="0.1" min="0" max="100" placeholder="Right %" />
-          <input id="inpGripL" type="number" step="0.1" min="0" max="100" placeholder="Left %" />
-        </div>
-        <div id="gripAvgLbl" class="kv" style="margin-top:6px">Average: —</div>
+      <div>
+        <div class="row"><label>Postural Sway Right (percentile)</label><input id="sway_r" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
+        <div class="row"><label>Postural Sway Left (percentile)</label><input id="sway_l" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
+        <div class="row"><label>Grip Strength Right (percentile)</label><input id="grip_r" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
+        <div class="row"><label>Grip Strength Left (percentile)</label><input id="grip_l" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
+        <div class="row"><label>VO₂ Max (mL/kg/min)</label><input id="vo2" type="number" step="0.01" placeholder="ml/kg/min"></div>
       </div>
-      <div class="card">
-        <label>Sway, percentiles (R & L)</label>
-        <div class="row" style="grid-template-columns:1fr 1fr;gap:8px">
-          <input id="inpSwayR" type="number" step="0.1" min="0" max="100" placeholder="Right %" />
-          <input id="inpSwayL" type="number" step="0.1" min="0" max="100" placeholder="Left %" />
-        </div>
-        <div id="swayAvgLbl" class="kv" style="margin-top:6px">Average: —</div>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:12px">
-      <div class="kv">Config</div>
-      <div class="row" style="grid-template-columns:repeat(6,1fr);gap:8px;margin-top:6px">
-        <div><label>VO2 weight</label><input id="wVO2" type="number" step="0.01" value="1.50" /></div>
-        <div><label>TUG weight</label><input id="wTUG" type="number" step="0.01" value="1.25" /></div>
-        <div><label>Sit & Reach weight</label><input id="wSR" type="number" step="0.01" value="1.00" /></div>
-        <div><label>MTP weight</label><input id="wMTP" type="number" step="0.01" value="1.00" /></div>
-        <div><label>Grip weight</label><input id="wGrip" type="number" step="0.01" value="1.00" /></div>
-        <div><label>Sway weight</label><input id="wSway" type="number" step="0.01" value="1.00" /></div>
-      </div>
-      <div style="margin-top:8px"><label>Years per Z (k)</label><input id="kYearsPerZ" type="number" step="0.1" value="15" /></div>
-    </div>
-
-    <div style="margin-top:12px"><button id="btnCalculate" class="btn">Calculate</button></div>
-
-    <h3 style="margin-top:20px">Results</h3>
-    <div class="grid2">
-      <div class="card"><div class="kv">Mobility Age</div><div id="outMobilityAge" style="font-size:28px;font-weight:800;margin-top:6px">—</div><div class="kv">Age − (WeightedZ × 15)</div></div>
-      <div class="card"><div class="kv">Weighted Z (composite)</div><div id="outWeightedZ" style="font-size:28px;font-weight:800;margin-top:6px">—</div><div class="kv">Weights: VO2 1.50, TUG 1.25, others 1.00</div></div>
-    </div>
-
-    <div class="card" style="margin-top:12px;overflow:auto">
-      <table class="table"><thead><tr><th>Measure</th><th>Input</th><th>Mean</th><th>SD</th><th>Z</th><th>Weight</th><th>Weighted Z</th></tr></thead><tbody id="tblBody"></tbody></table>
     </div>
   </div>
+  <div id="results" class="card" style="margin-top:14px;">
+    <h2>Results</h2>
+    <div id="who"></div>
+    <table><thead><tr><th>Test</th><th>Z</th><th>Weight</th><th>Weighted Z</th><th>MAE</th></tr></thead>
+      <tbody id="rows"></tbody>
+      <tfoot><tr><th colspan="4">Final Mobility Age</th><th id="final"></th></tr></tfoot>
+    </table>
+  </div>
+</div>
 
-  <script>
+<script id="sr_json" type="application/json">{"Male": {"20-29": {"mean": 15.0, "sd": 3.0, "mid": 24.5}, "30-39": {"mean": 14.0, "sd": 3.0, "mid": 34.5}, "40-49": {"mean": 13.0, "sd": 3.0, "mid": 44.5}, "50-59": {"mean": 12.0, "sd": 3.0, "mid": 54.5}, "60-69": {"mean": 11.0, "sd": 3.0, "mid": 64.5}, "70-79": {"mean": 10.0, "sd": 3.0, "mid": 74.5}, "80-89": {"mean": 9.0, "sd": 3.0, "mid": 84.5}}, "Female": {"20-29": {"mean": 17.0, "sd": 3.0, "mid": 24.5}, "30-39": {"mean": 16.0, "sd": 3.0, "mid": 34.5}, "40-49": {"mean": 15.0, "sd": 3.0, "mid": 44.5}, "50-59": {"mean": 14.0, "sd": 3.0, "mid": 54.5}, "60-69": {"mean": 13.0, "sd": 3.0, "mid": 64.5}, "70-79": {"mean": 12.0, "sd": 3.0, "mid": 74.5}, "80-89": {"mean": 11.0, "sd": 3.0, "mid": 84.5}}}</script>
+<script id="tug_json" type="application/json">{"Male": {"20-29": {"mean": 6.0, "sd": 1.0, "mid": 24.5}, "30-39": {"mean": 7.0, "sd": 1.0, "mid": 34.5}, "40-49": {"mean": 8.0, "sd": 1.0, "mid": 44.5}, "50-59": {"mean": 9.0, "sd": 1.0, "mid": 54.5}, "60-69": {"mean": 10.0, "sd": 1.0, "mid": 64.5}, "70-79": {"mean": 11.0, "sd": 1.0, "mid": 74.5}, "80-89": {"mean": 12.0, "sd": 1.0, "mid": 84.5}}, "Female": {"20-29": {"mean": 6.5, "sd": 1.0, "mid": 24.5}, "30-39": {"mean": 7.5, "sd": 1.0, "mid": 34.5}, "40-49": {"mean": 8.5, "sd": 1.0, "mid": 44.5}, "50-59": {"mean": 9.5, "sd": 1.0, "mid": 54.5}, "60-69": {"mean": 10.5, "sd": 1.0, "mid": 64.5}, "70-79": {"mean": 11.5, "sd": 1.0, "mid": 74.5}, "80-89": {"mean": 12.5, "sd": 1.0, "mid": 84.5}}}</script>
+<script id="vo2_json" type="application/json">{"Male": {"20-29": {"mean": 50.0, "sd": 5.0, "mid": 24.5}, "30-39": {"mean": 46.0, "sd": 5.0, "mid": 34.5}, "40-49": {"mean": 42.0, "sd": 5.0, "mid": 44.5}, "50-59": {"mean": 38.0, "sd": 5.0, "mid": 54.5}, "60-69": {"mean": 34.0, "sd": 5.0, "mid": 64.5}, "70-79": {"mean": 30.0, "sd": 5.0, "mid": 74.5}, "80-89": {"mean": 26.0, "sd": 5.0, "mid": 84.5}}, "Female": {"20-29": {"mean": 40.0, "sd": 4.5, "mid": 24.5}, "30-39": {"mean": 36.5, "sd": 4.5, "mid": 34.5}, "40-49": {"mean": 33.0, "sd": 4.5, "mid": 44.5}, "50-59": {"mean": 29.5, "sd": 4.5, "mid": 54.5}, "60-69": {"mean": 26.0, "sd": 4.5, "mid": 64.5}, "70-79": {"mean": 22.5, "sd": 4.5, "mid": 74.5}, "80-89": {"mean": 19.0, "sd": 4.5, "mid": 84.5}}}</script>
+<script id="slopes_json" type="application/json">{"sit_reach": 0.0, "tug": 0.0, "vo2": 0.0}</script>
 
-document.addEventListener('DOMContentLoaded', function(){
-  // Boot
-  var boot = document.getElementById('boot'); if(boot) boot.textContent = 'Boot: OK';
-  function EL(id){return document.getElementById(id);}
-  function setTxt(id, t){var el=EL(id); if(el) el.textContent=t;}
-  setTxt('core','Core: engine loaded');
+<script>
+(function(){
+  var t=0;
+  setInterval(function(){
+    t = t + 1;
+    var hb = document.getElementById('hb');
+    if(hb){ hb.textContent = 'Heartbeat: tick ' + t; }
+  }, 500);
 
-  var EMBEDDED_NORMS = [{"Test":"Sit & Reach","Sex":"Male","AgeStart":20,"AgeEnd":29,"Mean":15.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Male","AgeStart":30,"AgeEnd":39,"Mean":14.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Male","AgeStart":40,"AgeEnd":49,"Mean":13.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Male","AgeStart":50,"AgeEnd":59,"Mean":12.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Male","AgeStart":60,"AgeEnd":69,"Mean":11.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Male","AgeStart":70,"AgeEnd":79,"Mean":10.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Male","AgeStart":80,"AgeEnd":89,"Mean":9.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Female","AgeStart":20,"AgeEnd":29,"Mean":17.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Female","AgeStart":30,"AgeEnd":39,"Mean":16.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Female","AgeStart":40,"AgeEnd":49,"Mean":15.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Female","AgeStart":50,"AgeEnd":59,"Mean":14.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Female","AgeStart":60,"AgeEnd":69,"Mean":13.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Female","AgeStart":70,"AgeEnd":79,"Mean":12.0,"SD":3.0},{"Test":"Sit & Reach","Sex":"Female","AgeStart":80,"AgeEnd":89,"Mean":11.0,"SD":3.0},{"Test":"TUG","Sex":"Male","AgeStart":20,"AgeEnd":29,"Mean":6.0,"SD":1.0},{"Test":"TUG","Sex":"Male","AgeStart":30,"AgeEnd":39,"Mean":7.0,"SD":1.0},{"Test":"TUG","Sex":"Male","AgeStart":40,"AgeEnd":49,"Mean":8.0,"SD":1.0},{"Test":"TUG","Sex":"Male","AgeStart":50,"AgeEnd":59,"Mean":9.0,"SD":1.0},{"Test":"TUG","Sex":"Male","AgeStart":60,"AgeEnd":69,"Mean":10.0,"SD":1.0},{"Test":"TUG","Sex":"Male","AgeStart":70,"AgeEnd":79,"Mean":11.0,"SD":1.0},{"Test":"TUG","Sex":"Male","AgeStart":80,"AgeEnd":89,"Mean":12.0,"SD":1.0},{"Test":"TUG","Sex":"Female","AgeStart":20,"AgeEnd":29,"Mean":6.5,"SD":1.0},{"Test":"TUG","Sex":"Female","AgeStart":30,"AgeEnd":39,"Mean":7.5,"SD":1.0},{"Test":"TUG","Sex":"Female","AgeStart":40,"AgeEnd":49,"Mean":8.5,"SD":1.0},{"Test":"TUG","Sex":"Female","AgeStart":50,"AgeEnd":59,"Mean":9.5,"SD":1.0},{"Test":"TUG","Sex":"Female","AgeStart":60,"AgeEnd":69,"Mean":10.5,"SD":1.0},{"Test":"TUG","Sex":"Female","AgeStart":70,"AgeEnd":79,"Mean":11.5,"SD":1.0},{"Test":"TUG","Sex":"Female","AgeStart":80,"AgeEnd":89,"Mean":12.5,"SD":1.0},{"Test":"VO2","Sex":"Male","AgeStart":20,"AgeEnd":29,"Mean":50.0,"SD":5.0},{"Test":"VO2","Sex":"Male","AgeStart":30,"AgeEnd":39,"Mean":46.0,"SD":5.0},{"Test":"VO2","Sex":"Male","AgeStart":40,"AgeEnd":49,"Mean":42.0,"SD":5.0},{"Test":"VO2","Sex":"Male","AgeStart":50,"AgeEnd":59,"Mean":38.0,"SD":5.0},{"Test":"VO2","Sex":"Male","AgeStart":60,"AgeEnd":69,"Mean":34.0,"SD":5.0},{"Test":"VO2","Sex":"Male","AgeStart":70,"AgeEnd":79,"Mean":30.0,"SD":5.0},{"Test":"VO2","Sex":"Male","AgeStart":80,"AgeEnd":89,"Mean":26.0,"SD":5.0},{"Test":"VO2","Sex":"Female","AgeStart":20,"AgeEnd":29,"Mean":40.0,"SD":4.5},{"Test":"VO2","Sex":"Female","AgeStart":30,"AgeEnd":39,"Mean":36.5,"SD":4.5},{"Test":"VO2","Sex":"Female","AgeStart":40,"AgeEnd":49,"Mean":33.0,"SD":4.5},{"Test":"VO2","Sex":"Female","AgeStart":50,"AgeEnd":59,"Mean":29.5,"SD":4.5},{"Test":"VO2","Sex":"Female","AgeStart":60,"AgeEnd":69,"Mean":26.0,"SD":4.5},{"Test":"VO2","Sex":"Female","AgeStart":70,"AgeEnd":79,"Mean":22.5,"SD":4.5},{"Test":"VO2","Sex":"Female","AgeStart":80,"AgeEnd":89,"Mean":19.0,"SD":4.5}];
+  function parseJ(id){ var el=document.getElementById(id); try{ return JSON.parse(el.textContent); }catch(e){ return {}; } }
+  var SIT = parseJ('sr_json'), TUG = parseJ('tug_json'), VO2 = parseJ('vo2_json'), SLP = parseJ('slopes_json');
 
-  function clamp(x,lo,hi){return Math.min(Math.max(x,lo),hi);}
-  function invErf(x){var a=0.147,s=(x<0)?-1:1,ln=Math.log(1-x*x),t=(2/(Math.PI*a))+ln/2,inside=t*t - ln/a;return s*Math.sqrt(Math.sqrt(inside)-t);}
-  function normSInv(p){if(p<=0)return -Infinity; if(p>=1)return Infinity; return Math.SQRT2*invErf(2*p-1);}
-  function mean(arr){for(var s=0,i=0;i<arr.length;i++)s+=arr[i]; return s/arr.length;}
-  function normTestName(t){ if(!t)return''; t=String(t).trim().toLowerCase(); t=t.split(' and ').join(' & ').split('vo₂').join('vo2'); if(t.indexOf('tug')>-1||t.indexOf('timed up')>-1)return 'tug'; if(t.indexOf('sit')>-1&&t.indexOf('reach')>-1)return 'sit & reach'; if(t.indexOf('vo2')===0||t==='vo2'||t.indexOf('vo2max')>-1||t.indexOf('vo2 max')>-1)return 'vo2'; return t; }
-  function normSex(s){ if(!s)return''; s=String(s).trim().toLowerCase(); if(s.indexOf('m')===0)return'male'; if(s.indexOf('f')===0)return'female'; return s; }
-
-  var NormsDB={ data:{} };
-  NormsDB.addRow = function(test,sex,start,end,meanVal,sdVal){
-    test=normTestName(test); sex=normSex(sex); if(!test||!sex)return;
-    var mid=(Number(start)+Number(end))/2;
-    var row={mid:Number(mid),start:Number(start),end:Number(end),mean:Number(meanVal),sd:Number(sdVal)};
-    if(!this.data[test]) this.data[test]={};
-    if(!this.data[test][sex]) this.data[test][sex]=[];
-    this.data[test][sex].push(row);
-    this.data[test][sex].sort(function(a,b){return a.mid-b.mid;});
-  };
-  NormsDB.interpolate=function(test,sex,age){
-    test=normTestName(test); sex=normSex(sex);
-    var rows=(this.data[test]&&this.data[test][sex])?this.data[test][sex]:null; if(!rows||rows.length===0) return null;
-    if(rows.length===1) return {mean:rows[0].mean,sd:rows[0].sd};
-    if(age<=rows[0].mid) return {mean:rows[0].mean,sd:rows[0].sd};
-    if(age>=rows[rows.length-1].mid) return {mean:rows[rows.length-1].mean,sd:rows[rows.length-1].sd};
-    for(var i=0;i<rows.length-1;i++){ var a=rows[i],b=rows[i+1];
-      if(age>=a.mid && age<=b.mid){ var t=(age-a.mid)/(b.mid-a.mid); return {mean:a.mean+t*(b.mean-a.mean), sd:a.sd+t*(b.sd-a.sd)}; }
-    } return {mean:rows[0].mean,sd:rows[0].sd};
-  };
-
-  try{
-    for(var i=0;i<EMBEDDED_NORMS.length;i++){ var r=EMBEDDED_NORMS[i];
-      NormsDB.addRow(r.Test,r.Sex,Number(r.AgeStart),Number(r.AgeEnd),Number(r.Mean),Number(r.SD));
-    }
-    setTxt('normsStatus','Norms: loaded ('+Object.keys(NormsDB.data).join(', ')+')');
-  }catch(e){
-    setTxt('normsStatus','Norms: ERROR');
-    var err=EL('err'); if(err){ err.style.display='block'; err.textContent='Norms load error: '+e.message; }
+  var ok = document.getElementById('ok');
+  if(ok){
+    function c(g){ return [Object.keys(g.Male||{}).length, Object.keys(g.Female||{}).length]; }
+    var cs = c(SIT), ct = c(TUG), cv = c(VO2);
+    ok.textContent = 'Script loaded. Norm bins — SR ' + cs[0] + ' / ' + cs[1] + ', TUG ' + ct[0] + ' / ' + ct[1] + ', VO2 ' + cv[0] + ' / ' + cv[1];
   }
 
-  function toNum(v){ var x=Number(v); return isFinite(x)?x:null; }
-  function getVal(id, fallback){ var el=EL(id); if(!el) return fallback; var n=Number(el.value); return isFinite(n)?n:fallback; }
-  function avgPct(a,b){ var arr=[]; if(a!==null&&isFinite(a))arr.push(a); if(b!==null&&isFinite(b))arr.push(b); return arr.length?mean(arr):null; }
-  function fmt(x,d){ if(d===undefined)d=2; if(x===null||typeof x==='undefined'||!isFinite(x))return '&mdash;'; return Number(x).toFixed(d); }
+  function parseRange(label){
+    if(!label) return null;
+    var s = label.toString().trim();
+    s = s.replace(/[\u2013\u2014]/g,'-');
+    var m = s.match(/(\d+)\s*-\s*(\d+)/);
+    if(m) return [parseInt(m[1],10), parseInt(m[2],10)];
+    m = s.match(/(\d+)\D+(\d+)/);
+    if(m) return [parseInt(m[1],10), parseInt(m[2],10)];
+    m = s.match(/(\d+)\s*\+$/);
+    if(m) return [parseInt(m[1],10), parseInt(m[1],10)+9];
+    m = s.match(/(\d+)/);
+    if(m) return [parseInt(m[1],10), parseInt(m[1],10)];
+    return null;
+  }
 
-  window.doReset=function(){
-    var ids=['inpName','inpSex','inpAge','inpTUG','inpSR','inpVO2','inpMTPpct','inpGripR','inpGripL','inpSwayR','inpSwayL','wVO2','wTUG','wSR','wMTP','wGrip','wSway','kYearsPerZ'];
-    for(var i=0;i<ids.length;i++){ var el=EL(ids[i]); if(!el)continue; if(el.tagName==='SELECT') el.selectedIndex=0; else el.value=''; }
-    var ga=EL('gripAvgLbl'); if(ga) ga.textContent='Average: —';
-    var sa=EL('swayAvgLbl'); if(sa) sa.textContent='Average: —';
-    var tb=EL('tblBody'); if(tb) tb.innerHTML='';
-    setTxt('outWeightedZ','—'); setTxt('outMobilityAge','—');
-    var e=EL('err'); if(e){ e.style.display='none'; e.textContent=''; }
-  };
-
-  function compute(){
-    try{
-      var sexEl=EL('inpSex'); var ageEl=EL('inpAge');
-      if(!sexEl||!ageEl){ var e0=EL('err'); if(e0){ e0.style.display='block'; e0.textContent='UI missing. Please re-open the file.'; } return; }
-      var sex=sexEl.value; var age=Number(ageEl.value);
-      if(!sex||!isFinite(age)){ var e=EL('err'); e.style.display='block'; e.textContent='Please select Sex and enter Age.'; return; }
-      var weights={ VO2:getVal('wVO2',1.5), TUG:getVal('wTUG',1.25), SR:getVal('wSR',1.0), MTP:getVal('wMTP',1.0), Grip:getVal('wGrip',1.0), Sway:getVal('wSway',1.0) };
-      var TUG=toNum(EL('inpTUG')?EL('inpTUG').value:null), SR=toNum(EL('inpSR')?EL('inpSR').value:null), VO2=toNum(EL('inpVO2')?EL('inpVO2').value:null);
-      var MTPpct=toNum(EL('inpMTPpct')?EL('inpMTPpct').value:null), GripR=toNum(EL('inpGripR')?EL('inpGripR').value:null), GripL=toNum(EL('inpGripL')?EL('inpGripL').value:null);
-      var SwayR=toNum(EL('inpSwayR')?EL('inpSwayR').value:null), SwayL=toNum(EL('inpSwayL')?EL('inpSwayL').value:null);
-      var rows=[]; function getNorm(t){ var N=NormsDB.interpolate(t,sex,age); return N||{mean:null,sd:null}; };
-
-      if(TUG!==null){ var N=getNorm('tug'); var z=null,mn=null,sd=null; if(N&&isFinite(N.mean)&&isFinite(N.sd)&&N.sd>0){ mn=N.mean; sd=N.sd; z= -((TUG-N.mean)/N.sd); } rows.push({label:'TUG (s)',input:TUG,mean:mn,sd:sd,z:z,w:weights.TUG}); } else rows.push({label:'TUG (s)',input:null,mean:null,sd:null,z:null,w:weights.TUG});
-      if(SR!==null){ var N2=getNorm('sit & reach'); var z2=null,mn2=null,sd2=null; if(N2&&isFinite(N2.mean)&&isFinite(N2.sd)&&N2.sd>0){ mn2=N2.mean; sd2=N2.sd; z2=(SR-N2.mean)/N2.sd; } rows.push({label:'Sit & Reach (in)',input:SR,mean:mn2,sd:sd2,z:z2,w:weights.SR}); } else rows.push({label:'Sit & Reach (in)',input:null,mean:null,sd:null,z:null,w:weights.SR});
-      if(VO2!==null){ var N3=getNorm('vo2'); var z3=null,mn3=null,sd3=null; if(N3&&isFinite(N3.mean)&&N3.sd>0){ mn3=N3.mean; sd3=N3.sd; z3=(VO2-N3.mean)/N3.sd; } rows.push({label:'VO<sub>2</sub>max (ml/kg/min)',input:VO2,mean:mn3,sd:sd3,z:z3,w:weights.VO2}); } else rows.push({label:'VO<sub>2</sub>max (ml/kg/min)',input:null,mean:null,sd:null,z:null,w:weights.VO2});
-
-      if(MTPpct!==null){ var p=clamp(MTPpct/100,1e-6,1-1e-6); rows.push({label:'MTP (percentile)',input:MTPpct,mean:null,sd:null,z:normSInv(p),w:weights.MTP}); } else rows.push({label:'MTP (percentile)',input:null,mean:null,sd:null,z:null,w:weights.MTP});
-      var gripAvg=(GripR!==null||GripL!==null)?avgPct(GripR,GripL):null; if(EL('gripAvgLbl')) EL('gripAvgLbl').textContent='Average: '+(gripAvg===null?'—':gripAvg.toFixed(2)+'%');
-      if(gripAvg!==null){ var p2=clamp(gripAvg/100,1e-6,1-1e-6); rows.push({label:'Grip (avg percentile)',input:gripAvg,mean:null,sd:null,z:normSInv(p2),w:weights.Grip}); } else rows.push({label:'Grip (avg percentile)',input:null,mean:null,sd:null,z:null,w:weights.Grip});
-      var swayAvg=(SwayR!==null||SwayL!==null)?avgPct(SwayR,SwayL):null; if(EL('swayAvgLbl')) EL('swayAvgLbl').textContent='Average: '+(swayAvg===null?'—':swayAvg.toFixed(2)+'%');
-      if(swayAvg!==null){ var p3=clamp(swayAvg/100,1e-6,1-1e-6); rows.push({label:'Sway (avg percentile)',input:swayAvg,mean:null,sd:null,z:normSInv(p3),w:weights.Sway}); } else rows.push({label:'Sway (avg percentile)',input:null,mean:null,sd:null,z:null,w:weights.Sway});
-
-      var tbody=EL('tblBody'); if(tbody){ tbody.innerHTML=''; var sumWZ=0,sumW=0;
-        for(var j=0;j<rows.length;j++){ var r=rows[j]; var tr=document.createElement('tr');
-          var wz=(r.z!==null&&isFinite(r.z))?r.z*r.w:null;
-          tr.innerHTML='<td>'+r.label+'</td><td>'+fmt(r.input)+'</td><td>'+fmt(r.mean)+'</td><td>'+fmt(r.sd)+'</td><td>'+fmt(r.z,3)+'</td><td>'+fmt(r.w,2)+'</td><td>'+fmt(wz,3)+'</td>';
-          tbody.appendChild(tr);
-          if(r.z!==null&&isFinite(r.z)&&r.w!==null&&isFinite(r.w)){ sumWZ+=r.z*r.w; sumW+=r.w; }
-        }
-        var composite=sumW>0?(sumWZ/sumW):null;
-        setTxt('outWeightedZ', composite===null?'—':composite.toFixed(3));
-        var age2=Number(ageEl.value); var k=getVal('kYearsPerZ',15);
-        var mobilityAge=(composite!==null&&isFinite(composite)&&isFinite(age2))?(age2 - composite*k):null;
-        setTxt('outMobilityAge', mobilityAge===null?'—':mobilityAge.toFixed(1)+' yrs');
-        var e=EL('err'); if(e){ e.style.display='none'; e.textContent=''; }
+  function pickAgeGroup(age, node){
+    var keys = Object.keys(node||{});
+    var best = null, bestDist = Infinity;
+    for(var i=0;i<keys.length;i++){
+      var k = keys[i];
+      var r = parseRange(k);
+      if(!r) continue;
+      var mid = (r[0] + r[1]) / 2;
+      if(age >= r[0] && age <= r[1]){
+        return {label:k, mid:mid, r:r};
       }
-    }catch(ex){ var e2=EL('err'); if(e2){ e2.style.display='block'; e2.textContent='Compute fatal: '+ex.message; } }
+      var d = Math.abs(age - mid);
+      if(d < bestDist){
+        bestDist = d; best = {label:k, mid:mid, r:r};
+      }
+    }
+    return best;
   }
 
-  var btn=EL('btnCalculate'); if(btn) btn.addEventListener('click', compute);
-  var ids=['inpSex','inpAge','inpTUG','inpSR','inpVO2','inpMTPpct','inpGripR','inpGripL','inpSwayR','inpSwayL','wVO2','wTUG','wSR','wMTP','wGrip','wSway','kYearsPerZ'];
-  ids.forEach(function(id){ var el=EL(id); if(el){ el.addEventListener('input', compute); el.addEventListener('change', compute); } });
-});
+  function normSInv(p){
+    if(!(p>0 && p<1)){ return NaN; }
+    var a=[-39.69683028665376,220.9460984245205,-275.9285104469687,138.3577518672690,-30.66479806614716,2.506628277459239];
+    var b=[-54.47609879822406,161.5858368580409,-155.6989798598866,66.80131188771972,-13.28068155288572];
+    var c=[-0.007784894002430293,-0.3223964580411365,-2.400758277161838,-2.549732539343734,4.374664141464968,2.938163982698783];
+    var d=[0.007784695709041462,0.3224671290700398,2.445134137142996,3.754408661907416];
+    var plow=0.02425, phigh=1-plow, q, r;
+    if(p<plow){
+      q = Math.sqrt(-2*Math.log(p));
+      var num = (((((c[0]*q + c[1])*q + c[2])*q + c[3])*q + c[4])*q + c[5]);
+      var den = ((((d[0]*q + d[1])*q + d[2])*q + d[3])*q + 1);
+      return num/den;
+    } else if (p>phigh){
+      q = Math.sqrt(-2*Math.log(1-p));
+      var num2 = (((((c[0]*q + c[1])*q + c[2])*q + c[3])*q + c[4])*q + c[5]);
+      var den2 = ((((d[0]*q + d[1])*q + d[2])*q + d[3])*q + 1);
+      return -num2/den2;
+    } else {
+      q = p - 0.5;
+      r = q*q;
+      var num3 = (((((a[0]*r + a[1])*r + a[2])*r + a[3])*r + a[4])*r + a[5]) * q;
+      var den3 = (((((b[0]*r + b[1])*r + b[2])*r + b[3])*r + b[4])*r + 1);
+      return num3/den3;
+    }
+  }
 
-  </script>
+  function zFromRaw(raw, mean, sd, invert){
+    if(!isFinite(sd) || sd===0){ return 0; }
+    var z=(raw-mean)/sd;
+    if(invert){ z = -z; }
+    return z;
+  }
+  function zFromPct(p){ return normSInv(p/100); }
+  function clamp(x,lo,hi){ if(x<lo) return lo; if(x>hi) return hi; return x; }
+
+  function requiredFilled(){
+    var age = document.getElementById('age').value.trim();
+    var sex = document.getElementById('sex').value.trim();
+    var ids = ['sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'];
+    if(!(age && sex)) return false;
+    for(var i=0;i<ids.length;i++){
+      var v = document.getElementById(ids[i]).value.trim();
+      if(!v) return false;
+    }
+    return true;
+  }
+
+  function clearAll(){
+    var ids = ['tester','location','memberName','phone','age','sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'];
+    for(var i=0;i<ids.length;i++){ var el=document.getElementById(ids[i]); if(el){ el.value=''; } }
+    var sex = document.getElementById('sex');
+    if(sex){ sex.value=''; }
+    var tbody = document.getElementById('rows'); if(tbody){ tbody.innerHTML=''; }
+    var fin = document.getElementById('final'); if(fin){ fin.textContent=''; }
+  }
+  window.__clearAll = clearAll;
+
+  function render(){
+    var dbg = document.getElementById('dbg'), errBox = document.getElementById('err');
+    try{
+      var fin = document.getElementById('final');
+      var tbody = document.getElementById('rows');
+      if(!requiredFilled()){
+        if(tbody){ tbody.innerHTML=''; }
+        if(fin){ fin.textContent=''; }
+        if(dbg){ dbg.textContent='Fill all fields to calculate.'; }
+        return;
+      }
+
+      var sex = document.getElementById('sex').value;
+      var age = Number(document.getElementById('age').value)||0;
+      function num(id){ var v = Number(document.getElementById(id).value); return isFinite(v)?v:0; }
+      var sit=num('sit'), tugRaw=num('tug'), mtpPct=num('mtp'), vo2Raw=num('vo2');
+      var sway_r_pct=clamp(num('sway_r'),0.0001,99.9999), sway_l_pct=clamp(num('sway_l'),0.0001,99.9999);
+      var grip_r_pct=clamp(num('grip_r'),0.0001,99.9999), grip_l_pct=clamp(num('grip_l'),0.0001,99.9999);
+
+      var srPick=pickAgeGroup(age,(SIT[sex]||{}));
+      var tgPick=pickAgeGroup(age,(TUG[sex]||{}));
+      var v2Pick=pickAgeGroup(age,(VO2[sex]||{}));
+
+      function nodeFor(pick, map){ if(!pick) return {mean:0,sd:1,mid:0}; var d = map[pick.label]||{}; return {mean:d.mean||0, sd:d.sd||1, mid:(d.mid!=null?d.mid:pick.mid)}; }
+      var sr = nodeFor(srPick, SIT[sex]||{}), tg = nodeFor(tgPick, TUG[sex]||{}), v2 = nodeFor(v2Pick, VO2[sex]||{});
+
+      var srSlope = (SLP && SLP.sit_reach)?SLP.sit_reach:0;
+      var tgSlope = (SLP && SLP.tug)?SLP.tug:0;
+      var v2Slope = (SLP && SLP.vo2)?SLP.vo2:0;
+
+      var srMeanAdj = sr.mean + srSlope*(age - sr.mid);
+      var tgMeanAdj = tg.mean + tgSlope*(age - tg.mid);
+      var v2MeanAdj = v2.mean + v2Slope*(age - v2.mid);
+
+      var z_sit=zFromRaw(sit,srMeanAdj,sr.sd,false);
+      var z_tug_raw=zFromRaw(tugRaw,tgMeanAdj,tg.sd,true);
+      var z_vo2=zFromRaw(vo2Raw,v2MeanAdj,v2.sd,false);
+      var z_mtp=zFromPct(mtpPct);
+      var z_sway=zFromPct((sway_r_pct+sway_l_pct)/2.0);
+      var z_grip=zFromPct((grip_r_pct+grip_l_pct)/2.0);
+
+      var w={sit:1.0,tug:1.25,mtp:1.0,sway:1.0,grip:1.0,vo2:1.5};
+      var wz={sit:z_sit*w.sit, tug:z_tug_raw*w.tug, mtp:z_mtp*w.mtp, sway:z_sway*w.sway, grip:z_grip*w.grip, vo2:z_vo2*w.vo2};
+
+      // Apply MAE caps (>=21) for Sit & Reach, TUG, and VO2
+      var mae={ 
+        sit:Math.max(21, age-15*wz.sit), 
+        tug:Math.max(21, age-15*wz.tug), 
+        mtp:age-15*wz.mtp, 
+        sway:age-15*wz.sway, 
+        grip:age-15*wz.grip, 
+        vo2:Math.max(21, age-15*wz.vo2) 
+      };
+
+      var final=(mae.sit+mae.tug+mae.mtp+mae.sway+mae.grip+mae.vo2)/6.0;
+
+      var who = document.getElementById('who');
+      if(who){ who.textContent='Member: '+(document.getElementById('memberName').value||'(No name)')+' • Age: '+age+' • Sex: '+sex; }
+      if(tbody){
+        tbody.innerHTML = ''
+          + '<tr><td>Sit & Reach (in)</td><td>'+z_sit.toFixed(2)+'</td><td>'+w.sit.toFixed(2)+'</td><td>'+wz.sit.toFixed(2)+'</td><td>'+mae.sit.toFixed(2)+'</td></tr>'
+          + '<tr><td>TUG (cap ≥21 after weighting)</td><td>'+z_tug_raw.toFixed(2)+'</td><td>'+w.tug.toFixed(2)+'</td><td>'+wz.tug.toFixed(2)+'</td><td>'+mae.tug.toFixed(2)+'</td></tr>'
+          + '<tr><td>Mid-Thigh Pull</td><td>'+z_mtp.toFixed(2)+'</td><td>'+w.mtp.toFixed(2)+'</td><td>'+wz.mtp.toFixed(2)+'</td><td>'+mae.mtp.toFixed(2)+'</td></tr>'
+          + '<tr><td>Postural Sway (avg R/L pct)</td><td>'+z_sway.toFixed(2)+'</td><td>'+w.sway.toFixed(2)+'</td><td>'+wz.sway.toFixed(2)+'</td><td>'+mae.sway.toFixed(2)+'</td></tr>'
+          + '<tr><td>Grip Strength (avg R/L pct)</td><td>'+z_grip.toFixed(2)+'</td><td>'+w.grip.toFixed(2)+'</td><td>'+wz.grip.toFixed(2)+'</td><td>'+mae.grip.toFixed(2)+'</td></tr>'
+          + '<tr><td>VO₂ Max</td><td>'+z_vo2.toFixed(2)+'</td><td>'+w.vo2.toFixed(2)+'</td><td>'+wz.vo2.toFixed(2)+'</td><td>'+mae.vo2.toFixed(2)+'</td></tr>';
+      }
+      if(fin){ fin.textContent = final.toFixed(2); }
+
+      var dbg = document.getElementById('dbg');
+      if(dbg){
+        var txt='Picked bins:\n';
+        txt += '  SR: ' + (srPick?srPick.label:'(none)') + ' mid=' + (sr.mid) + ' mean=' + sr.mean + ' sd=' + sr.sd + '\n';
+        txt += '  TUG: ' + (tgPick?tgPick.label:'(none)') + ' mid=' + (tg.mid) + ' mean=' + tg.mean + ' sd=' + tg.sd + '\n';
+        txt += '  VO2: ' + (v2Pick?v2Pick.label:'(none)') + ' mid=' + (v2.mid) + ' mean=' + v2.mean + ' sd=' + v2.sd + '\n';
+        dbg.textContent = txt;
+      }
+      if(errBox){ errBox.style.display='none'; }
+    }catch(e){
+      if(errBox){
+        errBox.style.display='block';
+        errBox.textContent='Calc Error: '+ (e && e.message ? e.message : e);
+      }
+    }
+  }
+
+  // Hook up Clear button
+  document.addEventListener('click', function(ev){
+    if(ev.target && ev.target.id === 'clearBtn'){
+      ev.preventDefault();
+      clearAll();
+    }
+  });
+
+  // Start empty (except date)
+  function startEmpty(){
+    clearAll();
+    var td = document.getElementById('testDate');
+    if(td){ try{ td.value = new Date().toISOString().slice(0,10); }catch(e){} }
+  }
+  startEmpty();
+
+  // Render timer
+  setInterval(render, 500);
+})();
+</script>
 </body>
 </html>
