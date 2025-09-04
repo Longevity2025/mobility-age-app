@@ -24,6 +24,90 @@
   .btn{background:#111;color:#fff;border-radius:10px;padding:8px 12px;border:none;cursor:pointer}
   .btn:active{transform:translateY(1px)}
 </style>
+
+<!-- Injected creative theme [SENIOR THEME] -->
+<style>
+
+:root{
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --ink: #0b141a;
+  --muted: #2b3a44;
+  --accent: #0052cc;
+  --accent-ink: #ffffff;
+  --border: #cbd5e1;
+  --focus: #99c2ff;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family: Segoe UI, system-ui, -apple-system, Roboto, Helvetica, Arial;
+  color: var(--ink);
+  background: var(--bg);
+  line-height: 1.6;
+  font-size: 18px;
+}
+header{
+  position: sticky; top:0; z-index: 50;
+  background: #f8fafc;
+  border-bottom: 2px solid var(--border);
+  padding: 1rem 1rem;
+}
+header h1, header h2{ margin:0; font-weight:900; letter-spacing:.2px }
+main{ max-width: 980px; margin: 1.25rem auto 2.25rem; padding: 0 1rem }
+section, fieldset{
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 20px;
+  padding: 1.25rem;
+  margin: 1rem 0;
+}
+label{ display:block; font-weight: 900; margin: .8rem 0 .4rem; font-size: 1.05em }
+input[type=text], input[type=number], select{
+  width: 100%;
+  background: #fff;
+  color: var(--ink);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: .9rem 1rem;
+  outline: none;
+}
+input:focus, select:focus{
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px var(--focus);
+}
+input::placeholder{ color: #64748b; opacity:.9 }
+button{
+  appearance:none;
+  border: 2px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 900;
+  padding: .9rem 1.2rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 1.05em;
+}
+button.secondary{ background: #fff; color: var(--accent) }
+button:disabled{ opacity:.6; cursor:not-allowed }
+table{ width:100%; border-collapse: collapse; font-size: 1.02em }
+th,td{ padding: .8rem .6rem; border-bottom: 2px solid var(--border) }
+th{ text-transform: none; font-weight: 900 }
+.badge{
+  display:inline-block; padding:.35rem .7rem; border-radius:999px; background:#e6f0ff; border:2px solid var(--accent); color:var(--accent)
+}
+.grid-2{ display:grid; grid-template-columns: 1fr; gap:1.2rem }
+@media (min-width: 820px){
+  .grid-2{ grid-template-columns: 1fr 1fr }
+}
+.output, .readout, .big-number{ font-size: 1.35em; font-weight: 900; }
+@media print{
+  header, button{ display:none !important }
+  section, fieldset{ border: 1px solid #000 }
+}
+
+</style>
 </head>
 <body>
 <div class="wrap">
