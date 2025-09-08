@@ -422,32 +422,25 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
-HSMI Data Export Add‑on for Mobility Age App (v2: CSV + JSON only)
-Paste near the end of your index.html, just before </body>.
-- Uses window.app state only (no DOM selectors needed)
-- Google Sheets code removed
-- Auto‑download‑after‑print removed
--->
 <!--
-HSMI Data Export Add‑on (v3.1)
-- Removes duplicate old buttons (optional CSS hide)
-- Shows clear labels on buttons (no more unlabeled arrows)
+HSMI Data Export Add‑on (v3.2)
+- Plain text buttons (no spans/icons) so labels always show
 - DOM‑first collection with window.app fallback
-- Extra‑robust text/number extraction + a one‑time console preview
-Paste just before </body> in index.html. Remove any older export blocks to avoid duplicates.
+- Adds a “Test capture” button that shows the captured record so we can verify fields
+Paste just before </body>. Remove any prior export blocks to avoid duplicates.
 -->
 
-<!-- EXPORT: Controls -->
-<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(240px,1fr));">
-  <button id="btnExportCSV" class="btn" aria-label="Download CSV"><span class="icon">⬇️</span> <span class="label">Download CSV</span></button>
-  <button id="btnExportJSON" class="btn" aria-label="Download JSON"><span class="icon">⬇️</span> <span class="label">Download JSON</span></button>
+<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
+  <button id="btnExportCSV" class="btn">Download CSV</button>
+  <button id="btnExportJSON" class="btn">Download JSON</button>
+  <button id="btnProbe" class="btn" title="Show captured values for debugging">Test capture</button>
 </section>
 
 <script>
 (function(){
   // ===== CONFIG =====
   const CONFIG = {
-    appVersionSelector: null, // or '#appVersion' if you show it
+    appVersionSelector: null,
     filenamePattern: 'mobility-age_{last}_{date}_{time}',
     selectors: {
       // Inputs
@@ -491,7 +484,7 @@ Paste just before </body> in index.html. Remove any older export blocks to avoid
   const toCSV = (rows)=>{ const headers=Array.from(rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())); const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"': s; }; const lines=[headers.join(',')]; for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); };
   const getVersion = ()=>{ if(!CONFIG.appVersionSelector) return ''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; };
 
-  // ===== COLLECT (DOM‑first) =====
+  // ===== COLLECT =====
   function collectDOM(){
     const S = CONFIG.selectors;
     const rec = {
@@ -517,58 +510,45 @@ Paste just before </body> in index.html. Remove any older export blocks to avoid
       // Weighted Zs
       wz_tug: numFrom($(S.wz_tug)), wz_vo2: numFrom($(S.wz_vo2)), wz_sitreach: numFrom($(S.wz_sitreach)), wz_mtp: numFrom($(S.wz_mtp)), wz_grip: numFrom($(S.wz_grip)), wz_sway: numFrom($(S.wz_sway))
     };
-    // scrub NaN
     for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
     return rec;
   }
-
-  // Optional window.app fallback if present
-  function collectFromWindow(){
+  function collectWin(){
     const app = (window.app && (window.app.state || window.app)) || null;
     if(!app) return null;
-    const s = app; const inputs = s.inputs || s.input || {}; const out = s.outputs || s.output || {}; const z = out.z || {}; const wz = out.wz || {};
+    const s=app, inputs=s.inputs||{}, out=s.outputs||{}, z=out.z||{}, wz=out.wz||{};
     const n = (x)=> { if(x===null||x===undefined||x==='') return ''; const v=Number(x); return Number.isFinite(v)? v: '' };
-    const rec = {
-      name_full: inputs.name ?? '', sex: inputs.sex ?? '', age: n(inputs.age), app_version: getVersion(), timestamp_iso: new Date().toISOString(),
-      tug_s: n(inputs.tug_s ?? inputs.tug), vo2_mlkgmin: n(inputs.vo2_mlkgmin ?? inputs.vo2), sitreach_in: n(inputs.sitreach_in ?? inputs.sitreach), mtp_pct: n(inputs.mtp_pct),
-      grip_r_pct: n(inputs.grip_r_pct), grip_l_pct: n(inputs.grip_l_pct), sway_r_pct: n(inputs.sway_r_pct), sway_l_pct: n(inputs.sway_l_pct),
-      mobility_age: n(out.mobility_age), movement_index: n(out.movement_index),
-      z_tug: n(z.tug), z_vo2: n(z.vo2), z_sitreach: n(z.sitreach), z_mtp: n(z.mtp), z_grip: n(z.grip), z_sway: n(z.sway),
-      wz_tug: n(wz.tug), wz_vo2: n(wz.vo2), wz_sitreach: n(wz.sitreach), wz_mtp: n(wz.mtp), wz_grip: n(wz.grip), wz_sway: n(wz.sway)
-    };
+    const rec={ name_full: inputs.name||'', sex: inputs.sex||'', age:n(inputs.age), app_version:getVersion(), timestamp_iso:new Date().toISOString(),
+      tug_s:n(inputs.tug_s||inputs.tug), vo2_mlkgmin:n(inputs.vo2_mlkgmin||inputs.vo2), sitreach_in:n(inputs.sitreach_in||inputs.sitreach), mtp_pct:n(inputs.mtp_pct),
+      grip_r_pct:n(inputs.grip_r_pct), grip_l_pct:n(inputs.grip_l_pct), sway_r_pct:n(inputs.sway_r_pct), sway_l_pct:n(inputs.sway_l_pct),
+      mobility_age:n(out.mobility_age), movement_index:n(out.movement_index),
+      z_tug:n(z.tug), z_vo2:n(z.vo2), z_sitreach:n(z.sitreach), z_mtp:n(z.mtp), z_grip:n(z.grip), z_sway:n(z.sway),
+      wz_tug:n(wz.tug), wz_vo2:n(wz.vo2), wz_sitreach:n(wz.sitreach), wz_mtp:n(wz.mtp), wz_grip:n(wz.grip), wz_sway:n(wz.sway)};
     for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
     return rec;
   }
-
-  function collect(){
-    return collectDOM() || collectFromWindow() || { timestamp_iso: new Date().toISOString() };
-  }
+  const collect = ()=> collectDOM() || collectWin() || { timestamp_iso:new Date().toISOString() };
 
   // ===== ACTIONS =====
-  function onExportCSV(){ const rec=collect(); console.debug('HSMI export preview (CSV):', rec); const fname=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',fname); }
-  function onExportJSON(){ const rec=collect(); console.debug('HSMI export preview (JSON):', rec); const fname=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',fname); }
+  function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec, null, 2)); }
+  function onExportCSV(){ const rec=collect(); const fname=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',fname); }
+  function onExportJSON(){ const rec=collect(); const fname=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',fname); }
 
   // ===== WIRE UP =====
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn, {once:true}); else fn(); }
   ready(()=>{
     document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
     document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
-    // One-time console preview so we can verify fields quickly after load
-    setTimeout(()=>{ console.debug('HSMI export initial probe:', collect()); }, 250);
+    document.getElementById('btnProbe')?.addEventListener('click', onProbe);
   });
 })();
 </script>
 
 <style>
-  /* Ensure labels are visible even if a global style hides text */
-  .export-controls .btn { padding: .8rem 1rem; border-radius: .75rem; border: 1px solid #ddd; background:#fafafa; cursor:pointer; display:inline-flex; align-items:center; gap:.5rem; }
-  .export-controls .btn .label { display:inline-block; font-size: 0.95rem; }
-  .export-controls .btn .icon { font-size: 1rem; line-height: 1; }
+  .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; font-size: 0.95rem; }
   .export-controls .btn:hover { filter: brightness(0.98); }
-
-  /* Optional: hide any older duplicate controls by ID if they still exist */
-  #export-controls-old, #btnExportCSV_old, #btnExportJSON_old { display:none !important; }
 </style>
+
 
 </body>
 </html>
