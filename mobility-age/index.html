@@ -1,4 +1,4 @@
-
+controls
 <!doctype html>
 <html>
 <head>
@@ -428,200 +428,26 @@ Paste near the end of your index.html, just before </body>.
 - Google Sheets code removed
 - Auto‑download‑after‑print removed
 -->
-
-<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
-  <button id="btnExportCSV" class="btn">⬇️ Download CSV</button>
-  <button id="btnExportJSON" class="btn">⬇️ Download JSON</button>
-</section>
-
-<script>
-(function(){
-  // ======== CONFIG ========
-  const CONFIG = {
-    // If you display a version string somewhere on the page (e.g., "v9.27"),
-    // point to it here to capture in the export; else leave null.
-    appVersionSelector: null,
-
-    // Preferred filename pattern. Tokens: {last}, {first}, {date}, {time}
-    filenamePattern: 'mobility-age_{last}_{date}_{time}',
-
-    // Your app exposes state on window.app (per our builds). We'll require it.
-    requireWindowAppState: true
-  };
-
-  // ======== UTILITIES ========
-  function $(sel){ return sel ? document.querySelector(sel) : null; }
-  function nowParts(){
-    const d = new Date();
-    const pad = (n)=> String(n).padStart(2,'0');
-    const date = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    const time = `${pad(d.getHours())}${pad(d.getMinutes())}`;
-    return {date, time};
-  }
-  function parseName(full){
-    const t = (full||'').trim();
-    if(!t) return {first:'', last:''};
-    const parts = t.split(/[\s,]+/).filter(Boolean);
-    if(parts.length === 1) return {first: parts[0], last: ''};
-    return {first: parts[0], last: parts[parts.length-1]};
-  }
-  function buildFilename(base){
-    const {date,time} = nowParts();
-    const {first,last} = parseName(base?.name_full);
-    const slug = (s)=> (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-    const fname = CONFIG.filenamePattern
-      .replace('{first}', slug(first))
-      .replace('{last}', slug(last))
-      .replace('{date}', date)
-      .replace('{time}', time);
-    return fname;
-  }
-  function downloadBlob(content, mime, filename){
-    const blob = new Blob([content], {type: mime});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
-  }
-  function toCSV(rows){
-    const headers = Array.from(rows.reduce((set,row)=>{ Object.keys(row).forEach(k=>set.add(k)); return set; }, new Set()));
-    const esc = (v)=>{
-      if(v===null || v===undefined) return '';
-      const s = String(v);
-      if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
-      return s;
-    };
-    const lines = [headers.join(',')];
-    for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); }
-    return lines.join('\n');
-  }
-
-  // ======== DATA COLLECTOR (window.app only) ========
-  function getAppVersion(){
-    if(!CONFIG.appVersionSelector) return '';
-    const t = document.querySelector(CONFIG.appVersionSelector)?.textContent?.trim() || '';
-    const m = /(v\d+(?:\.\d+)?)/i.exec(t);
-    return m ? m[1] : (t || '');
-  }
-
-  function collectFromWindow(){
-    const app = (window.app && (window.app.state || window.app)) || null;
-    if(!app) return null;
-    const s = app;
-    const inputs = s.inputs || s.input || {};
-    const out = s.outputs || s.output || {};
-    const z = out.z || {};
-    const wz = out.wz || {};
-
-    const rec = {
-      // Identity & meta
-      name_full: inputs.name ?? '',
-      sex: inputs.sex ?? '',
-      age: inputs.age ?? '',
-      app_version: getAppVersion(),
-      timestamp_iso: new Date().toISOString(),
-
-      // Raw inputs (units per our app)
-      tug_s: n(inputs.tug_s ?? inputs.tug),
-      vo2_mlkgmin: n(inputs.vo2_mlkgmin ?? inputs.vo2),
-      sitreach_in: n(inputs.sitreach_in ?? inputs.sitreach),
-      mtp_pct: n(inputs.mtp_pct),
-      grip_r_pct: n(inputs.grip_r_pct),
-      grip_l_pct: n(inputs.grip_l_pct),
-      sway_r_pct: n(inputs.sway_r_pct),
-      sway_l_pct: n(inputs.sway_l_pct),
-
-      // Outputs
-      mobility_age: n(out.mobility_age),
-      movement_index: n(out.movement_index),
-
-      // Per‑test Z
-      z_tug: n(z.tug),
-      z_vo2: n(z.vo2),
-      z_sitreach: n(z.sitreach),
-      z_mtp: n(z.mtp),
-      z_grip: n(z.grip),
-      z_sway: n(z.sway),
-
-      // Weighted Z
-      wz_tug: n(wz.tug),
-      wz_vo2: n(wz.vo2),
-      wz_sitreach: n(wz.sitreach),
-      wz_mtp: n(wz.mtp),
-      wz_grip: n(wz.grip),
-      wz_sway: n(wz.sway)
-    };
-
-    // remove NaN
-    for(const k of Object.keys(rec)) if(typeof rec[k] === 'number' && Number.isNaN(rec[k])) rec[k] = '';
-    return rec;
-  }
-
-  function n(x){
-    if(x === null || x === undefined || x === '') return '';
-    const v = Number(x);
-    return Number.isFinite(v) ? v : '';
-  }
-
-  function collect(){
-    const rec = collectFromWindow();
-    if(!rec && CONFIG.requireWindowAppState){
-      alert('Export needs window.app state. If your build changed, I can switch to DOM mode.');
-    }
-    return rec;
-  }
-
-  // ======== ACTIONS ========
-  function onExportCSV(){
-    const rec = collect();
-    if(!rec) return;
-    const fname = buildFilename(rec) + '.csv';
-    const csv = toCSV([rec]);
-    downloadBlob(csv, 'text/csv;charset=utf-8', fname);
-  }
-  function onExportJSON(){
-    const rec = collect();
-    if(!rec) return;
-    const fname = buildFilename(rec) + '.json';
-    downloadBlob(JSON.stringify(rec, null, 2), 'application/json', fname);
-  }
-
-  // ======== WIRE UP ========
-  function ready(fn){
-    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once:true });
-    else fn();
-  }
-  ready(()=>{
-    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
-    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
-  });
-})();
-</script>
-
-<style>
-  /* Minimal styling; integrate with your theme as desired */
-  .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; }
-  .export-controls .btn:hover { filter: brightness(0.98); }
-</style>
 <!--
-HSMI Data Export Add‑on (v3, DOM‑only)
-Use this version if your build does NOT expose window.app.
-Paste just before </body> in index.html.
+HSMI Data Export Add‑on (v3.1)
+- Removes duplicate old buttons (optional CSS hide)
+- Shows clear labels on buttons (no more unlabeled arrows)
+- DOM‑first collection with window.app fallback
+- Extra‑robust text/number extraction + a one‑time console preview
+Paste just before </body> in index.html. Remove any older export blocks to avoid duplicates.
 -->
 
-<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
-  <button id="btnExportCSV" class="btn">⬇️ Download CSV</button>
-  <button id="btnExportJSON" class="btn">⬇️ Download JSON</button>
+<!-- EXPORT: Controls -->
+<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(240px,1fr));">
+  <button id="btnExportCSV" class="btn" aria-label="Download CSV"><span class="icon">⬇️</span> <span class="label">Download CSV</span></button>
+  <button id="btnExportJSON" class="btn" aria-label="Download JSON"><span class="icon">⬇️</span> <span class="label">Download JSON</span></button>
 </section>
 
 <script>
 (function(){
   // ===== CONFIG =====
   const CONFIG = {
-    // If you display a version string somewhere (e.g., "v9.27"), set the selector; else null.
-    appVersionSelector: null,
+    appVersionSelector: null, // or '#appVersion' if you show it
     filenamePattern: 'mobility-age_{last}_{date}_{time}',
     selectors: {
       // Inputs
@@ -639,93 +465,109 @@ Paste just before </body> in index.html.
       // Outputs
       mobility_age: '#out-mobility-age',
       movement_index: '#out-movement-index',
-      // Zs (if shown)
-      z_tug: '#out-z-tug',
-      z_vo2: '#out-z-vo2',
-      z_sitreach: '#out-z-sitreach',
-      z_mtp: '#out-z-mtp',
-      z_grip: '#out-z-grip',
-      z_sway: '#out-z-sway',
-      // Weighted Zs (if shown)
-      wz_tug: '#out-wz-tug',
-      wz_vo2: '#out-wz-vo2',
-      wz_sitreach: '#out-wz-sitreach',
-      wz_mtp: '#out-wz-mtp',
-      wz_grip: '#out-wz-grip',
-      wz_sway: '#out-wz-sway'
+      // Zs
+      z_tug: '#out-z-tug', z_vo2: '#out-z-vo2', z_sitreach: '#out-z-sitreach', z_mtp: '#out-z-mtp', z_grip: '#out-z-grip', z_sway: '#out-z-sway',
+      // Weighted Zs
+      wz_tug: '#out-wz-tug', wz_vo2: '#out-wz-vo2', wz_sitreach: '#out-wz-sitreach', wz_mtp: '#out-wz-mtp', wz_grip: '#out-wz-grip', wz_sway: '#out-wz-sway'
     }
   };
 
-  // ===== UTIL =====
-  function $(sel){ return sel ? document.querySelector(sel) : null; }
-  function txt(sel){ const el=$(sel); return el? (el.value ?? el.textContent ?? '').toString().trim() : ''; }
-  function num(sel){ const t = txt(sel).replace(/[^0-9.+-]/g,''); return t? Number(t) : ''; }
-  function nowParts(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return {date:`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`, time:`${p(d.getHours())}${p(d.getMinutes())}`}; }
-  function parseName(full){ const t=(full||'').trim(); if(!t) return {first:'',last:''}; const parts=t.split(/[\s,]+/).filter(Boolean); return parts.length===1?{first:parts[0],last:''}:{first:parts[0],last:parts[parts.length-1]}; }
-  function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
-  function buildFilename(base){ const {date,time}=nowParts(); const {first,last}=parseName(base?.name_full || txt(CONFIG.selectors.name)); return CONFIG.filenamePattern.replace('{first}',slug(first)).replace('{last}',slug(last)).replace('{date}',date).replace('{time}',time); }
-  function downloadBlob(content,mime,filename){ const b=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); }
-  function toCSV(rows){ const headers=Array.from(rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())); const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"': s; }; const lines=[headers.join(',')]; for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); }
-  function getVersion(){ if(!CONFIG.appVersionSelector) return ''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; }
+  // ===== UTILS =====
+  const $ = (s)=> s? document.querySelector(s): null;
+  const text = (el)=> el? (('value' in el && el.value !== undefined && el.value !== null)? String(el.value): String(el.textContent||'')).trim(): '';
+  const numFrom = (el)=> {
+    if(!el) return '';
+    const raw = (el.dataset && (el.dataset.value||el.dataset.num)) || text(el);
+    const m = String(raw).match(/-?\d+(?:[.,]\d+)?/g);
+    if(!m) return '';
+    const v = Number(m[0].replace(',','.'));
+    return Number.isFinite(v)? v: '';
+  };
+  const nowParts = ()=>{ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return {date:`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`, time:`${p(d.getHours())}${p(d.getMinutes())}`}; };
+  const parseName = (full)=>{ const t=(full||'').trim(); if(!t) return {first:'',last:''}; const a=t.split(/[\s,]+/).filter(Boolean); return a.length===1?{first:a[0],last:''}:{first:a[0],last:a[a.length-1]}; };
+  const slug = (s)=> (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  const buildFilename = (base)=>{ const {date,time}=nowParts(); const {first,last}=parseName(base?.name_full); return CONFIG.filenamePattern.replace('{first}',slug(first)).replace('{last}',slug(last)).replace('{date}',date).replace('{time}',time); };
+  const downloadBlob = (content,mime,filename)=>{ const b=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); };
+  const toCSV = (rows)=>{ const headers=Array.from(rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())); const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"': s; }; const lines=[headers.join(',')]; for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); };
+  const getVersion = ()=>{ if(!CONFIG.appVersionSelector) return ''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; };
 
-  // ===== COLLECT (DOM only) =====
-  function collect(){
+  // ===== COLLECT (DOM‑first) =====
+  function collectDOM(){
     const S = CONFIG.selectors;
     const rec = {
-      // Identity/meta
-      name_full: txt(S.name),
-      sex: txt(S.sex),
-      age: num(S.age),
+      name_full: text($(S.name)),
+      sex: text($(S.sex)),
+      age: numFrom($(S.age)),
       app_version: getVersion(),
       timestamp_iso: new Date().toISOString(),
-      // Raw inputs
-      tug_s: num(S.tug_s),
-      vo2_mlkgmin: num(S.vo2_mlkgmin),
-      sitreach_in: num(S.sitreach_in),
-      mtp_pct: num(S.mtp_pct),
-      grip_r_pct: num(S.grip_r_pct),
-      grip_l_pct: num(S.grip_l_pct),
-      sway_r_pct: num(S.sway_r_pct),
-      sway_l_pct: num(S.sway_l_pct),
+      // Inputs
+      tug_s: numFrom($(S.tug_s)),
+      vo2_mlkgmin: numFrom($(S.vo2_mlkgmin)),
+      sitreach_in: numFrom($(S.sitreach_in)),
+      mtp_pct: numFrom($(S.mtp_pct)),
+      grip_r_pct: numFrom($(S.grip_r_pct)),
+      grip_l_pct: numFrom($(S.grip_l_pct)),
+      sway_r_pct: numFrom($(S.sway_r_pct)),
+      sway_l_pct: numFrom($(S.sway_l_pct)),
       // Outputs
-      mobility_age: num(S.mobility_age),
-      movement_index: num(S.movement_index),
-      // Zs (if present on page)
-      z_tug: num(S.z_tug),
-      z_vo2: num(S.z_vo2),
-      z_sitreach: num(S.z_sitreach),
-      z_mtp: num(S.z_mtp),
-      z_grip: num(S.z_grip),
-      z_sway: num(S.z_sway),
-      // Weighted Zs (if present)
-      wz_tug: num(S.wz_tug),
-      wz_vo2: num(S.wz_vo2),
-      wz_sitreach: num(S.wz_sitreach),
-      wz_mtp: num(S.wz_mtp),
-      wz_grip: num(S.wz_grip),
-      wz_sway: num(S.wz_sway)
+      mobility_age: numFrom($(S.mobility_age)),
+      movement_index: numFrom($(S.movement_index)),
+      // Zs
+      z_tug: numFrom($(S.z_tug)), z_vo2: numFrom($(S.z_vo2)), z_sitreach: numFrom($(S.z_sitreach)), z_mtp: numFrom($(S.z_mtp)), z_grip: numFrom($(S.z_grip)), z_sway: numFrom($(S.z_sway)),
+      // Weighted Zs
+      wz_tug: numFrom($(S.wz_tug)), wz_vo2: numFrom($(S.wz_vo2)), wz_sitreach: numFrom($(S.wz_sitreach)), wz_mtp: numFrom($(S.wz_mtp)), wz_grip: numFrom($(S.wz_grip)), wz_sway: numFrom($(S.wz_sway))
     };
-    // Clean NaN → ''
+    // scrub NaN
     for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
     return rec;
   }
 
+  // Optional window.app fallback if present
+  function collectFromWindow(){
+    const app = (window.app && (window.app.state || window.app)) || null;
+    if(!app) return null;
+    const s = app; const inputs = s.inputs || s.input || {}; const out = s.outputs || s.output || {}; const z = out.z || {}; const wz = out.wz || {};
+    const n = (x)=> { if(x===null||x===undefined||x==='') return ''; const v=Number(x); return Number.isFinite(v)? v: '' };
+    const rec = {
+      name_full: inputs.name ?? '', sex: inputs.sex ?? '', age: n(inputs.age), app_version: getVersion(), timestamp_iso: new Date().toISOString(),
+      tug_s: n(inputs.tug_s ?? inputs.tug), vo2_mlkgmin: n(inputs.vo2_mlkgmin ?? inputs.vo2), sitreach_in: n(inputs.sitreach_in ?? inputs.sitreach), mtp_pct: n(inputs.mtp_pct),
+      grip_r_pct: n(inputs.grip_r_pct), grip_l_pct: n(inputs.grip_l_pct), sway_r_pct: n(inputs.sway_r_pct), sway_l_pct: n(inputs.sway_l_pct),
+      mobility_age: n(out.mobility_age), movement_index: n(out.movement_index),
+      z_tug: n(z.tug), z_vo2: n(z.vo2), z_sitreach: n(z.sitreach), z_mtp: n(z.mtp), z_grip: n(z.grip), z_sway: n(z.sway),
+      wz_tug: n(wz.tug), wz_vo2: n(wz.vo2), wz_sitreach: n(wz.sitreach), wz_mtp: n(wz.mtp), wz_grip: n(wz.grip), wz_sway: n(wz.sway)
+    };
+    for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
+    return rec;
+  }
+
+  function collect(){
+    return collectDOM() || collectFromWindow() || { timestamp_iso: new Date().toISOString() };
+  }
+
   // ===== ACTIONS =====
-  function onExportCSV(){ const rec=collect(); const fname=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',fname); }
-  function onExportJSON(){ const rec=collect(); const fname=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',fname); }
+  function onExportCSV(){ const rec=collect(); console.debug('HSMI export preview (CSV):', rec); const fname=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',fname); }
+  function onExportJSON(){ const rec=collect(); console.debug('HSMI export preview (JSON):', rec); const fname=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',fname); }
 
   // ===== WIRE UP =====
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn, {once:true}); else fn(); }
   ready(()=>{
     document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
     document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
+    // One-time console preview so we can verify fields quickly after load
+    setTimeout(()=>{ console.debug('HSMI export initial probe:', collect()); }, 250);
   });
 })();
 </script>
 
 <style>
-  .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; }
+  /* Ensure labels are visible even if a global style hides text */
+  .export-controls .btn { padding: .8rem 1rem; border-radius: .75rem; border: 1px solid #ddd; background:#fafafa; cursor:pointer; display:inline-flex; align-items:center; gap:.5rem; }
+  .export-controls .btn .label { display:inline-block; font-size: 0.95rem; }
+  .export-controls .btn .icon { font-size: 1rem; line-height: 1; }
   .export-controls .btn:hover { filter: brightness(0.98); }
+
+  /* Optional: hide any older duplicate controls by ID if they still exist */
+  #export-controls-old, #btnExportCSV_old, #btnExportJSON_old { display:none !important; }
 </style>
 
 </body>
