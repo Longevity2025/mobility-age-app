@@ -421,5 +421,190 @@ document.addEventListener('DOMContentLoaded', function(){
 })();
 </script>
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
+  <!--
+HSMI Data Export Add‑on for Mobility Age App (v2: CSV + JSON only)
+Paste near the end of your index.html, just before </body>.
+- Uses window.app state only (no DOM selectors needed)
+- Google Sheets code removed
+- Auto‑download‑after‑print removed
+-->
+
+<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
+  <button id="btnExportCSV" class="btn">⬇️ Download CSV</button>
+  <button id="btnExportJSON" class="btn">⬇️ Download JSON</button>
+</section>
+
+<script>
+(function(){
+  // ======== CONFIG ========
+  const CONFIG = {
+    // If you display a version string somewhere on the page (e.g., "v9.27"),
+    // point to it here to capture in the export; else leave null.
+    appVersionSelector: null,
+
+    // Preferred filename pattern. Tokens: {last}, {first}, {date}, {time}
+    filenamePattern: 'mobility-age_{last}_{date}_{time}',
+
+    // Your app exposes state on window.app (per our builds). We'll require it.
+    requireWindowAppState: true
+  };
+
+  // ======== UTILITIES ========
+  function $(sel){ return sel ? document.querySelector(sel) : null; }
+  function nowParts(){
+    const d = new Date();
+    const pad = (n)=> String(n).padStart(2,'0');
+    const date = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const time = `${pad(d.getHours())}${pad(d.getMinutes())}`;
+    return {date, time};
+  }
+  function parseName(full){
+    const t = (full||'').trim();
+    if(!t) return {first:'', last:''};
+    const parts = t.split(/[\s,]+/).filter(Boolean);
+    if(parts.length === 1) return {first: parts[0], last: ''};
+    return {first: parts[0], last: parts[parts.length-1]};
+  }
+  function buildFilename(base){
+    const {date,time} = nowParts();
+    const {first,last} = parseName(base?.name_full);
+    const slug = (s)=> (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    const fname = CONFIG.filenamePattern
+      .replace('{first}', slug(first))
+      .replace('{last}', slug(last))
+      .replace('{date}', date)
+      .replace('{time}', time);
+    return fname;
+  }
+  function downloadBlob(content, mime, filename){
+    const blob = new Blob([content], {type: mime});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+  function toCSV(rows){
+    const headers = Array.from(rows.reduce((set,row)=>{ Object.keys(row).forEach(k=>set.add(k)); return set; }, new Set()));
+    const esc = (v)=>{
+      if(v===null || v===undefined) return '';
+      const s = String(v);
+      if(/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+      return s;
+    };
+    const lines = [headers.join(',')];
+    for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); }
+    return lines.join('\n');
+  }
+
+  // ======== DATA COLLECTOR (window.app only) ========
+  function getAppVersion(){
+    if(!CONFIG.appVersionSelector) return '';
+    const t = document.querySelector(CONFIG.appVersionSelector)?.textContent?.trim() || '';
+    const m = /(v\d+(?:\.\d+)?)/i.exec(t);
+    return m ? m[1] : (t || '');
+  }
+
+  function collectFromWindow(){
+    const app = (window.app && (window.app.state || window.app)) || null;
+    if(!app) return null;
+    const s = app;
+    const inputs = s.inputs || s.input || {};
+    const out = s.outputs || s.output || {};
+    const z = out.z || {};
+    const wz = out.wz || {};
+
+    const rec = {
+      // Identity & meta
+      name_full: inputs.name ?? '',
+      sex: inputs.sex ?? '',
+      age: inputs.age ?? '',
+      app_version: getAppVersion(),
+      timestamp_iso: new Date().toISOString(),
+
+      // Raw inputs (units per our app)
+      tug_s: n(inputs.tug_s ?? inputs.tug),
+      vo2_mlkgmin: n(inputs.vo2_mlkgmin ?? inputs.vo2),
+      sitreach_in: n(inputs.sitreach_in ?? inputs.sitreach),
+      mtp_pct: n(inputs.mtp_pct),
+      grip_r_pct: n(inputs.grip_r_pct),
+      grip_l_pct: n(inputs.grip_l_pct),
+      sway_r_pct: n(inputs.sway_r_pct),
+      sway_l_pct: n(inputs.sway_l_pct),
+
+      // Outputs
+      mobility_age: n(out.mobility_age),
+      movement_index: n(out.movement_index),
+
+      // Per‑test Z
+      z_tug: n(z.tug),
+      z_vo2: n(z.vo2),
+      z_sitreach: n(z.sitreach),
+      z_mtp: n(z.mtp),
+      z_grip: n(z.grip),
+      z_sway: n(z.sway),
+
+      // Weighted Z
+      wz_tug: n(wz.tug),
+      wz_vo2: n(wz.vo2),
+      wz_sitreach: n(wz.sitreach),
+      wz_mtp: n(wz.mtp),
+      wz_grip: n(wz.grip),
+      wz_sway: n(wz.sway)
+    };
+
+    // remove NaN
+    for(const k of Object.keys(rec)) if(typeof rec[k] === 'number' && Number.isNaN(rec[k])) rec[k] = '';
+    return rec;
+  }
+
+  function n(x){
+    if(x === null || x === undefined || x === '') return '';
+    const v = Number(x);
+    return Number.isFinite(v) ? v : '';
+  }
+
+  function collect(){
+    const rec = collectFromWindow();
+    if(!rec && CONFIG.requireWindowAppState){
+      alert('Export needs window.app state. If your build changed, I can switch to DOM mode.');
+    }
+    return rec;
+  }
+
+  // ======== ACTIONS ========
+  function onExportCSV(){
+    const rec = collect();
+    if(!rec) return;
+    const fname = buildFilename(rec) + '.csv';
+    const csv = toCSV([rec]);
+    downloadBlob(csv, 'text/csv;charset=utf-8', fname);
+  }
+  function onExportJSON(){
+    const rec = collect();
+    if(!rec) return;
+    const fname = buildFilename(rec) + '.json';
+    downloadBlob(JSON.stringify(rec, null, 2), 'application/json', fname);
+  }
+
+  // ======== WIRE UP ========
+  function ready(fn){
+    if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once:true });
+    else fn();
+  }
+  ready(()=>{
+    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
+    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
+  });
+})();
+</script>
+
+<style>
+  /* Minimal styling; integrate with your theme as desired */
+  .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; }
+  .export-controls .btn:hover { filter: brightness(0.98); }
+</style>
+
 </body>
 </html>
