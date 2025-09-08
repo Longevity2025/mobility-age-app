@@ -423,9 +423,11 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
-HSMI Data Export Add‑on (v3.7)
-- Explicitly reads Mobility Age from <th id="final">…</th>
+HSMI Data Export Add‑on (v3.8)
+- Adds an “Audit selectors” button that prints FOUND/MISSING values in a popup (no Console needed)
+- Reads Mobility Age directly from <th id="final">…</th>
 - Still dedupes duplicate blocks and prevents double downloads
+- Extra fallbacks: parse inline <script type="application/json" id="*_json"> blocks if present (e.g., tug_json, vo2_json, sr_json)
 Paste just before </body>. Remove older export blocks if convenient (this also dedupes at runtime).
 -->
 
@@ -433,6 +435,7 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   <button id="btnExportCSV" class="btn">Download CSV</button>
   <button id="btnExportJSON" class="btn">Download JSON</button>
   <button id="btnProbe" class="btn">Test capture</button>
+  <button id="btnAudit" class="btn">Audit selectors</button>
 </section>
 
 <script>
@@ -463,10 +466,7 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
       grip_l_pct: '#input-grip-l',
       sway_r_pct: '#input-sway-r',
       sway_l_pct: '#input-sway-l',
-      movement_index: '#out-movement-index',
-      // optional Z / WZ (safe if absent)
-      z_tug: '#out-z-tug', z_vo2: '#out-z-vo2', z_sitreach: '#out-z-sitreach', z_mtp: '#out-z-mtp', z_grip: '#out-z-grip', z_sway: '#out-z-sway',
-      wz_tug: '#out-wz-tug', wz_vo2: '#out-wz-vo2', wz_sitreach: '#out-wz-sitreach', wz_mtp: '#out-wz-mtp', wz_grip: '#out-wz-grip', wz_sway: '#out-wz-sway'
+      movement_index: '#out-movement-index'
     }
   };
 
@@ -489,13 +489,21 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   const toCSV = (rows)=>{ const headers=Array.from(rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())); const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"': s; }; const lines=[headers.join(',')]; for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); };
   const getVersion = ()=>{ if(!CONFIG.appVersionSelector) return ''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; };
 
-  // ===== Mobility Age: read directly from <th id="final"> =====
+  // ===== JSON/script fallbacks =====
+  function readJSON(id){
+    try{
+      const el = document.getElementById(id);
+      if(!el) return null;
+      const txt = el.textContent || el.innerText || '';
+      return JSON.parse(txt);
+    }catch(e){ return null; }
+  }
+
+  // ===== Mobility Age direct =====
   function getMobilityAge(){
-    const direct = document.querySelector('#final');
-    const v = numFrom(direct);
+    const v = numFrom(document.querySelector('#final'));
     if(v !== '') return v;
-    // Fallbacks if #final is empty for any reason
-    const alt = document.querySelector('#out-mobility-age, #mobility-age, #mobilityAge, [data-field="mobility_age"], [data-field="mobility-age"]');
+    const alt = document.querySelector('[data-field="mobility_age"], #mobility-age, #mobilityAge');
     const v2 = numFrom(alt);
     return v2 !== '' ? v2 : '';
   }
@@ -503,28 +511,35 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   // ===== COLLECT =====
   function collectDOM(){
     const S = CONFIG.selectors;
+
+    // Try JSON/script fallbacks (these are optional and safe if absent)
+    const tugJ = readJSON('tug_json');
+    const vo2J = readJSON('vo2_json');
+    const srJ  = readJSON('sr_json');
+
     const rec = {
       name_full: text($(S.name)),
       sex: text($(S.sex)),
       age: numFrom($(S.age)),
-      app_version: getVersion(),
+      app_version: getVersion() || document.body.getAttribute('data-app-version') || '',
       timestamp_iso: new Date().toISOString(),
-      // Inputs
-      tug_s: numFrom($(S.tug_s)),
-      vo2_mlkgmin: numFrom($(S.vo2_mlkgmin)),
-      sitreach_in: numFrom($(S.sitreach_in)),
+
+      // Inputs (prefer DOM; fallback to JSON blocks if present)
+      tug_s: numFrom($(S.tug_s)) || (tugJ && (tugJ.value||tugJ.tug)) || '',
+      vo2_mlkgmin: numFrom($(S.vo2_mlkgmin)) || (vo2J && (vo2J.value||vo2J.vo2)) || '',
+      sitreach_in: numFrom($(S.sitreach_in)) || (srJ && (srJ.value||srJ.sit_reach)) || '',
       mtp_pct: numFrom($(S.mtp_pct)),
       grip_r_pct: numFrom($(S.grip_r_pct)),
       grip_l_pct: numFrom($(S.grip_l_pct)),
       sway_r_pct: numFrom($(S.sway_r_pct)),
       sway_l_pct: numFrom($(S.sway_l_pct)),
+
       // Outputs
       mobility_age: getMobilityAge(),
-      movement_index: numFrom($(S.movement_index)),
-      // Zs/WZs (best‑effort)
-      z_tug: numFrom($(S.z_tug)), z_vo2: numFrom($(S.z_vo2)), z_sitreach: numFrom($(S.z_sitreach)), z_mtp: numFrom($(S.z_mtp)), z_grip: numFrom($(S.z_grip)), z_sway: numFrom($(S.z_sway)),
-      wz_tug: numFrom($(S.wz_tug)), wz_vo2: numFrom($(S.wz_vo2)), wz_sitreach: numFrom($(S.wz_sitreach)), wz_mtp: numFrom($(S.wz_mtp)), wz_grip: numFrom($(S.wz_grip)), wz_sway: numFrom($(S.wz_sway))
+      movement_index: numFrom($(S.movement_index))
     };
+
+    // Clean NaN
     for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
     return rec;
   }
@@ -535,6 +550,38 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec, null, 2)); }
   function onExportCSV(){ const rec=collect(); const fname=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',fname); }
   function onExportJSON(){ const rec=collect(); const fname=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',fname); }
+  function onAudit(){
+    const S = CONFIG.selectors;
+    const lines = [];
+    function line(key, sel){
+      const el = $(sel);
+      const found = !!el;
+      const val = found ? (('value' in el ? el.value : (el.textContent||'')).trim() || '(empty)') : '(missing)';
+      lines.push(`${key}: ${found?'FOUND':'MISSING'}  (${sel})\n   value: ${val}`);
+    }
+    line('name_full', S.name);
+    line('sex', S.sex);
+    line('age', S.age);
+    line('tug_s', S.tug_s);
+    line('vo2_mlkgmin', S.vo2_mlkgmin);
+    line('sitreach_in', S.sitreach_in);
+    line('mtp_pct', S.mtp_pct);
+    line('grip_r_pct', S.grip_r_pct);
+    line('grip_l_pct', S.grip_l_pct);
+    line('sway_r_pct', S.sway_r_pct);
+    line('sway_l_pct', S.sway_l_pct);
+    line('movement_index', S.movement_index);
+    // Special: mobility_age from #final
+    const finalEl = document.querySelector('#final');
+    lines.push(`mobility_age: ${finalEl? 'FOUND (#final)\n   value: '+(finalEl.textContent||'').trim() : 'MISSING (#final)'}`);
+
+    // JSON blocks
+    const tugJ = readJSON('tug_json'); if(tugJ) lines.push('tug_json: FOUND '+JSON.stringify(tugJ)); else lines.push('tug_json: MISSING');
+    const vo2J = readJSON('vo2_json'); if(vo2J) lines.push('vo2_json: FOUND '+JSON.stringify(vo2J)); else lines.push('vo2_json: MISSING');
+    const srJ  = readJSON('sr_json');  if(srJ)  lines.push('sr_json: FOUND '+JSON.stringify(srJ)); else lines.push('sr_json: MISSING');
+
+    alert('HSMI selector audit:\n\n'+lines.join('\n'));
+  }
 
   // ===== WIRE UP (once) =====
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn, {once:true}); else fn(); }
@@ -542,6 +589,7 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
     document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
     document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
     document.getElementById('btnProbe')?.addEventListener('click', onProbe);
+    document.getElementById('btnAudit')?.addEventListener('click', onAudit);
   });
 })();
 </script>
