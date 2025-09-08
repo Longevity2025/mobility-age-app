@@ -423,41 +423,36 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
-HSMI Data Export Add‑on (v4.1)
-- NEW: Click‑to‑Map wizard — click each value on the page once (VO2, MTP, Grip R/L, Sway R/L) and it will remember the selectors in localStorage.
-- No need for specific IDs. Works with tables, spans, anything.
-- Mobility Age still from <th id="final">…</th>.
-- Buttons: Download CSV / Download JSON / Test capture / Audit selectors / Map fields / Clear mapping
-Paste just before </body>. Remove older export blocks if convenient (this also dedupes at runtime).
+HSMI Data Export Add‑on (v4.2)
+- Fixes the Map Fields bug: clicks now capture the element UNDER the overlay (proper hit‑testing)
+- New storage key so any bad mappings are ignored automatically
+- Adds “Audit mapping” to show what each mapping resolves to + current text
+- Mobility Age still from <th id="final">…</th>
+Paste just before </body> (replace older export blocks).
 -->
 
-<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
+<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
   <button id="btnExportCSV" class="btn">Download CSV</button>
   <button id="btnExportJSON" class="btn">Download JSON</button>
   <button id="btnProbe" class="btn">Test capture</button>
   <button id="btnAudit" class="btn">Audit selectors</button>
   <button id="btnMap" class="btn">Map fields</button>
   <button id="btnClearMap" class="btn">Clear mapping</button>
+  <button id="btnAuditMap" class="btn">Audit mapping</button>
 </section>
 
 <script>
 (function(){
-  if (window.__HSMI_EXPORT_WIRED__) return; 
-  window.__HSMI_EXPORT_WIRED__ = true;
+  if (window.__HSMI_EXPORT_WIRED__) return; window.__HSMI_EXPORT_WIRED__ = true;
   try { const blocks=[...document.querySelectorAll('#export-controls')]; if(blocks.length>1) blocks.slice(0,-1).forEach(b=>b.remove()); } catch(e){}
 
-  const STORAGE_KEY = 'hsmi_field_map_v1';
-  const MAP_KEYS = ['vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct']; // movement_index intentionally omitted per user
+  const STORAGE_KEY = 'hsmi_field_map_v2'; // v2 to ignore any old/bad mappings
+  const MAP_KEYS = ['vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct'];
 
-  const CONFIG = {
-    appVersionSelector: null,
-    filenamePattern: 'mobility-age_{last}_{date}_{time}',
-    selectors: { name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug' }
-  };
+  const CONFIG = { filenamePattern:'mobility-age_{last}_{date}_{time}', selectors:{ name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug' } };
 
-  // ===== Utils =====
+  // ==== utils ====
   const $ = (s)=> s? document.querySelector(s): null;
-  const $$ = (s)=> s? Array.from(document.querySelectorAll(s)) : [];
   const text = (el)=> el? (('value' in el && el.value!=null)? String(el.value): String(el.textContent||'')).trim(): '';
   const numFirst = (t)=>{ if(t==null) return ''; const m=String(t).match(/-?\d+(?:[.,]\d+)?/); if(!m) return ''; const v=Number(m[0].replace(',','.')); return Number.isFinite(v)? v:''; };
   const numFrom = (el)=> numFirst((el && (el.dataset?.value||el.dataset?.num)) || text(el));
@@ -468,17 +463,15 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   const downloadBlob=(content,mime,filename)=>{ const b=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); };
   const toCSV=(rows)=>{ const headers=[...rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())]; const esc=v=>v==null?'':(/[",\n]/.test(String(v))? '"'+String(v).replace(/"/g,'""')+'"' : v); return [headers.join(',')].concat(rows.map(r=>headers.map(h=>esc(r[h])).join(','))).join('\n'); };
 
-  const getVersion=()=>{ if(!CONFIG.appVersionSelector) return document.body.getAttribute('data-app-version')||''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; };
-
-  // ===== JSON fallbacks =====
+  // ==== JSON fallbacks (optional) ====
   function readJSON(id){ try{ const el=document.getElementById(id); if(!el) return null; return JSON.parse(el.textContent||''); }catch(e){ return null; } }
 
-  // ===== Mapping storage =====
+  // ==== mapping storage ====
   function loadMap(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
   function saveMap(map){ localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); }
   function clearMap(){ localStorage.removeItem(STORAGE_KEY); alert('HSMI: mapping cleared.'); }
 
-  // Resolve a stored target to an element
+  // resolve stored reference
   function getMappedEl(entry){
     if(!entry) return null;
     if(entry.type==='id') return document.getElementById(entry.value) || null;
@@ -489,115 +482,135 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
     return null;
   }
 
-  // Build a stable reference for a clicked element
+  // build reference for an element
   function buildRef(el){
     if(!el) return null;
     if(el.id) return {type:'id', value: el.id};
-    // Try to build a short selector using classes and tag
     const cls=(el.className||'').split(/\s+/).filter(Boolean).slice(0,2).join('.');
     if(cls){ const sel=`${el.tagName.toLowerCase()}.${cls}`; try{ const found=document.querySelector(sel); if(found===el) return {type:'selector', value: sel}; }catch(e){}
     }
-    // Fallback: XPath up to table row
-    const path=[]; let n=el; while(n && n.nodeType===1 && n!==document.documentElement){ const name=n.nodeName.toLowerCase(); const sibs=[...n.parentNode?.children||[]].filter(x=>x.nodeName===n.nodeName); const idx=sibs.indexOf(n)+1; path.unshift(`${name}[${idx}]`); if(name==='table') break; n=n.parentNode; }
-    const xp='/' + path.join('/');
-    return {type:'xpath', value: xp};
+    // fallback: short xpath to the cell/element
+    const parts=[]; let n=el; while(n && n.nodeType===1 && n!==document.documentElement){ const tag=n.nodeName.toLowerCase(); const sibs=[...n.parentNode?.children||[]].filter(x=>x.nodeName===n.nodeName); const idx=sibs.indexOf(n)+1; parts.unshift(`${tag}[${idx}]`); if(tag==='table') break; n=n.parentNode; }
+    return {type:'xpath', value:'/'+parts.join('/')};
   }
 
-  // ===== Mobility Age =====
-  function getMobilityAge(){ const v=numFrom(document.querySelector('#final')); return v!==''? v : ''; }
+  // ==== Mobility Age ====
+  const getMobilityAge=()=>{ const v=numFrom(document.querySelector('#final')); return v!==''? v:''; };
 
-  // ===== Label scan (still available as fallback) =====
-  const LABEL_MAP=[
-    {key:'vo2_mlkgmin', re:/vo\s*2|v[\.\u0307]?o\s*2|oxygen|ml\s*\/\s*kg\s*\/\s*min/i},
-    {key:'sitreach_in', re:/sit\s*&?\s*reach|sit.?and.?reach|reach\s*\((in|cm)\)/i},
-    {key:'mtp_pct', re:/\bmtp\b|metatars|toe\s*-?\s*press|toe\s*-?\s*flex/i},
-    {key:'grip_r_pct', re:/grip[^a-z0-9]*(right|\br\b)/i},
-    {key:'grip_l_pct', re:/grip[^a-z0-9]*(left|\bl\b)/i},
-    {key:'sway_r_pct', re:/sway[^a-z0-9]*(right|\br\b)/i},
-    {key:'sway_l_pct', re:/sway[^a-z0-9]*(left|\bl\b)/i}
-  ];
-  function readFromLabels(){ const out={}; const rows=$$('table tr'); for(const tr of rows){ const cells=[...tr.children]; if(cells.length<2) continue; const label=(cells[0].textContent||'').trim(); for(const m of LABEL_MAP){ if(m.re.test(label)){ const rest=cells.slice(1).map(td=>td.textContent||'').join(' '); const val=numFirst(rest); if(val!=='') out[m.key]=val; } } } return out; }
-
-  // ===== Collect =====
+  // ==== collect ====
   function collect(){
     const map=loadMap();
-
     const tugJ=readJSON('tug_json');
     const vo2J=readJSON('vo2_json');
     const srJ =readJSON('sr_json');
 
-    const S=CONFIG.selectors;
-    const labelVals=readFromLabels();
-
     function fromMap(key){ const el=getMappedEl(map[key]); return numFrom(el); }
 
     const rec={
-      name_full: text($(S.name)),
-      sex: text($(S.sex)) || '',
-      age: numFrom($(S.age)) || '',
-      app_version: getVersion(),
+      name_full: text($(CONFIG.selectors.name)),
+      sex: text($(CONFIG.selectors.sex)) || '',
+      age: numFrom($(CONFIG.selectors.age)) || '',
+      app_version: document.body.getAttribute('data-app-version')||'',
       timestamp_iso: new Date().toISOString(),
 
-      tug_s: numFrom($(S.tug_s)) || (tugJ && (tugJ.value||tugJ.tug)) || '',
-      vo2_mlkgmin: fromMap('vo2_mlkgmin') || (vo2J && (vo2J.value||vo2J.vo2)) || labelVals.vo2_mlkgmin || '',
-      sitreach_in: fromMap('sitreach_in') || (srJ && (srJ.value||srJ.sit_reach)) || labelVals.sitreach_in || '',
-      mtp_pct: fromMap('mtp_pct') || labelVals.mtp_pct || '',
-      grip_r_pct: fromMap('grip_r_pct') || labelVals.grip_r_pct || '',
-      grip_l_pct: fromMap('grip_l_pct') || labelVals.grip_l_pct || '',
-      sway_r_pct: fromMap('sway_r_pct') || labelVals.sway_r_pct || '',
-      sway_l_pct: fromMap('sway_l_pct') || labelVals.sway_l_pct || '',
+      tug_s: numFrom($(CONFIG.selectors.tug_s)) || (tugJ && (tugJ.value||tugJ.tug)) || '',
+      vo2_mlkgmin: fromMap('vo2_mlkgmin') || (vo2J && (vo2J.value||vo2J.vo2)) || '',
+      sitreach_in: (srJ && (srJ.value||srJ.sit_reach)) || '',
+      mtp_pct: fromMap('mtp_pct') || '',
+      grip_r_pct: fromMap('grip_r_pct') || '',
+      grip_l_pct: fromMap('grip_l_pct') || '',
+      sway_r_pct: fromMap('sway_r_pct') || '',
+      sway_l_pct: fromMap('sway_l_pct') || '',
 
       mobility_age: getMobilityAge()
-      // movement_index intentionally omitted
     };
     for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
     return {rec, map};
   }
 
-  // ===== Map wizard =====
+  // ==== map wizard (fixed hit‑testing) ====
   function startMap(){
     const map=loadMap();
-    const order=[
-      ['vo2_mlkgmin','Click the VO₂ (ml/kg/min) value'],
-      ['mtp_pct','Click the MTP (%) value'],
-      ['grip_r_pct','Click the Grip Right (%) value'],
-      ['grip_l_pct','Click the Grip Left (%) value'],
-      ['sway_r_pct','Click the Sway Right (%) value'],
-      ['sway_l_pct','Click the Sway Left (%) value']
+    const steps=[
+      ['vo2_mlkgmin','Click the VO₂ (ml/kg/min) NUMBER'],
+      ['mtp_pct','Click the MTP (%) NUMBER'],
+      ['grip_r_pct','Click the Grip Right (%) NUMBER'],
+      ['grip_l_pct','Click the Grip Left (%) NUMBER'],
+      ['sway_r_pct','Click the Sway Right NUMBER'],
+      ['sway_l_pct','Click the Sway Left NUMBER']
     ];
+    let i=0; let overlay, tip, hl;
 
-    let idx=0; let overlay, tip;
     function showTip(msg){
-      if(!overlay){ overlay=document.createElement('div'); overlay.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.1)'; document.body.appendChild(overlay);
-        tip=document.createElement('div'); tip.style.cssText='position:fixed;z-index:99999;left:50%;top:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;font:14px system-ui;box-shadow:0 6px 14px rgba(0,0,0,.2)'; document.body.appendChild(tip);
-        overlay.addEventListener('click', onClick, true);
+      if(!overlay){
+        overlay=document.createElement('div');
+        // allow clicks to pass through so we can hit‑test the real element
+        overlay.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.06);pointer-events:none';
+        document.body.appendChild(overlay);
+        tip=document.createElement('div'); tip.style.cssText='position:fixed;z-index:99998;left:50%;top:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;font:14px system-ui;box-shadow:0 6px 14px rgba(0,0,0,.2)'; document.body.appendChild(tip);
+        document.addEventListener('click', onClick, true);
+        document.addEventListener('keydown', onKey, true);
       }
-      tip.textContent='HSMI map: '+msg+' (press Esc to cancel)';
+      tip.textContent='HSMI map: '+msg+'  (Esc to cancel)';
     }
-    function onClick(e){ e.preventDefault(); e.stopPropagation(); const key=order[idx][0]; const el=e.target; const ref=buildRef(el); if(!ref){ alert('Could not create a stable reference for that element—try another spot.'); return; } map[key]=ref; idx++; if(idx<order.length){ saveMap(map); showTip(order[idx][1]); } else { saveMap(map); cleanup(); alert('HSMI: mapping saved. Run Audit or Test capture to verify.'); } }
-    function onKey(e){ if(e.key==='Escape'){ cleanup(); alert('HSMI: mapping cancelled.'); } }
-    function cleanup(){ if(overlay){ overlay.remove(); overlay=null; } if(tip){ tip.remove(); tip=null; } document.removeEventListener('keydown', onKey); if(overlay) overlay.removeEventListener('click', onClick, true); }
 
-    document.addEventListener('keydown', onKey);
-    showTip(order[idx][1]);
+    function highlight(el){
+      if(hl) hl.remove();
+      if(!el) return;
+      const r=el.getBoundingClientRect();
+      hl=document.createElement('div');
+      hl.style.cssText=`position:fixed;z-index:99999;border:2px solid #0a84ff;border-radius:6px;pointer-events:none;left:${r.left-4}px;top:${r.top-4}px;width:${r.width+8}px;height:${r.height+8}px`;
+      document.body.appendChild(hl);
+    }
+
+    function onClick(e){
+      // capture the element under the cursor (not the overlay)
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if(!el) return;
+      e.preventDefault(); e.stopPropagation();
+      const key=steps[i][0];
+      const ref=buildRef(el);
+      if(!ref){ alert('Could not identify that element. Try clicking right on the number.'); return; }
+      const mapObj=loadMap(); mapObj[key]=ref; saveMap(mapObj);
+      highlight(el);
+      i++;
+      if(i<steps.length){ showTip(steps[i][1]); }
+      else { cleanup(); alert('HSMI: mapping saved. Use Audit mapping to verify.'); }
+    }
+
+    function onKey(e){ if(e.key==='Escape'){ cleanup(); alert('HSMI: mapping cancelled.'); } }
+    function cleanup(){ if(hl) hl.remove(); if(tip) tip.remove(); if(overlay) overlay.remove(); document.removeEventListener('click', onClick, true); document.removeEventListener('keydown', onKey, true); }
+
+    showTip(steps[i][1]);
   }
 
-  function clearMapping(){ clearMap(); }
+  function auditMapping(){
+    const map=loadMap();
+    const lines=['HSMI mapping:'];
+    for(const k of MAP_KEYS){
+      const m=map[k];
+      const el=getMappedEl(m);
+      const val=el? text(el) : '(no element)';
+      lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | current text: ${val || '(empty)'}`);
+    }
+    alert(lines.join('\n'));
+  }
 
-  // ===== Actions =====
+  // ==== actions ====
   function onProbe(){ const {rec}=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec,null,2)); }
   function onExportCSV(){ const {rec}=collect(); const f=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',f); }
   function onExportJSON(){ const {rec}=collect(); const f=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',f); }
-  function onAudit(){ const {rec,map}=collect(); const lines=Object.entries(rec).map(([k,v])=>`${k}: ${v===''?'(blank)':v}`); lines.push('\nMapping:'); for(const k of MAP_KEYS){ const m=map[k]; lines.push(`  ${k}: ${m? m.type+' → '+m.value : '(none)'}`); } alert('HSMI audit (v4.1)\n\n'+lines.join('\n')); }
+  function onAudit(){ const {rec}=collect(); const lines=Object.entries(rec).map(([k,v])=>`${k}: ${v===''?'(blank)':v}`); alert('HSMI audit (v4.2)\n\n'+lines.join('\n')); }
 
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn,{once:true}); else fn(); }
   ready(()=>{
-    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
-    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
-    document.getElementById('btnProbe')?.addEventListener('click', onProbe);
-    document.getElementById('btnAudit')?.addEventListener('click', onAudit);
-    document.getElementById('btnMap')?.addEventListener('click', startMap);
-    document.getElementById('btnClearMap')?.addEventListener('click', clearMapping);
+    $('#btnExportCSV')?.addEventListener('click', onExportCSV);
+    $('#btnExportJSON')?.addEventListener('click', onExportJSON);
+    $('#btnProbe')?.addEventListener('click', onProbe);
+    $('#btnAudit')?.addEventListener('click', onAudit);
+    $('#btnMap')?.addEventListener('click', startMap);
+    $('#btnClearMap')?.addEventListener('click', clearMap);
+    $('#btnAuditMap')?.addEventListener('click', auditMapping);
   });
 })();
 </script>
@@ -606,7 +619,5 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   .export-controls .btn{ padding:.75rem 1rem;border-radius:.75rem;border:1px solid #ddd;background:#fafafa;cursor:pointer;font-size:.95rem;color:#111 }
   .export-controls .btn:hover{ filter:brightness(.98) }
 </style>
-
-
 </body>
 </html>
