@@ -423,19 +423,26 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
-HSMI Data Export Add‑on (v4.2)
-- Fixes the Map Fields bug: clicks now capture the element UNDER the overlay (proper hit‑testing)
-- New storage key so any bad mappings are ignored automatically
-- Adds “Audit mapping” to show what each mapping resolves to + current text
-- Mobility Age still from <th id="final">…</th>
-Paste just before </body> (replace older export blocks).
+HSMI Data Export Add‑on (v5.0)
+- Works on ANY device with no per‑device mapping by using an EMBEDDED mapping.
+- Fixed CSV header order for consistent imports.
+- Mobility Age still pulled directly from <th id="final">…</th>.
+
+How to finalize (one‑time):
+1) On your live site (with your current mapping in localStorage), click **Copy mapping JSON**.
+2) Paste that JSON into the <script id="hsmi_embedded_map"> block below (replace {}). Commit.
+3) After deploy, the exporter will use the EMBEDDED mapping everywhere; Map buttons auto‑hide.
 -->
+
+<!-- Paste mapping JSON into this tag after clicking "Copy mapping JSON" on the live page -->
+<script type="application/json" id="hsmi_embedded_map">{}</script>
 
 <section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
   <button id="btnExportCSV" class="btn">Download CSV</button>
   <button id="btnExportJSON" class="btn">Download JSON</button>
   <button id="btnProbe" class="btn">Test capture</button>
   <button id="btnAudit" class="btn">Audit selectors</button>
+  <button id="btnCopyMap" class="btn">Copy mapping JSON</button>
   <button id="btnMap" class="btn">Map fields</button>
   <button id="btnClearMap" class="btn">Clear mapping</button>
   <button id="btnAuditMap" class="btn">Audit mapping</button>
@@ -446,13 +453,23 @@ Paste just before </body> (replace older export blocks).
   if (window.__HSMI_EXPORT_WIRED__) return; window.__HSMI_EXPORT_WIRED__ = true;
   try { const blocks=[...document.querySelectorAll('#export-controls')]; if(blocks.length>1) blocks.slice(0,-1).forEach(b=>b.remove()); } catch(e){}
 
-  const STORAGE_KEY = 'hsmi_field_map_v2'; // v2 to ignore any old/bad mappings
-  const MAP_KEYS = ['vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct'];
+  // ====== CONSTANTS ======
+  const STORAGE_KEY = 'hsmi_field_map_v3'; // same as v4.3 so you can copy existing mapping
+  const HEADERS = [
+    'timestamp_iso','app_version','name_full','sex','age',
+    'tug_s','vo2_mlkgmin','sitreach_in','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','mobility_age'
+  ]; // fixed header order
 
-  const CONFIG = { filenamePattern:'mobility-age_{last}_{date}_{time}', timeZone: null, // set to e.g. 'America/New_York' to force Eastern; null = use browser local
-    selectors:{ name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug' } };
+  // ====== EMBEDDED MAPPING support (works on any device) ======
+  function getEmbeddedMap(){
+    try{ const el=document.getElementById('hsmi_embedded_map'); if(!el) return {}; const txt=el.textContent||'{}'; const m=JSON.parse(txt); return (m && typeof m==='object')? m : {}; }catch(e){ return {}; }
+  }
+  const EMBEDDED_MAP = getEmbeddedMap();
 
-  // ==== utils ====
+  // ====== CONFIG ======
+  const CONFIG = { filenamePattern:'mobility-age_{last}_{date}_{time}', selectors:{ name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug' } };
+
+  // ====== utils ======
   const $ = (s)=> s? document.querySelector(s): null;
   const text = (el)=> el? (('value' in el && el.value!=null)? String(el.value): String(el.textContent||'')).trim(): '';
   const numFirst = (t)=>{ if(t==null) return ''; const m=String(t).match(/-?\d+(?:[.,]\d+)?/); if(!m) return ''; const v=Number(m[0].replace(',','.')); return Number.isFinite(v)? v:''; };
@@ -462,30 +479,24 @@ Paste just before </body> (replace older export blocks).
   const slug=s=>(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   const buildFilename=(base)=>{ const {date,time}=nowParts(); const {first,last}=parseName(base?.name_full); return CONFIG.filenamePattern.replace('{first}',slug(first)).replace('{last}',slug(last)).replace('{date}',date).replace('{time}',time); };
   const downloadBlob=(content,mime,filename)=>{ const b=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); };
-  const toCSV=(rows)=>{ const headers=[...rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())]; const esc=v=>v==null?'':(/[",\n]/.test(String(v))? '"'+String(v).replace(/"/g,'""')+'"' : v); return [headers.join(',')].concat(rows.map(r=>headers.map(h=>esc(r[h])).join(','))).join('\n'); };
-
-  // ==== local timestamp in chosen US time zone ====
-  function formatLocalTimestamp(tz){
-    try{
-      const d = new Date();
-      const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZoneName:'short' }).formatToParts(d);
-      const get = (t)=> parts.find(p=>p.type===t)?.value || '';
-      const yyyy=get('year'), mm=get('month'), dd=get('day'), hh=get('hour'), mi=get('minute'), ss=get('second');
-      const tzName = get('timeZoneName');
-      return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss} ${tzName}`;
-    }catch(e){ return new Date().toString(); }
-  }
+  const toCSV=(rows)=>{ const esc=v=>{
+      if(v===null||v===undefined) return '';
+      const s=String(v);
+      return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s;
+    };
+    const lines=[HEADERS.join(',')];
+    for(const r of rows){ lines.push(HEADERS.map(h=>esc(r[h])).join(',')); }
+    return lines.join('\n');
+  };
 
   // ==== JSON fallbacks (optional) ====
   function readJSON(id){ try{ const el=document.getElementById(id); if(!el) return null; return JSON.parse(el.textContent||''); }catch(e){ return null; } }
 
-  // ==== mapping storage ====
-  function loadMap(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
-  function saveMap(map){ localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); }
-  function clearMap(){ localStorage.removeItem(STORAGE_KEY); alert('HSMI: mapping cleared.'); }
+  // ==== mapping storage & helpers ====
+  function loadLocalMap(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
+  function saveLocalMap(map){ localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); }
+  function clearLocalMap(){ localStorage.removeItem(STORAGE_KEY); alert('HSMI: local mapping cleared.'); }
 
-  // resolve stored reference
   function getMappedEl(entry){
     if(!entry) return null;
     if(entry.type==='id') return document.getElementById(entry.value) || null;
@@ -496,14 +507,12 @@ Paste just before </body> (replace older export blocks).
     return null;
   }
 
-  // build reference for an element
   function buildRef(el){
     if(!el) return null;
     if(el.id) return {type:'id', value: el.id};
     const cls=(el.className||'').split(/\s+/).filter(Boolean).slice(0,2).join('.');
     if(cls){ const sel=`${el.tagName.toLowerCase()}.${cls}`; try{ const found=document.querySelector(sel); if(found===el) return {type:'selector', value: sel}; }catch(e){}
     }
-    // fallback: short xpath to the cell/element
     const parts=[]; let n=el; while(n && n.nodeType===1 && n!==document.documentElement){ const tag=n.nodeName.toLowerCase(); const sibs=[...n.parentNode?.children||[]].filter(x=>x.nodeName===n.nodeName); const idx=sibs.indexOf(n)+1; parts.unshift(`${tag}[${idx}]`); if(tag==='table') break; n=n.parentNode; }
     return {type:'xpath', value:'/'+parts.join('/')};
   }
@@ -511,121 +520,111 @@ Paste just before </body> (replace older export blocks).
   // ==== Mobility Age ====
   const getMobilityAge=()=>{ const v=numFrom(document.querySelector('#final')); return v!==''? v:''; };
 
+  // ==== mapping chooser: prefer embedded → then localStorage → then label/JSON fallbacks ====
+  const MAP_KEYS_ORDER = ['age','sex','vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','sitreach_in'];
+
+  function getValFromMap(key, asText=false){
+    const prefer = EMBEDDED_MAP[key] || loadLocalMap()[key] || null;
+    const el = getMappedEl(prefer);
+    if(!el) return '';
+    return asText ? text(el) : numFrom(el);
+  }
+
+  // ===== LABEL SCAN (kept as safety net for VO2/MTP/Grip/Sway/SitReach) =====
+  const LABEL_MAP=[
+    {key:'vo2_mlkgmin', re:/vo\s*2|v[\.\u0307]?o\s*2|oxygen|ml\s*\/\s*kg\s*\/\s*min/i},
+    {key:'sitreach_in', re:/sit\s*&?\s*reach|sit.?and.?reach|reach\s*\((in|cm)\)/i},
+    {key:'mtp_pct',     re:/\bmtp\b|metatars|toe\s*-?\s*press|toe\s*-?\s*flex/i},
+    {key:'grip_r_pct',  re:/grip[^a-z0-9]*(right|\br\b)/i},
+    {key:'grip_l_pct',  re:/grip[^a-z0-9]*(left|\bl\b)/i},
+    {key:'sway_r_pct',  re:/sway[^a-z0-9]*(right|\br\b)/i},
+    {key:'sway_l_pct',  re:/sway[^a-z0-9]*(left|\bl\b)/i}
+  ];
+  function readFromLabels(){ const out={}; const rows=[...document.querySelectorAll('table tr')]; for(const tr of rows){ const cells=[...tr.children]; if(cells.length<2) continue; const label=(cells[0].textContent||'').trim(); for(const m of LABEL_MAP){ if(m.re.test(label)){ const rest=cells.slice(1).map(td=>td.textContent||'').join(' '); const val=numFirst(rest); if(val!=='') out[m.key]=val; } } } return out; }
+
   // ==== collect ====
   function collect(){
-    const map=loadMap();
     const tugJ=readJSON('tug_json');
     const vo2J=readJSON('vo2_json');
     const srJ =readJSON('sr_json');
-
-    function fromMap(key){ const el=getMappedEl(map[key]); return numFrom(el); }
+    const labels = readFromLabels();
 
     const rec={
-      name_full: text($(CONFIG.selectors.name)),
-      sex: text($(CONFIG.selectors.sex)) || '',
-      age: numFrom($(CONFIG.selectors.age)) || '',
-      app_version: document.body.getAttribute('data-app-version')||'',
       timestamp_iso: new Date().toISOString(),
-      timestamp_local: formatLocalTimestamp(CONFIG.timeZone),
-
+      app_version: document.body.getAttribute('data-app-version')||'',
+      name_full: text($(CONFIG.selectors.name)),
+      sex: getValFromMap('sex', true) || text($(CONFIG.selectors.sex)) || '',
+      age: getValFromMap('age', false) || numFrom($(CONFIG.selectors.age)) || '',
       tug_s: numFrom($(CONFIG.selectors.tug_s)) || (tugJ && (tugJ.value||tugJ.tug)) || '',
-      vo2_mlkgmin: fromMap('vo2_mlkgmin') || (vo2J && (vo2J.value||vo2J.vo2)) || '',
-      sitreach_in: (srJ && (srJ.value||srJ.sit_reach)) || '',
-      mtp_pct: fromMap('mtp_pct') || '',
-      grip_r_pct: fromMap('grip_r_pct') || '',
-      grip_l_pct: fromMap('grip_l_pct') || '',
-      sway_r_pct: fromMap('sway_r_pct') || '',
-      sway_l_pct: fromMap('sway_l_pct') || '',
-
+      vo2_mlkgmin: getValFromMap('vo2_mlkgmin') || (vo2J && (vo2J.value||vo2J.vo2)) || labels.vo2_mlkgmin || '',
+      sitreach_in: getValFromMap('sitreach_in') || (srJ && (srJ.value||srJ.sit_reach)) || labels.sitreach_in || '',
+      mtp_pct: getValFromMap('mtp_pct') || labels.mtp_pct || '',
+      grip_r_pct: getValFromMap('grip_r_pct') || labels.grip_r_pct || '',
+      grip_l_pct: getValFromMap('grip_l_pct') || labels.grip_l_pct || '',
+      sway_r_pct: getValFromMap('sway_r_pct') || labels.sway_r_pct || '',
+      sway_l_pct: getValFromMap('sway_l_pct') || labels.sway_l_pct || '',
       mobility_age: getMobilityAge()
     };
+
+    // normalize NaN → ''
     for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
-    return {rec, map};
+
+    return rec;
   }
 
-  // ==== map wizard (fixed hit‑testing) ====
+  // ==== Map wizard (kept for future tweaks; auto-hidden if embedded mapping provided) ====
   function startMap(){
-    const map=loadMap();
     const steps=[
-      ['vo2_mlkgmin','Click the VO₂ (ml/kg/min) NUMBER'],
-      ['mtp_pct','Click the MTP (%) NUMBER'],
-      ['grip_r_pct','Click the Grip Right (%) NUMBER'],
-      ['grip_l_pct','Click the Grip Left (%) NUMBER'],
-      ['sway_r_pct','Click the Sway Right NUMBER'],
-      ['sway_l_pct','Click the Sway Left NUMBER']
+      ['age','Click the **Age** NUMBER'],
+      ['sex','Click the **Sex/Gender** TEXT'],
+      ['vo2_mlkgmin','Click the **VO₂ (ml/kg/min)** NUMBER'],
+      ['mtp_pct','Click the **MTP (%)** NUMBER'],
+      ['grip_r_pct','Click the **Grip Right (%)** NUMBER'],
+      ['grip_l_pct','Click the **Grip Left (%)** NUMBER'],
+      ['sway_r_pct','Click the **Sway Right** NUMBER'],
+      ['sway_l_pct','Click the **Sway Left** NUMBER'],
+      ['sitreach_in','Click the **Sit & Reach** NUMBER']
     ];
     let i=0; let overlay, tip, hl;
 
     function showTip(msg){
       if(!overlay){
-        overlay=document.createElement('div');
-        // allow clicks to pass through so we can hit‑test the real element
-        overlay.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.06);pointer-events:none';
-        document.body.appendChild(overlay);
+        overlay=document.createElement('div'); overlay.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.06);pointer-events:none'; document.body.appendChild(overlay);
         tip=document.createElement('div'); tip.style.cssText='position:fixed;z-index:99998;left:50%;top:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;font:14px system-ui;box-shadow:0 6px 14px rgba(0,0,0,.2)'; document.body.appendChild(tip);
         document.addEventListener('click', onClick, true);
         document.addEventListener('keydown', onKey, true);
       }
-      tip.textContent='HSMI map: '+msg+'  (Esc to cancel)';
+      tip.innerHTML='HSMI map: '+msg+' <span style="opacity:.75">(Esc to cancel)</span>';
     }
-
-    function highlight(el){
-      if(hl) hl.remove();
-      if(!el) return;
-      const r=el.getBoundingClientRect();
-      hl=document.createElement('div');
-      hl.style.cssText=`position:fixed;z-index:99999;border:2px solid #0a84ff;border-radius:6px;pointer-events:none;left:${r.left-4}px;top:${r.top-4}px;width:${r.width+8}px;height:${r.height+8}px`;
-      document.body.appendChild(hl);
-    }
-
-    function onClick(e){
-      // capture the element under the cursor (not the overlay)
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      if(!el) return;
-      e.preventDefault(); e.stopPropagation();
-      const key=steps[i][0];
-      const ref=buildRef(el);
-      if(!ref){ alert('Could not identify that element. Try clicking right on the number.'); return; }
-      const mapObj=loadMap(); mapObj[key]=ref; saveMap(mapObj);
-      highlight(el);
-      i++;
-      if(i<steps.length){ showTip(steps[i][1]); }
-      else { cleanup(); alert('HSMI: mapping saved. Use Audit mapping to verify.'); }
-    }
-
+    function highlight(el){ if(hl) hl.remove(); if(!el) return; const r=el.getBoundingClientRect(); hl=document.createElement('div'); hl.style.cssText=`position:fixed;z-index:99999;border:2px solid #0a84ff;border-radius:6px;pointer-events:none;left:${r.left-4}px;top:${r.top-4}px;width:${r.width+8}px;height:${r.height+8}px`; document.body.appendChild(hl); }
+    function onClick(e){ const el=document.elementFromPoint(e.clientX,e.clientY); if(!el) return; e.preventDefault(); e.stopPropagation(); const key=steps[i][0]; const ref=buildRef(el); if(!ref){ alert('Could not identify that element. Click the digits/text.'); return; } const map=loadLocalMap(); map[key]=ref; saveLocalMap(map); highlight(el); i++; if(i<steps.length){ showTip(steps[i][1]); } else { cleanup(); alert('HSMI: mapping saved. Use **Copy mapping JSON** to embed.'); } }
     function onKey(e){ if(e.key==='Escape'){ cleanup(); alert('HSMI: mapping cancelled.'); } }
     function cleanup(){ if(hl) hl.remove(); if(tip) tip.remove(); if(overlay) overlay.remove(); document.removeEventListener('click', onClick, true); document.removeEventListener('keydown', onKey, true); }
-
     showTip(steps[i][1]);
   }
 
-  function auditMapping(){
-    const map=loadMap();
-    const lines=['HSMI mapping:'];
-    for(const k of MAP_KEYS){
-      const m=map[k];
-      const el=getMappedEl(m);
-      const val=el? text(el) : '(no element)';
-      lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | current text: ${val || '(empty)'}`);
-    }
-    alert(lines.join('\n'));
-  }
+  // ==== UI actions ====
+  function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec,null,2)); }
+  function onExportCSV(){ const rec=collect(); const f=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',f); }
+  function onExportJSON(){ const rec=collect(); const f=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',f); }
+  function onAudit(){ const rec=collect(); const lines=HEADERS.map(h=>`${h}: ${rec[h] === '' ? '(blank)' : rec[h]}`); const usingEmbedded = Object.keys(EMBEDDED_MAP).length>0; lines.push('\nMapping source: '+(usingEmbedded?'EMBEDDED (all devices)':'localStorage (this device only)')); alert('HSMI audit (v5.0)\n\n'+lines.join('\n')); }
+  function onAuditMap(){ const local=loadLocalMap(); const use=Object.assign({}, EMBEDDED_MAP, local); const lines=['HSMI mapping refs:']; for(const k of MAP_KEYS_ORDER){ const m=use[k]; const el=getMappedEl(m); const val=el? text(el) : '(no element)'; lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | text: ${val || '(empty)'}`); } alert(lines.join('\n')); }
+  function onCopyMap(){ const local=loadLocalMap(); const json=JSON.stringify(local, null, 2); try{ navigator.clipboard.writeText(json).then(()=>alert('HSMI: mapping copied to clipboard. Paste into the hsmi_embedded_map <script> block in index.html, then commit.')); }catch(e){ prompt('Copy this JSON and paste into hsmi_embedded_map:', json); } }
 
-  // ==== actions ====
-  function onProbe(){ const {rec}=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec,null,2)); }
-  function onExportCSV(){ const {rec}=collect(); const f=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',f); }
-  function onExportJSON(){ const {rec}=collect(); const f=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',f); }
-  function onAudit(){ const {rec}=collect(); const lines=Object.entries(rec).map(([k,v])=>`${k}: ${v===''?'(blank)':v}`); alert('HSMI audit (v4.2)\n\n'+lines.join('\n')); }
+  // Hide mapping buttons if an embedded map exists
+  function maybeHideMappingButtons(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }
 
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn,{once:true}); else fn(); }
   ready(()=>{
-    $('#btnExportCSV')?.addEventListener('click', onExportCSV);
-    $('#btnExportJSON')?.addEventListener('click', onExportJSON);
-    $('#btnProbe')?.addEventListener('click', onProbe);
-    $('#btnAudit')?.addEventListener('click', onAudit);
-    $('#btnMap')?.addEventListener('click', startMap);
-    $('#btnClearMap')?.addEventListener('click', clearMap);
-    $('#btnAuditMap')?.addEventListener('click', auditMapping);
+    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
+    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
+    document.getElementById('btnProbe')?.addEventListener('click', onProbe);
+    document.getElementById('btnAudit')?.addEventListener('click', onAudit);
+    document.getElementById('btnAuditMap')?.addEventListener('click', onAuditMap);
+    document.getElementById('btnCopyMap')?.addEventListener('click', onCopyMap);
+    document.getElementById('btnMap')?.addEventListener('click', startMap);
+    document.getElementById('btnClearMap')?.addEventListener('click', clearLocalMap);
+    maybeHideMappingButtons();
   });
 })();
 </script>
