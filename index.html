@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mobility Suite</title>
+  <link rel="icon" href="assets/favicon.ico">
+  <style>
+    body {
+      font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      margin: 2rem;
+      background: #fafafa;
+    }
+    h1 {
+      margin-bottom: 0.5rem;
+    }
+    p {
+      margin-top: 0;
+      color: #444;
+    }
+    .apps {
+      display: grid;
+      gap: 1rem;
+      max-width: 720px;
+      margin-top: 1.5rem;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 1rem;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .card h2 {
+      margin: 0 0 .25rem;
+      font-size: 1.1rem;
+    }
+    .card p {
+      margin: 0 0 .75rem;
+      color: #555;
+    }
+    .btn {
+      display: inline-block;
+      padding: .5rem .9rem;
+      border: 1px solid #333;
+      border-radius: 6px;
+      text-decoration: none;
+      color: #333;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #333;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mobility Suite</h1>
+  <p>Select a module to launch:</p>
+  <div class="apps">
+    <div class="card">
+      <h2>Mobility Age Calculator</h2>
+      <p>Composite of six tests with age/sex norms and weighted Z-scores.</p>
+      <a class="btn" href="mobility-age/">Open</a>
+    </div>
+    <div class="card">
+      <h2>YMCA 3-Minute Step Test</h2>
+      <p>Timer + recovery HR entry using KISS (Kieu 2020) equations and print report.</p>
+      <a class="btn" href="ymca-3mst/">Open</a>
+    </div>
+  </div>
+</body>
+</html>
