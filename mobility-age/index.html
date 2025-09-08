@@ -431,7 +431,44 @@ HSMI Data Export Add‑on (v5.1)
 
 One-time bake‑in steps:
 1) With your current working mapping on a machine, click **Copy mapping JSON**.
-2) Paste that JSON into the <script id="hsmi_embedded_map"> block below (replace {}). Commit.
+2) Paste that JSON into the <script id="hsmi_embedded_map"> block below (replace {{
+  "age": {
+    "type": "id",
+    "value": "age"
+  },
+  "sex": {
+    "type": "id",
+    "value": "sex"
+  },
+  "vo2_mlkgmin": {
+    "type": "id",
+    "value": "vo2"
+  },
+  "mtp_pct": {
+    "type": "id",
+    "value": "mtp"
+  },
+  "grip_r_pct": {
+    "type": "id",
+    "value": "grip_r"
+  },
+  "grip_l_pct": {
+    "type": "id",
+    "value": "grip_l"
+  },
+  "sway_r_pct": {
+    "type": "id",
+    "value": "sway_r"
+  },
+  "sway_l_pct": {
+    "type": "id",
+    "value": "sway_l"
+  },
+  "sitreach_in": {
+    "type": "id",
+    "value": "sit"
+  }
+}}). Commit.
 3) After deploy, mapping UI hides and everyone uses the embedded mapping.
 -->
 
