@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YMCA 3-Minute Step Test — VO₂max Estimator</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#131a22; --ink:#e8eef7; --muted:#9db0c5; --accent:#75c1ff; --warn:#ffb86b; --ok:#87e887; --err:#ff6b8b;
+    --card:#0f141b; --line:#243243;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Helvetica Neue',Arial}
+  body{background:var(--bg);color:var(--ink);line-height:1.35}
+  header{padding:20px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--panel),#0e141b)}
+  h1{margin:0;font-size:1.4rem}
+  main{max-width:980px;margin:24px auto;padding:0 16px 64px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card h2{margin:0 0 8px 0;font-size:1.05rem}
+  label{display:block;font-size:.9rem;color:var(--muted);margin:6px 0 4px}
+  input,select,button,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#0b1218;color:var(--ink);font-size:1rem}
+  input[type="number"]{appearance:textfield}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  button{cursor:pointer}
+  .primary{background:var(--accent);color:#0b1118;border:0;font-weight:600}
+  .ghost{background:transparent;border:1px dashed var(--line)}
+  .ok{color:var(--ok)}
+  .warn{color:var(--warn)}
+  .err{color:var(--err)}
+  .muted{color:var(--muted)}
+  .big{font-size:2.2rem;font-weight:700;letter-spacing:.3px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace}
+  .inline{display:inline-block}
+  .center{display:flex;align-items:center;gap:8px}
+  .kpi{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+  .kpi .box{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px}
+  .hr{height:1px;background:var(--line);margin:14px 0}
+  .small{font-size:.86rem}
+  .right{text-align:right}
+  .hide{display:none !important}
+  .note{padding:10px;border-radius:10px;background:#0b131a;border:1px solid var(--line);color:var(--muted);font-size:.92rem}
+  .badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#0f1922;border:1px solid var(--line);color:var(--muted);font-size:.78rem}
+  .print-note{font-size:.85rem;color:var(--muted)}
+  @media (max-width:800px){ .grid{grid-template-columns:1fr} .kpi{grid-template-columns:1fr} }
+  @media print{
+    header,.no-print{display:none !important}
+    body{background:white;color:black}
+    .card{border-color:#ddd;background:white}
+    .note{background:#fafafa;border-color:#ddd;color:#333}
+    .big{font-size:1.8rem}
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>YMCA 3-Minute Step Test — VO₂max Estimator (12″ / 30 cm, 96 bpm, 3 min)</h1>
+    <div class="small muted">Substitutes the prior QCST module. Uses the Korean Institute of Sport Science (KISS) equations as reported/validated by Kieu et al., 2020.</div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <section class="card">
+        <h2>Protocol & Setup</h2>
+        <div class="note">
+          <ul>
+            <li>Step height: <b>12 inches</b> (≈ <b>30 cm</b>)</li>
+            <li>Metronome: <b>96 bpm</b> (4 beats = up-up-down-down; 24 step cycles/min)</li>
+            <li>Duration: <b>3 minutes</b></li>
+            <li>Immediately after completion: <b>sit</b>, wait <b>5 s</b>, then measure <b>60 s heart rate (bpm)</b>.</li>
+          </ul>
+          <div class="small">If you cannot use 12″ (30 cm), this test/eqn may be invalid; do not change step height here.</div>
+        </div>
+        <div class="actions no-print">
+          <button class="ghost" id="start3min">Start 3:00 timer</button>
+          <button class="ghost" id="start60s">Start 60s HR timer</button>
+          <span id="timer3" class="badge">3:00</span>
+          <span id="timer60" class="badge">60</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Subject Inputs</h2>
+        <div class="row">
+          <div>
+            <label>Name</label>
+            <input id="name" placeholder="(optional)">
+          </div>
+          <div>
+            <label>Sex</label>
+            <select id="sex">
+              <option value="">Select...</option>
+              <option>Male</option>
+              <option>Female</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Age (years)</label>
+            <input id="age" type="number" min="10" max="100" placeholder="e.g., 42">
+          </div>
+          <div>
+            <label>Units</label>
+            <select id="units">
+              <option value="us">US (in, lb)</option>
+              <option value="metric">Metric (cm, kg)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label id="hlabel">Height (in)</label>
+            <input id="height" type="number" step="0.1" placeholder="e.g., 68">
+          </div>
+          <div>
+            <label id="wlabel">Weight (lb)</label>
+            <input id="weight" type="number" step="0.1" placeholder="e.g., 165">
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Recovery HR — 60 s (bpm)</label>
+            <input id="hr" type="number" step="1" placeholder="e.g., 128">
+          </div>
+          <div>
+            <label>Calibration offset (mL·kg⁻¹·min⁻¹)</label>
+            <input id="cal" type="number" step="0.1" value="0">
+          </div>
+        </div>
+
+        <div class="actions no-print">
+          <button class="primary" id="calc">Calculate VO₂max</button>
+          <button class="ghost" id="reset">Reset</button>
+          <button class="ghost" id="print">Print Report</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Results</h2>
+      <div class="kpi">
+        <div class="box">
+          <div class="muted small">Estimated VO₂max</div>
+          <div id="vo2" class="big">—</div>
+          <div id="bias" class="small muted">Includes calibration offset</div>
+        </div>
+        <div class="box">
+          <div class="muted small">Protocol check</div>
+          <div id="proto" class="mono">Waiting…</div>
+          <div id="notes" class="small muted"></div>
+        </div>
+      </div>
+      <div class="hr"></div>
+      <div class="small">
+        <b>Equation (KISS, reported in Kieu et al., 2020)</b><br>
+        Males: VO₂max = 70.597 − 0.246·Age + 0.077·Height(cm) − 0.222·Weight(kg) − 0.147·HR(bpm)<br>
+        Females: VO₂max = 70.597 − 0.185·Age + 0.097·Height(cm) − 0.246·Weight(kg) − 0.122·HR(bpm)
+      </div>
+      <div class="print-note">Report auto-fills with inputs and the computed estimate.</div>
+    </section>
+
+    <section class="card">
+      <h2>References</h2>
+      <ol class="small">
+        <li>Kieu NTV, Jung S‑J, Shin S‑W, et al. <i>The Validity of the YMCA 3‑Minute Step Test for Estimating Maximal Oxygen Uptake in Healthy Korean and Vietnamese Adults</i>. <b>J Lifestyle Med</b>. 2020;10(1):26–33.</li>
+        <li>Chung JW, Ko BG, Song HS, Park SJ, Min SK. <i>Development of physical fitness center model</i>. Korea Institute of Sport Sciences; 2014.</li>
+      </ol>
+    </section>
+
+    <section id="debug" class="card hide">
+      <h2>Debug</h2>
+      <div id="dbg"></div>
+    </section>
+  </main>
+
+<script>
+(function(){
+  const $ = sel => document.querySelector(sel);
+  const set = (id, val) => { $(id).textContent = val; };
+
+  // Timers
+  let t3 = null, t60 = null;
+  const tm3 = $("#timer3"), tm60 = $("#timer60");
+
+  function startCountdown(sec, el){
+    let s = sec;
+    el.textContent = fmtTime(s);
+    const int = setInterval(()=>{
+      s--;
+      el.textContent = fmtTime(s);
+      if(s<=0){ clearInterval(int); el.textContent = "0:00"; alert("Timer done."); }
+    },1000);
+    return int;
+  }
+  function fmtTime(s){
+    if(s>=60){ const m = Math.floor(s/60); const r = s%60; return m+":"+String(r).padStart(2,'0'); }
+    return String(s);
+  }
+  $("#start3min").addEventListener("click", ()=>{
+    if(t3) clearInterval(t3);
+    t3 = startCountdown(180, tm3);
+  });
+  $("#start60s").addEventListener("click", ()=>{
+    if(t60) clearInterval(t60);
+    t60 = startCountdown(60, tm60);
+  });
+
+  // Units toggle
+  const units = $("#units");
+  const hlabel = $("#hlabel");
+  const wlabel = $("#wlabel");
+  units.addEventListener("change", syncLabels);
+  function syncLabels(){
+    if(units.value === "us"){ hlabel.textContent = "Height (in)"; wlabel.textContent = "Weight (lb)"; }
+    else { hlabel.textContent = "Height (cm)"; wlabel.textContent = "Weight (kg)"; }
+  }
+  syncLabels();
+
+  // Calculation
+  $("#calc").addEventListener("click", ()=>{
+    const sex = $("#sex").value;
+    const age = parseFloat($("#age").value);
+    const u = units.value;
+    let h = parseFloat($("#height").value);
+    let w = parseFloat($("#weight").value);
+    const hr = parseFloat($("#hr").value);
+    const cal = parseFloat($("#cal").value)||0;
+
+    // Validation
+    const errs = [];
+    if(!sex) errs.push("Select sex.");
+    if(!(age>0)) errs.push("Enter age.");
+    if(!(h>0)) errs.push("Enter height.");
+    if(!(w>0)) errs.push("Enter weight.");
+    if(!(hr>0)) errs.push("Enter recovery HR (bpm).");
+
+    // Convert to metric for equation
+    let h_cm, w_kg;
+    if(u==="us"){ h_cm = h*2.54; w_kg = w*0.45359237; }
+    else { h_cm = h; w_kg = w; }
+
+    if(errs.length){
+      set("#proto", "Errors: " + errs.join(" "));
+      set("#notes", ""); set("#vo2", "—"); return;
+    }
+
+    // YMCA 3MST (KISS) equations
+    let vo2;
+    if(sex==="Male"){
+      vo2 = 70.597 - 0.246*age + 0.077*h_cm - 0.222*w_kg - 0.147*hr;
+    } else {
+      vo2 = 70.597 - 0.185*age + 0.097*h_cm - 0.246*w_kg - 0.122*hr;
+    }
+    const vo2_adj = vo2 + cal;
+    set("#vo2", vo2_adj.toFixed(1) + " mL·kg⁻¹·min⁻¹");
+    set("#bias", (cal===0? "No calibration offset":"Includes calibration offset of " + (cal>0?"+":"") + cal.toFixed(1)));
+
+    // Protocol check
+    const msg = [];
+    msg.push("Step height: 12″ (30 cm) required");
+    msg.push("Cadence: 96 bpm; Duration: 3:00");
+    set("#proto", "OK");
+    set("#notes", msg.join(" • "));
+
+    // Debug info
+    $("#dbg").innerText = JSON.stringify({sex, age, h_cm: +h_cm.toFixed(1), w_kg:+w_kg.toFixed(1), hr, cal, vo2_raw:+vo2.toFixed(2)}, null, 2);
+  });
+
+  $("#reset").addEventListener("click", ()=>{
+    ["name","age","height","weight","hr","cal"].forEach(id=>{ $("#"+id).value=""; });
+    $("#sex").value=""; $("#units").value="us"; syncLabels();
+    set("#vo2","—"); set("#bias","Includes calibration offset"); set("#proto","Waiting…"); set("#notes","");
+  });
+
+  $("#print").addEventListener("click", ()=>{ window.print(); });
+
+  // Hidden debug panel: show when URL has #debug or press D
+  function maybeShowDebug(){
+    if(location.hash==="#debug"){ document.getElementById("debug").classList.remove("hide"); }
+  }
+  maybeShowDebug();
+  document.addEventListener("keydown", (e)=>{ if(e.key.toLowerCase()==="d" && (e.metaKey||e.ctrlKey)) document.getElementById("debug").classList.toggle("hide"); });
+
+})();</script>
+</body>
+</html>
