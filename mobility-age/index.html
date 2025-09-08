@@ -423,141 +423,11 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
-HSMI Data Export Add‑on (v3.2)
-- Plain text buttons (no spans/icons) so labels always show
-- DOM‑first collection with window.app fallback
-- Adds a “Test capture” button that shows the captured record so we can verify fields
-Paste just before </body>. Remove any prior export blocks to avoid duplicates.
--->
-
-<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
-  <button id="btnExportCSV" class="btn">Download CSV</button>
-  <button id="btnExportJSON" class="btn">Download JSON</button>
-  <button id="btnProbe" class="btn" title="Show captured values for debugging">Test capture</button>
-</section>
-
-<script>
-(function(){
-  // ===== CONFIG =====
-  const CONFIG = {
-    appVersionSelector: null,
-    filenamePattern: 'mobility-age_{last}_{date}_{time}',
-    selectors: {
-      // Inputs
-      name: '#input-name',
-      sex: '#input-sex',
-      age: '#input-age',
-      tug_s: '#input-tug',
-      vo2_mlkgmin: '#input-vo2',
-      sitreach_in: '#input-sitreach',
-      mtp_pct: '#input-mtp',
-      grip_r_pct: '#input-grip-r',
-      grip_l_pct: '#input-grip-l',
-      sway_r_pct: '#input-sway-r',
-      sway_l_pct: '#input-sway-l',
-      // Outputs
-      mobility_age: '#out-mobility-age',
-      movement_index: '#out-movement-index',
-      // Zs
-      z_tug: '#out-z-tug', z_vo2: '#out-z-vo2', z_sitreach: '#out-z-sitreach', z_mtp: '#out-z-mtp', z_grip: '#out-z-grip', z_sway: '#out-z-sway',
-      // Weighted Zs
-      wz_tug: '#out-wz-tug', wz_vo2: '#out-wz-vo2', wz_sitreach: '#out-wz-sitreach', wz_mtp: '#out-wz-mtp', wz_grip: '#out-wz-grip', wz_sway: '#out-wz-sway'
-    }
-  };
-
-  // ===== UTILS =====
-  const $ = (s)=> s? document.querySelector(s): null;
-  const text = (el)=> el? (('value' in el && el.value !== undefined && el.value !== null)? String(el.value): String(el.textContent||'')).trim(): '';
-  const numFrom = (el)=> {
-    if(!el) return '';
-    const raw = (el.dataset && (el.dataset.value||el.dataset.num)) || text(el);
-    const m = String(raw).match(/-?\d+(?:[.,]\d+)?/g);
-    if(!m) return '';
-    const v = Number(m[0].replace(',','.'));
-    return Number.isFinite(v)? v: '';
-  };
-  const nowParts = ()=>{ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return {date:`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`, time:`${p(d.getHours())}${p(d.getMinutes())}`}; };
-  const parseName = (full)=>{ const t=(full||'').trim(); if(!t) return {first:'',last:''}; const a=t.split(/[\s,]+/).filter(Boolean); return a.length===1?{first:a[0],last:''}:{first:a[0],last:a[a.length-1]}; };
-  const slug = (s)=> (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
-  const buildFilename = (base)=>{ const {date,time}=nowParts(); const {first,last}=parseName(base?.name_full); return CONFIG.filenamePattern.replace('{first}',slug(first)).replace('{last}',slug(last)).replace('{date}',date).replace('{time}',time); };
-  const downloadBlob = (content,mime,filename)=>{ const b=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); };
-  const toCSV = (rows)=>{ const headers=Array.from(rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())); const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"': s; }; const lines=[headers.join(',')]; for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); };
-  const getVersion = ()=>{ if(!CONFIG.appVersionSelector) return ''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; };
-
-  // ===== COLLECT =====
-  function collectDOM(){
-    const S = CONFIG.selectors;
-    const rec = {
-      name_full: text($(S.name)),
-      sex: text($(S.sex)),
-      age: numFrom($(S.age)),
-      app_version: getVersion(),
-      timestamp_iso: new Date().toISOString(),
-      // Inputs
-      tug_s: numFrom($(S.tug_s)),
-      vo2_mlkgmin: numFrom($(S.vo2_mlkgmin)),
-      sitreach_in: numFrom($(S.sitreach_in)),
-      mtp_pct: numFrom($(S.mtp_pct)),
-      grip_r_pct: numFrom($(S.grip_r_pct)),
-      grip_l_pct: numFrom($(S.grip_l_pct)),
-      sway_r_pct: numFrom($(S.sway_r_pct)),
-      sway_l_pct: numFrom($(S.sway_l_pct)),
-      // Outputs
-      mobility_age: numFrom($(S.mobility_age)),
-      movement_index: numFrom($(S.movement_index)),
-      // Zs
-      z_tug: numFrom($(S.z_tug)), z_vo2: numFrom($(S.z_vo2)), z_sitreach: numFrom($(S.z_sitreach)), z_mtp: numFrom($(S.z_mtp)), z_grip: numFrom($(S.z_grip)), z_sway: numFrom($(S.z_sway)),
-      // Weighted Zs
-      wz_tug: numFrom($(S.wz_tug)), wz_vo2: numFrom($(S.wz_vo2)), wz_sitreach: numFrom($(S.wz_sitreach)), wz_mtp: numFrom($(S.wz_mtp)), wz_grip: numFrom($(S.wz_grip)), wz_sway: numFrom($(S.wz_sway))
-    };
-    for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
-    return rec;
-  }
-  function collectWin(){
-    const app = (window.app && (window.app.state || window.app)) || null;
-    if(!app) return null;
-    const s=app, inputs=s.inputs||{}, out=s.outputs||{}, z=out.z||{}, wz=out.wz||{};
-    const n = (x)=> { if(x===null||x===undefined||x==='') return ''; const v=Number(x); return Number.isFinite(v)? v: '' };
-    const rec={ name_full: inputs.name||'', sex: inputs.sex||'', age:n(inputs.age), app_version:getVersion(), timestamp_iso:new Date().toISOString(),
-      tug_s:n(inputs.tug_s||inputs.tug), vo2_mlkgmin:n(inputs.vo2_mlkgmin||inputs.vo2), sitreach_in:n(inputs.sitreach_in||inputs.sitreach), mtp_pct:n(inputs.mtp_pct),
-      grip_r_pct:n(inputs.grip_r_pct), grip_l_pct:n(inputs.grip_l_pct), sway_r_pct:n(inputs.sway_r_pct), sway_l_pct:n(inputs.sway_l_pct),
-      mobility_age:n(out.mobility_age), movement_index:n(out.movement_index),
-      z_tug:n(z.tug), z_vo2:n(z.vo2), z_sitreach:n(z.sitreach), z_mtp:n(z.mtp), z_grip:n(z.grip), z_sway:n(z.sway),
-      wz_tug:n(wz.tug), wz_vo2:n(wz.vo2), wz_sitreach:n(wz.sitreach), wz_mtp:n(wz.mtp), wz_grip:n(wz.grip), wz_sway:n(wz.sway)};
-    for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
-    return rec;
-  }
-  const collect = ()=> collectDOM() || collectWin() || { timestamp_iso:new Date().toISOString() };
-
-  // ===== ACTIONS =====
-  function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec, null, 2)); }
-  function onExportCSV(){ const rec=collect(); const fname=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',fname); }
-  function onExportJSON(){ const rec=collect(); const fname=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',fname); }
-
-  // ===== WIRE UP =====
-  function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn, {once:true}); else fn(); }
-  ready(()=>{
-    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
-    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
-    document.getElementById('btnProbe')?.addEventListener('click', onProbe);
-  });
-})();
-</script>
-
-<style>
-  .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; font-size: 0.95rem; }
-  .export-controls .btn:hover { filter: brightness(0.98); }
-  .export-controls .btn { color:#111 !important; text-indent:0 !important; }
-.export-controls .btn * { color:inherit !important; }
-
-</style>
-
-<!--
-HSMI Data Export Add‑on (v3.3)
-- Uses your real IDs for Name + TUG (memberName, tug)
-- Auto‑detects Final Mobility Age by scanning the table row that contains the label text
-- Keeps DOM‑first approach; window.app fallback optional
-Paste just before </body>. Remove older export blocks first.
+HSMI Data Export Add‑on (v3.4)
+- Auto‑dedupes any duplicate export sections + listeners
+- Fixes double downloads via a one‑time wiring guard
+- Robust Mobility Age extractor (prefers 5–120 range, tries row with label)
+Paste just before </body>. Remove older export blocks if convenient (this also dedupes at runtime).
 -->
 
 <section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
@@ -568,15 +438,27 @@ Paste just before </body>. Remove older export blocks first.
 
 <script>
 (function(){
-  // ===== CONFIG =====
+  // Avoid double wiring if this script is accidentally included twice
+  if (window.__HSMI_EXPORT_WIRED__) return; 
+  window.__HSMI_EXPORT_WIRED__ = true;
+
+  // Deduplicate any previous export sections that may still exist
+  try {
+    const blocks = Array.from(document.querySelectorAll('#export-controls'));
+    if (blocks.length > 1) {
+      // keep the last one (most recent); remove the rest
+      blocks.slice(0, -1).forEach(b => b.remove());
+    }
+  } catch(e) { /* noop */ }
+
+  // ===== CONFIG (update sex/age IDs if different) =====
   const CONFIG = {
     appVersionSelector: null,
     filenamePattern: 'mobility-age_{last}_{date}_{time}',
     selectors: {
-      // Your confirmed IDs
       name: '#memberName',
-      sex: '#input-sex', // adjust if different
-      age: '#input-age', // adjust if different
+      sex: '#input-sex',
+      age: '#input-age',
       tug_s: '#tug',
       vo2_mlkgmin: '#input-vo2',
       sitreach_in: '#input-sitreach',
@@ -585,9 +467,8 @@ Paste just before </body>. Remove older export blocks first.
       grip_l_pct: '#input-grip-l',
       sway_r_pct: '#input-sway-r',
       sway_l_pct: '#input-sway-l',
-      // We will discover mobility_age dynamically (see getMobilityAge())
       movement_index: '#out-movement-index',
-      // Zs / WZs (best‑effort; safe if absent)
+      // optional Z / WZ (safe if absent)
       z_tug: '#out-z-tug', z_vo2: '#out-z-vo2', z_sitreach: '#out-z-sitreach', z_mtp: '#out-z-mtp', z_grip: '#out-z-grip', z_sway: '#out-z-sway',
       wz_tug: '#out-wz-tug', wz_vo2: '#out-wz-vo2', wz_sitreach: '#out-wz-sitreach', wz_mtp: '#out-wz-mtp', wz_grip: '#out-wz-grip', wz_sway: '#out-wz-sway'
     }
@@ -612,37 +493,37 @@ Paste just before </body>. Remove older export blocks first.
   const toCSV = (rows)=>{ const headers=Array.from(rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())); const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"': s; }; const lines=[headers.join(',')]; for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); };
   const getVersion = ()=>{ if(!CONFIG.appVersionSelector) return ''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; };
 
-  // ===== Mobility Age finder =====
+  // ===== Robust Mobility Age finder =====
   function getMobilityAge(){
-    // 1) Try common IDs or data attributes
-    const direct = document.querySelector('#out-mobility-age, #mobility-age, [data-field="mobility_age"], [data-field="mobility-age"]');
+    // 0) Direct selectors/data-
+    const direct = document.querySelector('#out-mobility-age, #mobility-age, #mobilityAge, [data-field="mobility_age"], [data-field="mobility-age"]');
     let v = numFrom(direct);
     if(v !== '') return v;
 
-    // 2) Scan for a table row/cell that contains the label text and grab a number from the same row
-    const labelRegex = /final\s*mobility\s*age/i;
-    const all = Array.from(document.querySelectorAll('table, tbody, tr, th, td, div, span, p'));
-    for(const node of all){
-      const t = (node.textContent||'').trim();
-      if(labelRegex.test(t)){
-        // Prefer the closest following sibling text in the same row
-        const row = node.closest('tr') || node.parentElement;
-        if(row){
-          const nums = (row.textContent||'').match(/-?\d+(?:[.,]\d+)?/g);
-          if(nums && nums.length){
-            const val = Number(nums[nums.length-1].replace(',','.'));
-            if(Number.isFinite(val)) return val;
+    // 1) Scan obvious containers (including table body that may animate)
+    const containers = [document, document.querySelector('#rows')].filter(Boolean);
+    const labelRegex = /final\s*mobility\s*age|mobility\s*age/i;
+
+    for(const root of containers){
+      // Look for rows/nodes mentioning the label
+      const nodes = Array.from(root.querySelectorAll('tr, td, th, div, span, p'));
+      for(const node of nodes){
+        const t = (node.textContent||'').trim();
+        if(labelRegex.test(t)){
+          // Prefer numbers in the same row
+          const row = node.closest('tr') || node;
+          const nums = (row.textContent||'').match(/-?\d+(?:[.,]\d+)?/g) || [];
+          // Choose a plausible age value: 5–120, prefer the largest
+          const candidates = nums.map(s=>Number(s.replace(',','.'))).filter(n=>Number.isFinite(n) && n>=5 && n<=120);
+          if(candidates.length) return Math.max(...candidates);
+          // Fallback: next siblings
+          let sib = node.nextElementSibling;
+          while(sib){
+            const nums2 = (sib.textContent||'').match(/-?\d+(?:[.,]\d+)?/g) || [];
+            const cand2 = nums2.map(s=>Number(s.replace(',','.'))).filter(n=>Number.isFinite(n) && n>=5 && n<=120);
+            if(cand2.length) return Math.max(...cand2);
+            sib = sib.nextElementSibling;
           }
-        }
-        // Fallback: search next siblings for a numeric value
-        let sib = node.nextElementSibling;
-        while(sib){
-          const nums2 = (sib.textContent||'').match(/-?\d+(?:[.,]\d+)?/g);
-          if(nums2 && nums2.length){
-            const v2 = Number(nums2[0].replace(',','.'));
-            if(Number.isFinite(v2)) return v2;
-          }
-          sib = sib.nextElementSibling;
         }
       }
     }
@@ -679,21 +560,19 @@ Paste just before </body>. Remove older export blocks first.
     return rec;
   }
 
-  function collect(){
-    return collectDOM();
-  }
+  function collect(){ return collectDOM(); }
 
   // ===== ACTIONS =====
   function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec, null, 2)); }
   function onExportCSV(){ const rec=collect(); const fname=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',fname); }
   function onExportJSON(){ const rec=collect(); const fname=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',fname); }
 
-  // ===== WIRE UP =====
+  // ===== WIRE UP (once) =====
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn, {once:true}); else fn(); }
   ready(()=>{
-    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
-    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
-    document.getElementById('btnProbe')?.addEventListener('click', onProbe);
+    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV, {once:false});
+    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON, {once:false});
+    document.getElementById('btnProbe')?.addEventListener('click', onProbe, {once:false});
   });
 })();
 </script>
@@ -702,6 +581,7 @@ Paste just before </body>. Remove older export blocks first.
   .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; font-size: 0.95rem; color:#111; }
   .export-controls .btn:hover { filter: brightness(0.98); }
 </style>
+
 
 </body>
 </html>
