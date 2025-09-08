@@ -423,10 +423,9 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
-HSMI Data Export Add‑on (v3.4)
-- Auto‑dedupes any duplicate export sections + listeners
-- Fixes double downloads via a one‑time wiring guard
-- Robust Mobility Age extractor (prefers 5–120 range, tries row with label)
+HSMI Data Export Add‑on (v3.7)
+- Explicitly reads Mobility Age from <th id="final">…</th>
+- Still dedupes duplicate blocks and prevents double downloads
 Paste just before </body>. Remove older export blocks if convenient (this also dedupes at runtime).
 -->
 
@@ -438,18 +437,15 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
 
 <script>
 (function(){
-  // Avoid double wiring if this script is accidentally included twice
+  // Guard: avoid double wiring if this script is included twice
   if (window.__HSMI_EXPORT_WIRED__) return; 
   window.__HSMI_EXPORT_WIRED__ = true;
 
   // Deduplicate any previous export sections that may still exist
   try {
     const blocks = Array.from(document.querySelectorAll('#export-controls'));
-    if (blocks.length > 1) {
-      // keep the last one (most recent); remove the rest
-      blocks.slice(0, -1).forEach(b => b.remove());
-    }
-  } catch(e) { /* noop */ }
+    if (blocks.length > 1) blocks.slice(0, -1).forEach(b => b.remove()); // keep the last/newest
+  } catch(e) {}
 
   // ===== CONFIG (update sex/age IDs if different) =====
   const CONFIG = {
@@ -480,7 +476,7 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   const numFrom = (el)=> {
     if(!el) return '';
     const raw = (el.dataset && (el.dataset.value||el.dataset.num)) || text(el);
-    const m = String(raw).match(/-?\d+(?:[.,]\d+)?/g);
+    const m = String(raw).match(/-?\d+(?:[.,]\d+)?/);
     if(!m) return '';
     const v = Number(m[0].replace(',','.'));
     return Number.isFinite(v)? v: '';
@@ -493,41 +489,15 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   const toCSV = (rows)=>{ const headers=Array.from(rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())); const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"': s; }; const lines=[headers.join(',')]; for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); };
   const getVersion = ()=>{ if(!CONFIG.appVersionSelector) return ''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; };
 
-  // ===== Robust Mobility Age finder =====
+  // ===== Mobility Age: read directly from <th id="final"> =====
   function getMobilityAge(){
-    // 0) Direct selectors/data-
-    const direct = document.querySelector('#out-mobility-age, #mobility-age, #mobilityAge, [data-field="mobility_age"], [data-field="mobility-age"]');
-    let v = numFrom(direct);
+    const direct = document.querySelector('#final');
+    const v = numFrom(direct);
     if(v !== '') return v;
-
-    // 1) Scan obvious containers (including table body that may animate)
-    const containers = [document, document.querySelector('#rows')].filter(Boolean);
-    const labelRegex = /final\s*mobility\s*age|mobility\s*age/i;
-
-    for(const root of containers){
-      // Look for rows/nodes mentioning the label
-      const nodes = Array.from(root.querySelectorAll('tr, td, th, div, span, p'));
-      for(const node of nodes){
-        const t = (node.textContent||'').trim();
-        if(labelRegex.test(t)){
-          // Prefer numbers in the same row
-          const row = node.closest('tr') || node;
-          const nums = (row.textContent||'').match(/-?\d+(?:[.,]\d+)?/g) || [];
-          // Choose a plausible age value: 5–120, prefer the largest
-          const candidates = nums.map(s=>Number(s.replace(',','.'))).filter(n=>Number.isFinite(n) && n>=5 && n<=120);
-          if(candidates.length) return Math.max(...candidates);
-          // Fallback: next siblings
-          let sib = node.nextElementSibling;
-          while(sib){
-            const nums2 = (sib.textContent||'').match(/-?\d+(?:[.,]\d+)?/g) || [];
-            const cand2 = nums2.map(s=>Number(s.replace(',','.'))).filter(n=>Number.isFinite(n) && n>=5 && n<=120);
-            if(cand2.length) return Math.max(...cand2);
-            sib = sib.nextElementSibling;
-          }
-        }
-      }
-    }
-    return '';
+    // Fallbacks if #final is empty for any reason
+    const alt = document.querySelector('#out-mobility-age, #mobility-age, #mobilityAge, [data-field="mobility_age"], [data-field="mobility-age"]');
+    const v2 = numFrom(alt);
+    return v2 !== '' ? v2 : '';
   }
 
   // ===== COLLECT =====
@@ -551,16 +521,15 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
       // Outputs
       mobility_age: getMobilityAge(),
       movement_index: numFrom($(S.movement_index)),
-      // Zs
+      // Zs/WZs (best‑effort)
       z_tug: numFrom($(S.z_tug)), z_vo2: numFrom($(S.z_vo2)), z_sitreach: numFrom($(S.z_sitreach)), z_mtp: numFrom($(S.z_mtp)), z_grip: numFrom($(S.z_grip)), z_sway: numFrom($(S.z_sway)),
-      // Weighted Zs
       wz_tug: numFrom($(S.wz_tug)), wz_vo2: numFrom($(S.wz_vo2)), wz_sitreach: numFrom($(S.wz_sitreach)), wz_mtp: numFrom($(S.wz_mtp)), wz_grip: numFrom($(S.wz_grip)), wz_sway: numFrom($(S.wz_sway))
     };
     for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
     return rec;
   }
 
-  function collect(){ return collectDOM(); }
+  const collect = ()=> collectDOM();
 
   // ===== ACTIONS =====
   function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec, null, 2)); }
@@ -570,9 +539,9 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   // ===== WIRE UP (once) =====
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn, {once:true}); else fn(); }
   ready(()=>{
-    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV, {once:false});
-    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON, {once:false});
-    document.getElementById('btnProbe')?.addEventListener('click', onProbe, {once:false});
+    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
+    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
+    document.getElementById('btnProbe')?.addEventListener('click', onProbe);
   });
 })();
 </script>
@@ -581,7 +550,6 @@ Paste just before </body>. Remove older export blocks if convenient (this also d
   .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; font-size: 0.95rem; color:#111; }
   .export-controls .btn:hover { filter: brightness(0.98); }
 </style>
-
 
 </body>
 </html>
