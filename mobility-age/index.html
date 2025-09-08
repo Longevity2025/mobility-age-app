@@ -605,6 +605,128 @@ Paste near the end of your index.html, just before </body>.
   .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; }
   .export-controls .btn:hover { filter: brightness(0.98); }
 </style>
+<!--
+HSMI Data Export Add‑on (v3, DOM‑only)
+Use this version if your build does NOT expose window.app.
+Paste just before </body> in index.html.
+-->
+
+<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(220px,1fr));">
+  <button id="btnExportCSV" class="btn">⬇️ Download CSV</button>
+  <button id="btnExportJSON" class="btn">⬇️ Download JSON</button>
+</section>
+
+<script>
+(function(){
+  // ===== CONFIG =====
+  const CONFIG = {
+    // If you display a version string somewhere (e.g., "v9.27"), set the selector; else null.
+    appVersionSelector: null,
+    filenamePattern: 'mobility-age_{last}_{date}_{time}',
+    selectors: {
+      // Inputs
+      name: '#input-name',
+      sex: '#input-sex',
+      age: '#input-age',
+      tug_s: '#input-tug',
+      vo2_mlkgmin: '#input-vo2',
+      sitreach_in: '#input-sitreach',
+      mtp_pct: '#input-mtp',
+      grip_r_pct: '#input-grip-r',
+      grip_l_pct: '#input-grip-l',
+      sway_r_pct: '#input-sway-r',
+      sway_l_pct: '#input-sway-l',
+      // Outputs
+      mobility_age: '#out-mobility-age',
+      movement_index: '#out-movement-index',
+      // Zs (if shown)
+      z_tug: '#out-z-tug',
+      z_vo2: '#out-z-vo2',
+      z_sitreach: '#out-z-sitreach',
+      z_mtp: '#out-z-mtp',
+      z_grip: '#out-z-grip',
+      z_sway: '#out-z-sway',
+      // Weighted Zs (if shown)
+      wz_tug: '#out-wz-tug',
+      wz_vo2: '#out-wz-vo2',
+      wz_sitreach: '#out-wz-sitreach',
+      wz_mtp: '#out-wz-mtp',
+      wz_grip: '#out-wz-grip',
+      wz_sway: '#out-wz-sway'
+    }
+  };
+
+  // ===== UTIL =====
+  function $(sel){ return sel ? document.querySelector(sel) : null; }
+  function txt(sel){ const el=$(sel); return el? (el.value ?? el.textContent ?? '').toString().trim() : ''; }
+  function num(sel){ const t = txt(sel).replace(/[^0-9.+-]/g,''); return t? Number(t) : ''; }
+  function nowParts(){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return {date:`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`, time:`${p(d.getHours())}${p(d.getMinutes())}`}; }
+  function parseName(full){ const t=(full||'').trim(); if(!t) return {first:'',last:''}; const parts=t.split(/[\s,]+/).filter(Boolean); return parts.length===1?{first:parts[0],last:''}:{first:parts[0],last:parts[parts.length-1]}; }
+  function slug(s){ return (s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  function buildFilename(base){ const {date,time}=nowParts(); const {first,last}=parseName(base?.name_full || txt(CONFIG.selectors.name)); return CONFIG.filenamePattern.replace('{first}',slug(first)).replace('{last}',slug(last)).replace('{date}',date).replace('{time}',time); }
+  function downloadBlob(content,mime,filename){ const b=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); }
+  function toCSV(rows){ const headers=Array.from(rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())); const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"': s; }; const lines=[headers.join(',')]; for(const r of rows){ lines.push(headers.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); }
+  function getVersion(){ if(!CONFIG.appVersionSelector) return ''; const t=$(CONFIG.appVersionSelector)?.textContent?.trim()||''; const m=/(v\d+(?:\.\d+)?)/i.exec(t); return m?m[1]:t; }
+
+  // ===== COLLECT (DOM only) =====
+  function collect(){
+    const S = CONFIG.selectors;
+    const rec = {
+      // Identity/meta
+      name_full: txt(S.name),
+      sex: txt(S.sex),
+      age: num(S.age),
+      app_version: getVersion(),
+      timestamp_iso: new Date().toISOString(),
+      // Raw inputs
+      tug_s: num(S.tug_s),
+      vo2_mlkgmin: num(S.vo2_mlkgmin),
+      sitreach_in: num(S.sitreach_in),
+      mtp_pct: num(S.mtp_pct),
+      grip_r_pct: num(S.grip_r_pct),
+      grip_l_pct: num(S.grip_l_pct),
+      sway_r_pct: num(S.sway_r_pct),
+      sway_l_pct: num(S.sway_l_pct),
+      // Outputs
+      mobility_age: num(S.mobility_age),
+      movement_index: num(S.movement_index),
+      // Zs (if present on page)
+      z_tug: num(S.z_tug),
+      z_vo2: num(S.z_vo2),
+      z_sitreach: num(S.z_sitreach),
+      z_mtp: num(S.z_mtp),
+      z_grip: num(S.z_grip),
+      z_sway: num(S.z_sway),
+      // Weighted Zs (if present)
+      wz_tug: num(S.wz_tug),
+      wz_vo2: num(S.wz_vo2),
+      wz_sitreach: num(S.wz_sitreach),
+      wz_mtp: num(S.wz_mtp),
+      wz_grip: num(S.wz_grip),
+      wz_sway: num(S.wz_sway)
+    };
+    // Clean NaN → ''
+    for(const k of Object.keys(rec)) if(typeof rec[k]==='number' && Number.isNaN(rec[k])) rec[k]='';
+    return rec;
+  }
+
+  // ===== ACTIONS =====
+  function onExportCSV(){ const rec=collect(); const fname=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',fname); }
+  function onExportJSON(){ const rec=collect(); const fname=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',fname); }
+
+  // ===== WIRE UP =====
+  function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn, {once:true}); else fn(); }
+  ready(()=>{
+    document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
+    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
+  });
+})();
+</script>
+
+<style>
+  .export-controls .btn { padding: 0.75rem 1rem; border-radius: 0.75rem; border: 1px solid #ddd; background:#fafafa; cursor: pointer; }
+  .export-controls .btn:hover { filter: brightness(0.98); }
+</style>
 
 </body>
 </html>
