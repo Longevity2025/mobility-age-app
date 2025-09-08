@@ -423,13 +423,12 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
-HSMI Data Export Add‑on (v4.3)
-- Adds mapping for Age, Sex, and Sit & Reach (your three missing fields)
-- Click‑to‑Map wizard order: Age → Sex → VO₂ → MTP → Grip R → Grip L → Sway R → Sway L → Sit & Reach
-- New storage key so any old mappings are ignored
-- “Audit mapping” shows where each mapping points + the current text
-- Mobility Age still read directly from <th id="final">…</th>
-Paste just before </body>.
+HSMI Data Export Add‑on (v4.2)
+- Fixes the Map Fields bug: clicks now capture the element UNDER the overlay (proper hit‑testing)
+- New storage key so any bad mappings are ignored automatically
+- Adds “Audit mapping” to show what each mapping resolves to + current text
+- Mobility Age still from <th id="final">…</th>
+Paste just before </body> (replace older export blocks).
 -->
 
 <section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
@@ -447,10 +446,11 @@ Paste just before </body>.
   if (window.__HSMI_EXPORT_WIRED__) return; window.__HSMI_EXPORT_WIRED__ = true;
   try { const blocks=[...document.querySelectorAll('#export-controls')]; if(blocks.length>1) blocks.slice(0,-1).forEach(b=>b.remove()); } catch(e){}
 
-  const STORAGE_KEY = 'hsmi_field_map_v3'; // new key – ignores any older/bad mappings
-  const MAP_KEYS = ['age','sex','vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','sitreach_in'];
+  const STORAGE_KEY = 'hsmi_field_map_v2'; // v2 to ignore any old/bad mappings
+  const MAP_KEYS = ['vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct'];
 
-  const CONFIG = { filenamePattern:'mobility-age_{last}_{date}_{time}', selectors:{ name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug' } };
+  const CONFIG = { filenamePattern:'mobility-age_{last}_{date}_{time}', timeZone: null, // set to e.g. 'America/New_York' to force Eastern; null = use browser local
+    selectors:{ name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug' } };
 
   // ==== utils ====
   const $ = (s)=> s? document.querySelector(s): null;
@@ -463,6 +463,19 @@ Paste just before </body>.
   const buildFilename=(base)=>{ const {date,time}=nowParts(); const {first,last}=parseName(base?.name_full); return CONFIG.filenamePattern.replace('{first}',slug(first)).replace('{last}',slug(last)).replace('{date}',date).replace('{time}',time); };
   const downloadBlob=(content,mime,filename)=>{ const b=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); };
   const toCSV=(rows)=>{ const headers=[...rows.reduce((s,r)=>{Object.keys(r).forEach(k=>s.add(k)); return s;}, new Set())]; const esc=v=>v==null?'':(/[",\n]/.test(String(v))? '"'+String(v).replace(/"/g,'""')+'"' : v); return [headers.join(',')].concat(rows.map(r=>headers.map(h=>esc(r[h])).join(','))).join('\n'); };
+
+  // ==== local timestamp in chosen US time zone ====
+  function formatLocalTimestamp(tz){
+    try{
+      const d = new Date();
+      const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZoneName:'short' }).formatToParts(d);
+      const get = (t)=> parts.find(p=>p.type===t)?.value || '';
+      const yyyy=get('year'), mm=get('month'), dd=get('day'), hh=get('hour'), mi=get('minute'), ss=get('second');
+      const tzName = get('timeZoneName');
+      return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss} ${tzName}`;
+    }catch(e){ return new Date().toString(); }
+  }
 
   // ==== JSON fallbacks (optional) ====
   function readJSON(id){ try{ const el=document.getElementById(id); if(!el) return null; return JSON.parse(el.textContent||''); }catch(e){ return null; } }
@@ -505,24 +518,24 @@ Paste just before </body>.
     const vo2J=readJSON('vo2_json');
     const srJ =readJSON('sr_json');
 
-    function fromMapNum(key){ const el=getMappedEl(map[key]); return numFrom(el); }
-    function fromMapText(key){ const el=getMappedEl(map[key]); return text(el); }
+    function fromMap(key){ const el=getMappedEl(map[key]); return numFrom(el); }
 
     const rec={
       name_full: text($(CONFIG.selectors.name)),
-      sex: fromMapText('sex') || text($(CONFIG.selectors.sex)) || '',
-      age: fromMapNum('age') || numFrom($(CONFIG.selectors.age)) || '',
+      sex: text($(CONFIG.selectors.sex)) || '',
+      age: numFrom($(CONFIG.selectors.age)) || '',
       app_version: document.body.getAttribute('data-app-version')||'',
       timestamp_iso: new Date().toISOString(),
+      timestamp_local: formatLocalTimestamp(CONFIG.timeZone),
 
       tug_s: numFrom($(CONFIG.selectors.tug_s)) || (tugJ && (tugJ.value||tugJ.tug)) || '',
-      vo2_mlkgmin: fromMapNum('vo2_mlkgmin') || (vo2J && (vo2J.value||vo2J.vo2)) || '',
-      sitreach_in: fromMapNum('sitreach_in') || (srJ && (srJ.value||srJ.sit_reach)) || '',
-      mtp_pct: fromMapNum('mtp_pct') || '',
-      grip_r_pct: fromMapNum('grip_r_pct') || '',
-      grip_l_pct: fromMapNum('grip_l_pct') || '',
-      sway_r_pct: fromMapNum('sway_r_pct') || '',
-      sway_l_pct: fromMapNum('sway_l_pct') || '',
+      vo2_mlkgmin: fromMap('vo2_mlkgmin') || (vo2J && (vo2J.value||vo2J.vo2)) || '',
+      sitreach_in: (srJ && (srJ.value||srJ.sit_reach)) || '',
+      mtp_pct: fromMap('mtp_pct') || '',
+      grip_r_pct: fromMap('grip_r_pct') || '',
+      grip_l_pct: fromMap('grip_l_pct') || '',
+      sway_r_pct: fromMap('sway_r_pct') || '',
+      sway_l_pct: fromMap('sway_l_pct') || '',
 
       mobility_age: getMobilityAge()
     };
@@ -530,43 +543,54 @@ Paste just before </body>.
     return {rec, map};
   }
 
-  // ==== map wizard (covers Age/Sex/SitReach now) ====
+  // ==== map wizard (fixed hit‑testing) ====
   function startMap(){
     const map=loadMap();
     const steps=[
-      ['age','Click the **Age** NUMBER (e.g., 64)'],
-      ['sex','Click the **Sex/Gender** text (e.g., Male/Female)'],
-      ['vo2_mlkgmin','Click the **VO₂ (ml/kg/min)** NUMBER'],
-      ['mtp_pct','Click the **MTP (%)** NUMBER'],
-      ['grip_r_pct','Click the **Grip Right (%)** NUMBER'],
-      ['grip_l_pct','Click the **Grip Left (%)** NUMBER'],
-      ['sway_r_pct','Click the **Sway Right** NUMBER'],
-      ['sway_l_pct','Click the **Sway Left** NUMBER'],
-      ['sitreach_in','Click the **Sit & Reach** NUMBER']
+      ['vo2_mlkgmin','Click the VO₂ (ml/kg/min) NUMBER'],
+      ['mtp_pct','Click the MTP (%) NUMBER'],
+      ['grip_r_pct','Click the Grip Right (%) NUMBER'],
+      ['grip_l_pct','Click the Grip Left (%) NUMBER'],
+      ['sway_r_pct','Click the Sway Right NUMBER'],
+      ['sway_l_pct','Click the Sway Left NUMBER']
     ];
     let i=0; let overlay, tip, hl;
 
     function showTip(msg){
       if(!overlay){
         overlay=document.createElement('div');
+        // allow clicks to pass through so we can hit‑test the real element
         overlay.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.06);pointer-events:none';
         document.body.appendChild(overlay);
         tip=document.createElement('div'); tip.style.cssText='position:fixed;z-index:99998;left:50%;top:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;font:14px system-ui;box-shadow:0 6px 14px rgba(0,0,0,.2)'; document.body.appendChild(tip);
         document.addEventListener('click', onClick, true);
         document.addEventListener('keydown', onKey, true);
       }
-      tip.innerHTML='HSMI map: '+msg+'  <span style="opacity:.75">(Esc to cancel)</span>';
+      tip.textContent='HSMI map: '+msg+'  (Esc to cancel)';
     }
 
-    function highlight(el){ if(hl) hl.remove(); if(!el) return; const r=el.getBoundingClientRect(); hl=document.createElement('div'); hl.style.cssText=`position:fixed;z-index:99999;border:2px solid #0a84ff;border-radius:6px;pointer-events:none;left:${r.left-4}px;top:${r.top-4}px;width:${r.width+8}px;height:${r.height+8}px`; document.body.appendChild(hl); }
+    function highlight(el){
+      if(hl) hl.remove();
+      if(!el) return;
+      const r=el.getBoundingClientRect();
+      hl=document.createElement('div');
+      hl.style.cssText=`position:fixed;z-index:99999;border:2px solid #0a84ff;border-radius:6px;pointer-events:none;left:${r.left-4}px;top:${r.top-4}px;width:${r.width+8}px;height:${r.height+8}px`;
+      document.body.appendChild(hl);
+    }
 
     function onClick(e){
-      const el = document.elementFromPoint(e.clientX, e.clientY); // real element under cursor
-      if(!el) return; e.preventDefault(); e.stopPropagation();
-      const key=steps[i][0]; const ref=buildRef(el);
-      if(!ref){ alert('Could not identify that element. Try clicking directly on the number/text.'); return; }
-      const mapObj=loadMap(); mapObj[key]=ref; saveMap(mapObj); highlight(el);
-      i++; if(i<steps.length){ showTip(steps[i][1]); } else { cleanup(); alert('HSMI: mapping saved. Use **Audit mapping** to verify.'); }
+      // capture the element under the cursor (not the overlay)
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if(!el) return;
+      e.preventDefault(); e.stopPropagation();
+      const key=steps[i][0];
+      const ref=buildRef(el);
+      if(!ref){ alert('Could not identify that element. Try clicking right on the number.'); return; }
+      const mapObj=loadMap(); mapObj[key]=ref; saveMap(mapObj);
+      highlight(el);
+      i++;
+      if(i<steps.length){ showTip(steps[i][1]); }
+      else { cleanup(); alert('HSMI: mapping saved. Use Audit mapping to verify.'); }
     }
 
     function onKey(e){ if(e.key==='Escape'){ cleanup(); alert('HSMI: mapping cancelled.'); } }
@@ -578,7 +602,12 @@ Paste just before </body>.
   function auditMapping(){
     const map=loadMap();
     const lines=['HSMI mapping:'];
-    for(const k of MAP_KEYS){ const m=map[k]; const el=getMappedEl(m); const val=el? text(el) : '(no element)'; lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | current text: ${val || '(empty)'}`); }
+    for(const k of MAP_KEYS){
+      const m=map[k];
+      const el=getMappedEl(m);
+      const val=el? text(el) : '(no element)';
+      lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | current text: ${val || '(empty)'}`);
+    }
     alert(lines.join('\n'));
   }
 
@@ -586,7 +615,7 @@ Paste just before </body>.
   function onProbe(){ const {rec}=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec,null,2)); }
   function onExportCSV(){ const {rec}=collect(); const f=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',f); }
   function onExportJSON(){ const {rec}=collect(); const f=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',f); }
-  function onAudit(){ const {rec}=collect(); const lines=Object.entries(rec).map(([k,v])=>`${k}: ${v===''?'(blank)':v}`); alert('HSMI audit (v4.3)\n\n'+lines.join('\n')); }
+  function onAudit(){ const {rec}=collect(); const lines=Object.entries(rec).map(([k,v])=>`${k}: ${v===''?'(blank)':v}`); alert('HSMI audit (v4.2)\n\n'+lines.join('\n')); }
 
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn,{once:true}); else fn(); }
   ready(()=>{
@@ -605,5 +634,6 @@ Paste just before </body>.
   .export-controls .btn{ padding:.75rem 1rem;border-radius:.75rem;border:1px solid #ddd;background:#fafafa;cursor:pointer;font-size:.95rem;color:#111 }
   .export-controls .btn:hover{ filter:brightness(.98) }
 </style>
+
 </body>
 </html>
