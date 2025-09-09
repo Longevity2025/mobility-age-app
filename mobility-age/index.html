@@ -436,52 +436,7 @@ One‑time bake‑in steps (later):
 -->
 
 <!-- Paste mapping JSON here when ready (example stays {}) -->
-<script type="application/json" id="hsmi_embedded_map">{}{
-  "age": {
-    "type": "id",
-    "value": "age"
-  },
-  "sex": {
-    "type": "id",
-    "value": "sex"
-  },
-  "vo2_mlkgmin": {
-    "type": "id",
-    "value": "vo2"
-  },
-  "mtp_pct": {
-    "type": "id",
-    "value": "mtp"
-  },
-  "grip_r_pct": {
-    "type": "id",
-    "value": "grip_r"
-  },
-  "grip_l_pct": {
-    "type": "id",
-    "value": "grip_l"
-  },
-  "sway_r_pct": {
-    "type": "id",
-    "value": "sway_r"
-  },
-  "sway_l_pct": {
-    "type": "id",
-    "value": "sway_l"
-  },
-  "sitreach_in": {
-    "type": "id",
-    "value": "sit"
-  },
-  "tester": {
-    "type": "id",
-    "value": "tester"
-  },
-  "location": {
-    "type": "id",
-    "value": "location"
-  }
-}</script>
+<script type="application/json" id="hsmi_embedded_map">{}</script>
 
 <section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
   <button id="btnExportCSV" class="btn">Download CSV</button>
@@ -645,6 +600,13 @@ One‑time bake‑in steps (later):
     showTip(steps[i][1]);
   }
 
+  // Local date autofill (opt-in): set any <input type="date" data-local-autofill> and we'll fill with local date in CONFIG.timeZone
+  function toLocalISODate(tz){
+    try{ const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone; return new Date().toLocaleDateString('en-CA', { timeZone: zone }); }
+    catch(e){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+  }
+  function setLocalDateAutofill(tz){ document.querySelectorAll('input[type="date"][data-local-autofill]').forEach(inp=>{ if(!inp.value) inp.value = toLocalISODate(tz); }); }
+
   // UI actions
   function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec,null,2)); }
   function onExportCSV(){ const rec=collect(); const f=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',f); }
@@ -652,7 +614,7 @@ One‑time bake‑in steps (later):
   function onAudit(){ const rec=collect(); const lines=HEADERS.map(h=>`${h}: ${rec[h] === '' ? '(blank)' : rec[h]}`); const usingEmbedded = Object.keys(EMBEDDED_MAP).length>0; lines.push('\nMapping source: '+(usingEmbedded?'EMBEDDED (all devices)':'localStorage (this device only)')); alert('HSMI audit (v5.2)\n\n'+lines.join('\n')); }
   function onAuditMap(){ const local=loadLocalMap(); const use=Object.assign({}, EMBEDDED_MAP, local); const lines=['HSMI mapping refs:']; for(const k of MAP_KEYS_ORDER){ const m=use[k]; const el=getMappedEl(m); const val=el? text(el) : '(no element)'; lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | text: ${val || '(empty)'}`); } alert(lines.join('\n')); }
   function onCopyMap(){ const local=loadLocalMap(); const json=JSON.stringify(local, null, 2); try{ navigator.clipboard.writeText(json).then(()=>alert('HSMI: mapping copied. Paste into the hsmi_embedded_map <script> block, then commit.')); }catch(e){ prompt('Copy this JSON and paste into hsmi_embedded_map:', json); } }
-  function maybeHideMappingButtons(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }
+  function maybeHideMappingButtons(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap','btnCopyMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }); } }
 
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn,{once:true}); else fn(); }
   ready(()=>{
@@ -665,6 +627,7 @@ One‑time bake‑in steps (later):
     document.getElementById('btnMap')?.addEventListener('click', startMap);
     document.getElementById('btnClearMap')?.addEventListener('click', clearLocalMap);
     maybeHideMappingButtons();
+    setLocalDateAutofill(CONFIG.timeZone);
   });
 })();
 </script>
