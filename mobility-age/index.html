@@ -423,94 +423,20 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
-HSMI Data Export Add‑on (v5.1)
-- Works on ANY device via EMBEDDED MAPPING (no per-device clicks)
+HSMI Data Export Add‑on (v5.2)
+- Suppresses UTC in CSV: exports ONLY local timestamp (configurable US TZ)
+- Adds Tester + Location fields (text) — portable via embedded mapping
+- Works on ANY device: embed the mapping JSON below once; mapping UI auto‑hides
 - Fixed CSV header order
-- Local timestamp column with optional forced US timezone
-- Mobility Age pulled directly from <th id="final">…</th>
 
-One-time bake‑in steps:
-1) With your current working mapping on a machine, click **Copy mapping JSON**.
-2) Paste that JSON into the <script id="hsmi_embedded_map"> block below (replace {{
-  "age": {
-    "type": "id",
-    "value": "age"
-  },
-  "sex": {
-    "type": "id",
-    "value": "sex"
-  },
-  "vo2_mlkgmin": {
-    "type": "id",
-    "value": "vo2"
-  },
-  "mtp_pct": {
-    "type": "id",
-    "value": "mtp"
-  },
-  "grip_r_pct": {
-    "type": "id",
-    "value": "grip_r"
-  },
-  "grip_l_pct": {
-    "type": "id",
-    "value": "grip_l"
-  },
-  "sway_r_pct": {
-    "type": "id",
-    "value": "sway_r"
-  },
-  "sway_l_pct": {
-    "type": "id",
-    "value": "sway_l"
-  },
-  "sitreach_in": {
-    "type": "id",
-    "value": "sit"
-  }
-}}). Commit.
-3) After deploy, mapping UI hides and everyone uses the embedded mapping.
+One‑time bake‑in steps (later):
+1) Map fields → Audit mapping → Copy mapping JSON.
+2) Paste JSON into the <script id="hsmi_embedded_map"> block below, commit.
+3) After deploy, everyone uses the embedded mapping (no per‑device clicks).
 -->
 
-<!-- Paste mapping JSON here when ready -->
-<script type="application/json" id="hsmi_embedded_map">{
-  "age": {
-    "type": "id",
-    "value": "age"
-  },
-  "sex": {
-    "type": "id",
-    "value": "sex"
-  },
-  "vo2_mlkgmin": {
-    "type": "id",
-    "value": "vo2"
-  },
-  "mtp_pct": {
-    "type": "id",
-    "value": "mtp"
-  },
-  "grip_r_pct": {
-    "type": "id",
-    "value": "grip_r"
-  },
-  "grip_l_pct": {
-    "type": "id",
-    "value": "grip_l"
-  },
-  "sway_r_pct": {
-    "type": "id",
-    "value": "sway_r"
-  },
-  "sway_l_pct": {
-    "type": "id",
-    "value": "sway_l"
-  },
-  "sitreach_in": {
-    "type": "id",
-    "value": "sit"
-  }
-} </script>
+<!-- Paste mapping JSON here when ready (example stays {}) -->
+<script type="application/json" id="hsmi_embedded_map">{}</script>
 
 <section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
   <button id="btnExportCSV" class="btn">Download CSV</button>
@@ -529,12 +455,12 @@ One-time bake‑in steps:
   try { const blocks=[...document.querySelectorAll('#export-controls')]; if(blocks.length>1) blocks.slice(0,-1).forEach(b=>b.remove()); } catch(e){}
 
   // ===== CONSTANTS =====
-  const STORAGE_KEY = 'hsmi_field_map_v3'; // keeps compatibility with v4.3 so you can copy existing mapping
+  const STORAGE_KEY = 'hsmi_field_map_v3'; // keep compatibility with previous mapping
   const HEADERS = [
-    'timestamp_iso','timestamp_local','app_version','name_full','sex','age',
+    'timestamp_local','app_version','name_full','tester','location','sex','age',
     'tug_s','vo2_mlkgmin','sitreach_in','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','mobility_age'
-  ]; // fixed header order
-  const MAP_KEYS_ORDER = ['age','sex','vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','sitreach_in'];
+  ]; // fixed CSV order; UTC suppressed
+  const MAP_KEYS_ORDER = ['age','sex','tester','location','vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','sitreach_in'];
 
   // ===== EMBEDDED MAP =====
   function getEmbeddedMap(){
@@ -546,7 +472,14 @@ One-time bake‑in steps:
   const CONFIG = {
     filenamePattern:'mobility-age_{last}_{date}_{time}',
     timeZone: null, // set to e.g. 'America/New_York' to force Eastern; null = use browser local
-    selectors:{ name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug' }
+    selectors:{
+      name:'#memberName',
+      sex:'#input-sex',
+      age:'#input-age',
+      tug_s:'#tug',
+      tester:null,    // leave null; use mapping wizard
+      location:null   // leave null; use mapping wizard
+    }
   };
 
   // ===== UTILS =====
@@ -564,7 +497,7 @@ One-time bake‑in steps:
     for(const r of rows){ lines.push(HEADERS.map(h=>esc(r[h])).join(',')); }
     return lines.join('\n'); };
 
-  // Local timestamp with optional forced TZ
+  // Local timestamp with optional forced TZ (US)
   function formatLocalTimestamp(tz){
     try{
       const d = new Date();
@@ -584,31 +517,13 @@ One-time bake‑in steps:
   function loadLocalMap(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
   function saveLocalMap(map){ localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); }
   function clearLocalMap(){ localStorage.removeItem(STORAGE_KEY); alert('HSMI: local mapping cleared.'); }
-
-  function getMappedEl(entry){
-    if(!entry) return null;
-    if(entry.type==='id') return document.getElementById(entry.value) || null;
-    if(entry.type==='selector') return document.querySelector(entry.value) || null;
-    if(entry.type==='xpath'){
-      try{ const r=document.evaluate(entry.value, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); return r.singleNodeValue; }catch(e){ return null; }
-    }
-    return null;
-  }
-
-  function buildRef(el){
-    if(!el) return null;
-    if(el.id) return {type:'id', value: el.id};
-    const cls=(el.className||'').split(/\s+/).filter(Boolean).slice(0,2).join('.');
-    if(cls){ const sel=`${el.tagName.toLowerCase()}.${cls}`; try{ const found=document.querySelector(sel); if(found===el) return {type:'selector', value: sel}; }catch(e){}
-    }
-    const parts=[]; let n=el; while(n && n.nodeType===1 && n!==document.documentElement){ const tag=n.nodeName.toLowerCase(); const sibs=[...n.parentNode?.children||[]].filter(x=>x.nodeName===n.nodeName); const idx=sibs.indexOf(n)+1; parts.unshift(`${tag}[${idx}]`); if(tag==='table') break; n=n.parentNode; }
-    return {type:'xpath', value:'/'+parts.join('/')};
-  }
+  function getMappedEl(entry){ if(!entry) return null; if(entry.type==='id') return document.getElementById(entry.value)||null; if(entry.type==='selector') return document.querySelector(entry.value)||null; if(entry.type==='xpath'){ try{ const r=document.evaluate(entry.value, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); return r.singleNodeValue; }catch(e){ return null; } } return null; }
+  function buildRef(el){ if(!el) return null; if(el.id) return {type:'id',value:el.id}; const cls=(el.className||'').split(/\s+/).filter(Boolean).slice(0,2).join('.'); if(cls){ const sel=`${el.tagName.toLowerCase()}.${cls}`; try{ const found=document.querySelector(sel); if(found===el) return {type:'selector',value:sel}; }catch(e){} } const parts=[]; let n=el; while(n && n.nodeType===1 && n!==document.documentElement){ const tag=n.nodeName.toLowerCase(); const sibs=[...n.parentNode?.children||[]].filter(x=>x.nodeName===n.nodeName); const idx=sibs.indexOf(n)+1; parts.unshift(`${tag}[${idx}]`); if(tag==='table') break; n=n.parentNode; } return {type:'xpath', value:'/'+parts.join('/')}; }
 
   // Mobility Age
   const getMobilityAge=()=>{ const v=numFrom(document.querySelector('#final')); return v!==''? v:''; };
 
-  // Label fallback (safety net)
+  // Label fallback (safety net for numeric rows)
   const LABEL_MAP=[
     {key:'vo2_mlkgmin', re:/vo\s*2|v[\.\u0307]?o\s*2|oxygen|ml\s*\/\s*kg\s*\/\s*min/i},
     {key:'sitreach_in', re:/sit\s*&?\s*reach|sit.?and.?reach|reach\s*\((in|cm)\)/i},
@@ -620,13 +535,8 @@ One-time bake‑in steps:
   ];
   function readFromLabels(){ const out={}; const rows=[...document.querySelectorAll('table tr')]; for(const tr of rows){ const cells=[...tr.children]; if(cells.length<2) continue; const label=(cells[0].textContent||'').trim(); for(const m of LABEL_MAP){ if(m.re.test(label)){ const rest=cells.slice(1).map(td=>td.textContent||'').join(' '); const val=numFirst(rest); if(val!=='') out[m.key]=val; } } } return out; }
 
-  // Choose mapped value (embedded → local → '')
-  function getValFromMap(key, asText=false){
-    const prefer = EMBEDDED_MAP[key] || loadLocalMap()[key] || null;
-    const el = getMappedEl(prefer);
-    if(!el) return '';
-    return asText ? text(el) : numFrom(el);
-  }
+  // Choose mapped value (embedded → local → selector → labels → JSON)
+  function getValFromMap(key, asText=false){ const prefer = EMBEDDED_MAP[key] || loadLocalMap()[key] || null; const el = getMappedEl(prefer); if(!el) return ''; return asText ? text(el) : numFrom(el); }
 
   // Collect record
   function collect(){
@@ -636,10 +546,11 @@ One-time bake‑in steps:
     const labels = readFromLabels();
 
     const rec={
-      timestamp_iso: new Date().toISOString(),
       timestamp_local: formatLocalTimestamp(CONFIG.timeZone),
       app_version: document.body.getAttribute('data-app-version')||'',
       name_full: text($(CONFIG.selectors.name)),
+      tester: getValFromMap('tester', true) || text($(CONFIG.selectors.tester)) || '',
+      location: getValFromMap('location', true) || text($(CONFIG.selectors.location)) || '',
       sex: getValFromMap('sex', true) || text($(CONFIG.selectors.sex)) || '',
       age: getValFromMap('age') || numFrom($(CONFIG.selectors.age)) || '',
       tug_s: numFrom($(CONFIG.selectors.tug_s)) || (tugJ && (tugJ.value||tugJ.tug)) || '',
@@ -657,11 +568,13 @@ One-time bake‑in steps:
     return rec;
   }
 
-  // Mapping wizard
+  // Mapping wizard (includes Tester + Location; suppress overlay clicks)
   function startMap(){
     const steps=[
       ['age','Click the **Age** NUMBER'],
       ['sex','Click the **Sex/Gender** TEXT'],
+      ['tester','Click the **Tester** TEXT'],
+      ['location','Click the **Location** TEXT'],
       ['vo2_mlkgmin','Click the **VO₂ (ml/kg/min)** NUMBER'],
       ['mtp_pct','Click the **MTP (%)** NUMBER'],
       ['grip_r_pct','Click the **Grip Right (%)** NUMBER'],
@@ -691,10 +604,9 @@ One-time bake‑in steps:
   function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec,null,2)); }
   function onExportCSV(){ const rec=collect(); const f=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',f); }
   function onExportJSON(){ const rec=collect(); const f=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',f); }
-  function onAudit(){ const rec=collect(); const lines=HEADERS.map(h=>`${h}: ${rec[h] === '' ? '(blank)' : rec[h]}`); const usingEmbedded = Object.keys(EMBEDDED_MAP).length>0; lines.push('\nMapping source: '+(usingEmbedded?'EMBEDDED (all devices)':'localStorage (this device only)')); alert('HSMI audit (v5.1)\n\n'+lines.join('\n')); }
+  function onAudit(){ const rec=collect(); const lines=HEADERS.map(h=>`${h}: ${rec[h] === '' ? '(blank)' : rec[h]}`); const usingEmbedded = Object.keys(EMBEDDED_MAP).length>0; lines.push('\nMapping source: '+(usingEmbedded?'EMBEDDED (all devices)':'localStorage (this device only)')); alert('HSMI audit (v5.2)\n\n'+lines.join('\n')); }
   function onAuditMap(){ const local=loadLocalMap(); const use=Object.assign({}, EMBEDDED_MAP, local); const lines=['HSMI mapping refs:']; for(const k of MAP_KEYS_ORDER){ const m=use[k]; const el=getMappedEl(m); const val=el? text(el) : '(no element)'; lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | text: ${val || '(empty)'}`); } alert(lines.join('\n')); }
   function onCopyMap(){ const local=loadLocalMap(); const json=JSON.stringify(local, null, 2); try{ navigator.clipboard.writeText(json).then(()=>alert('HSMI: mapping copied. Paste into the hsmi_embedded_map <script> block, then commit.')); }catch(e){ prompt('Copy this JSON and paste into hsmi_embedded_map:', json); } }
-
   function maybeHideMappingButtons(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }
 
   function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn,{once:true}); else fn(); }
@@ -715,7 +627,7 @@ One-time bake‑in steps:
 <style>
   .export-controls .btn{ padding:.75rem 1rem;border-radius:.75rem;border:1px solid #ddd;background:#fafafa;cursor:pointer;font-size:.95rem;color:#111 }
   .export-controls .btn:hover{ filter:brightness(.98) }
-
 </style>
+
 </body>
 </html>
