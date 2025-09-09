@@ -424,60 +424,16 @@ document.addEventListener('DOMContentLoaded', function(){
   <!--
 <!--
 HSMI Data Export Add‑on (v5.2.1)
-- Hardened: single-block enforcement, safer wiring, readable console errors
+- Hardened: single‑block enforcement, safer wiring, readable console logs
 - Embedded mapping (works on any device), fixed headers, local timestamp only
 - Hides all mapping buttons when an embedded map is present
+- Forces local US date for <input id="testDate" type="date">
 
-Drop in just before </body>. Replace any older export blocks entirely.
+Drop this whole block just before </body>. Replace older export blocks entirely.
 -->
 
 <!-- Paste mapping JSON here when ready -->
-<script type="application/json" id="hsmi_embedded_map">{
-  "age": {
-    "type": "id",
-    "value": "age"
-  },
-  "sex": {
-    "type": "id",
-    "value": "sex"
-  },
-  "vo2_mlkgmin": {
-    "type": "id",
-    "value": "vo2"
-  },
-  "mtp_pct": {
-    "type": "id",
-    "value": "mtp"
-  },
-  "grip_r_pct": {
-    "type": "id",
-    "value": "grip_r"
-  },
-  "grip_l_pct": {
-    "type": "id",
-    "value": "grip_l"
-  },
-  "sway_r_pct": {
-    "type": "id",
-    "value": "sway_r"
-  },
-  "sway_l_pct": {
-    "type": "id",
-    "value": "sway_l"
-  },
-  "sitreach_in": {
-    "type": "id",
-    "value": "sit"
-  },
-  "tester": {
-    "type": "id",
-    "value": "tester"
-  },
-  "location": {
-    "type": "id",
-    "value": "location"
-  }
-}</script>
+<script type="application/json" id="hsmi_embedded_map">{}</script>
 
 <section id="hsmi-export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
   <button id="btnExportCSV" class="btn">Download CSV</button>
@@ -497,7 +453,7 @@ Drop in just before </body>. Replace any older export blocks entirely.
   const warn = (...a)=>console.warn(NS,...a);
   const err = (...a)=>console.error(NS,...a);
 
-  // Enforce single instance
+  // Enforce single instance (remove older #hsmi-export-controls / #export-controls blocks, keep the last)
   const allBlocks = document.querySelectorAll('#hsmi-export-controls, #export-controls');
   if (allBlocks.length>1) { allBlocks.forEach((b,i)=>{ if(i<allBlocks.length-1) b.remove(); }); }
   const host = document.querySelector('#hsmi-export-controls') || document.querySelector('#export-controls');
@@ -522,7 +478,7 @@ Drop in just before </body>. Replace any older export blocks entirely.
   // ===== CONFIG =====
   const CONFIG = {
     filenamePattern:'mobility-age_{last}_{date}_{time}',
-    timeZone: null, // e.g., 'America/New_York' to force Eastern
+    timeZone: 'America/New_York', // force a single US timezone for local timestamp/date; change if needed
     selectors:{ name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug', tester:null, location:null }
   };
 
@@ -626,14 +582,7 @@ Drop in just before </body>. Replace any older export blocks entirely.
   function hideMappingButtonsIfEmbedded(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap','btnCopyMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }
 
   // Wire safely
-  function wire(// --- LOCAL DATE AUTOFILL for <input id="testDate" type="date"> ---
-const zone = CONFIG.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
-const dateEl = document.getElementById('testDate');
-if (dateEl && !dateEl.value) {
-  dateEl.value = new Date().toLocaleDateString('en-CA', { timeZone: zone }); // YYYY-MM-DD
-}
-// -----------------------------------------------------------------
-){ try{
+  function wire(){ try{
     document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
     document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
     document.getElementById('btnProbe')?.addEventListener('click', onProbe);
@@ -642,7 +591,17 @@ if (dateEl && !dateEl.value) {
     document.getElementById('btnCopyMap')?.addEventListener('click', onCopyMap);
     document.getElementById('btnMap')?.addEventListener('click', startMap);
     document.getElementById('btnClearMap')?.addEventListener('click', clearLocalMap);
+
     hideMappingButtonsIfEmbedded();
+
+    // --- FORCE LOCAL DATE for <input id="testDate" type="date"> ---
+    const zone = CONFIG.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+    function setLocalDateNow(){ const el = document.getElementById('testDate'); if (el) el.value = new Date().toLocaleDateString('en-CA', { timeZone: zone }); }
+    setLocalDateNow();
+    setTimeout(setLocalDateNow, 0);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) setLocalDateNow(); });
+    // --------------------------------------------------------------
+
     window.__HSMI_EXPORT_WIRED__ = true;
     log('wired');
   }catch(e){ err('wire failed:', e); }
