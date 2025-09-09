@@ -626,7 +626,14 @@ Drop in just before </body>. Replace any older export blocks entirely.
   function hideMappingButtonsIfEmbedded(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap','btnCopyMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }
 
   // Wire safely
-  function wire(){ try{
+  function wire(// --- LOCAL DATE AUTOFILL for <input id="testDate" type="date"> ---
+const zone = CONFIG.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+const dateEl = document.getElementById('testDate');
+if (dateEl && !dateEl.value) {
+  dateEl.value = new Date().toLocaleDateString('en-CA', { timeZone: zone }); // YYYY-MM-DD
+}
+// -----------------------------------------------------------------
+){ try{
     document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
     document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
     document.getElementById('btnProbe')?.addEventListener('click', onProbe);
