@@ -683,6 +683,215 @@ Drop this whole block just before </body>. Replace older export blocks entirely.
   .export-controls .btn{ padding:.75rem 1rem;border-radius:.75rem;border:1px solid #ddd;background:#fafafa;cursor:pointer;font-size:.95rem;color:#111 }
   .export-controls .btn:hover{ filter:brightness(.98) }
 </style>
+<script>
+/* === CSV Batcher (localStorage) === */
+(function () {
+  const KEY = 'mobility_csv_batch_v1';
+
+  function parseCSVLine(line) {
+    const out = []; let cur = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i], n = line[i+1];
+      if (c === '"' && inQuotes && n === '"') { cur += '"'; i++; continue; }
+      if (c === '"') { inQuotes = !inQuotes; continue; }
+      if (c === ',' && !inQuotes) { out.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    out.push(cur);
+    return out;
+  }
+
+  function getState() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || { header: null, rows: [] }; }
+    catch { return { header: null, rows: [] }; }
+  }
+  function setState(s) { localStorage.setItem(KEY, JSON.stringify(s)); }
+
+  function normalizeCSVString(s) {
+    return s.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  }
+
+  function addFromSingleCSV(csvString) {
+    const s = getState();
+    const norm = normalizeCSVString(csvString);
+    const lines = norm.split('\n').filter(Boolean);
+    if (lines.length < 2) return;
+
+    const header = parseCSVLine(lines[0]);
+    const rows = lines.slice(1).map(parseCSVLine);
+
+    if (!s.header) {
+      s.header = header;
+    } else {
+      const same = s.header.length === header.length && s.header.every((h, i) => h === header[i]);
+      if (!same) { alert('CSV header changed vs earlier rows. Row NOT added.'); return; }
+    }
+    s.rows.push(...rows);
+    setState(s);
+    return s.rows.length;
+  }
+
+  function exportBatch(filename) {
+    const s = getState();
+    if (!s.header || s.rows.length === 0) { alert('No batched rows to export yet.'); return; }
+    const escape = v => {
+      if (v == null) return '';
+      const str = String(v);
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const csv = [s.header.map(escape).join(',')]
+      .concat(s.rows.map(r => r.map(escape).join(',')))
+      .join('\n');
+
+    // Suppress our own capture while we create the CSV Blob
+    window.__BATCHCSV_SUPPRESS = true;
+    try {
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:T]/g, '-').slice(0,19);
+      a.href = url;
+      a.download = filename || `mobility_batch_${ts}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      window.__BATCHCSV_SUPPRESS = false;
+    }
+  }
+
+  function clearBatch(confirmFirst = true) {
+    if (!confirmFirst || confirm('Clear the batched rows? This cannot be undone.')) {
+      setState({ header: null, rows: [] });
+    }
+  }
+
+  function sizeInfo() {
+    const s = getState();
+    const approx = JSON.stringify(s).length;
+    return { rows: s.rows.length, bytesApprox: approx };
+  }
+
+  window.BatchCSV = { addFromSingleCSV, export: exportBatch, clear: clearBatch, sizeInfo };
+})();
+
+/* === Auto-capture whatever your app already downloads as CSV ===
+   Works for both Blob+URL (type text/csv or vnd.ms-excel) and data: URLs.
+   No need to find the csv variable or edit your existing download code.
+*/
+(function () {
+  // 1) Intercept object URLs for CSV blobs
+  const realCreate = URL.createObjectURL;
+  URL.createObjectURL = function(obj) {
+    try {
+      const isCSV = obj && obj.type && /(text\/csv|application\/vnd\.ms-excel)/i.test(obj.type);
+      if (!window.__BATCHCSV_SUPPRESS && isCSV) {
+        const reader = new FileReader();
+        reader.onload = () => { try { BatchCSV.addFromSingleCSV(reader.result); } catch(e){} };
+        reader.readAsText(obj);
+      }
+    } catch(e) {}
+    return realCreate.call(URL, obj);
+  };
+
+  // 2) Intercept clicks on anchors that download CSV via data: URL
+  document.addEventListener('click', function(e){
+    const a = e.target && e.target.closest && e.target.closest('a[download]');
+    if (!a) return;
+    if (window.__BATCHCSV_SUPPRESS) return;
+    const href = a.getAttribute('href') || '';
+    if (/^data:(text\/csv|application\/vnd\.ms-excel)/i.test(href)) {
+      try {
+        // Support both plain and URL-encoded payloads
+        const comma = href.indexOf(',');
+        if (comma > -1) {
+          const payload = href.slice(comma + 1);
+          const csv = href.slice(0, comma).includes(';base64')
+            ? atob(payload)
+            : decodeURIComponent(payload);
+          BatchCSV.addFromSingleCSV(csv);
+        }
+      } catch(e){}
+    }
+  }, true);
+})();
+</script>
+<!-- Floating Batch CSV panel (place just before </body>) -->
+<script>
+(function(){
+  function updateBadge(){
+    if (!window.BatchCSV) return;
+    try {
+      const info = BatchCSV.sizeInfo();
+      const el = document.getElementById('batchcsv-count');
+      if (el) el.textContent = info.rows;
+    } catch {}
+  }
+
+  function ensurePanel(){
+    if (document.getElementById('batchcsv-panel')) return;
+    const panel = document.createElement('div');
+    panel.id = 'batchcsv-panel';
+    Object.assign(panel.style, {
+      position: 'fixed',
+      right: '16px',
+      bottom: '16px',
+      padding: '10px 12px',
+      background: 'rgba(255,255,255,0.96)',
+      border: '1px solid #ddd',
+      borderRadius: '12px',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+      zIndex: 9999,
+      fontFamily: 'system-ui, sans-serif',
+      fontSize: '14px'
+    });
+    panel.innerHTML = `
+      <div style="margin-bottom:6px;">
+        <strong>CSV Batch</strong> · <span id="batchcsv-count">0</span> row(s)
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" id="btn-batch-export">Export Batch CSV</button>
+        <button type="button" id="btn-batch-clear">Clear Batch</button>
+      </div>
+    `;
+    document.body.appendChild(panel);
+
+    document.getElementById('btn-batch-export').onclick = () => BatchCSV.export();
+    document.getElementById('btn-batch-clear').onclick  = () => BatchCSV.clear();
+    updateBadge();
+  }
+
+  // Patch methods so the badge updates immediately after adds/clears/exports
+  function patchBatchCSV(){
+    if (!window.BatchCSV || BatchCSV.__patched) return;
+    const add0   = BatchCSV.addFromSingleCSV;
+    const clear0 = BatchCSV.clear;
+    const export0= BatchCSV.export;
+
+    if (typeof add0 === 'function') {
+      BatchCSV.addFromSingleCSV = function(csv){ const r = add0(csv); updateBadge(); return r; };
+    }
+    if (typeof clear0 === 'function') {
+      BatchCSV.clear = function(...args){ const r = clear0.apply(BatchCSV, args); updateBadge(); return r; };
+    }
+    if (typeof export0 === 'function') {
+      BatchCSV.export = function(...args){ const r = export0.apply(BatchCSV, args); updateBadge(); return r; };
+    }
+    BatchCSV.__patched = true;
+  }
+
+  // Build panel and patch once DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { ensurePanel(); patchBatchCSV(); });
+  } else {
+    ensurePanel(); patchBatchCSV();
+  }
+
+  // Safety: try again shortly in case BatchCSV loads after this script
+  setTimeout(() => { ensurePanel(); patchBatchCSV(); }, 150);
+})();
+</script>
 
 </body>
 </html>
