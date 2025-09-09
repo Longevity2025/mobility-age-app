@@ -423,22 +423,18 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
-HSMI Data Export Add‑on (v5.2)
-- Suppresses UTC in CSV: exports ONLY local timestamp (configurable US TZ)
-- Adds Tester + Location fields (text) — portable via embedded mapping
-- Works on ANY device: embed the mapping JSON below once; mapping UI auto‑hides
-- Fixed CSV header order
+HSMI Data Export Add‑on (v5.2.1)
+- Hardened: single-block enforcement, safer wiring, readable console errors
+- Embedded mapping (works on any device), fixed headers, local timestamp only
+- Hides all mapping buttons when an embedded map is present
 
-One‑time bake‑in steps (later):
-1) Map fields → Audit mapping → Copy mapping JSON.
-2) Paste JSON into the <script id="hsmi_embedded_map"> block below, commit.
-3) After deploy, everyone uses the embedded mapping (no per‑device clicks).
+Drop in just before </body>. Replace any older export blocks entirely.
 -->
 
-<!-- Paste mapping JSON here when ready (example stays {}) -->
+<!-- Paste mapping JSON here when ready -->
 <script type="application/json" id="hsmi_embedded_map">{}</script>
 
-<section id="export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
+<section id="hsmi-export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
   <button id="btnExportCSV" class="btn">Download CSV</button>
   <button id="btnExportJSON" class="btn">Download JSON</button>
   <button id="btnProbe" class="btn">Test capture</button>
@@ -450,36 +446,39 @@ One‑time bake‑in steps (later):
 </section>
 
 <script>
-(function(){
-  if (window.__HSMI_EXPORT_WIRED__) return; window.__HSMI_EXPORT_WIRED__ = true;
-  try { const blocks=[...document.querySelectorAll('#export-controls')]; if(blocks.length>1) blocks.slice(0,-1).forEach(b=>b.remove()); } catch(e){}
+(()=>{
+  const NS = 'HSMI:';
+  const log = (...a)=>console.log(NS,...a);
+  const warn = (...a)=>console.warn(NS,...a);
+  const err = (...a)=>console.error(NS,...a);
+
+  // Enforce single instance
+  const allBlocks = document.querySelectorAll('#hsmi-export-controls, #export-controls');
+  if (allBlocks.length>1) { allBlocks.forEach((b,i)=>{ if(i<allBlocks.length-1) b.remove(); }); }
+  const host = document.querySelector('#hsmi-export-controls') || document.querySelector('#export-controls');
+  if(!host){ err('export controls block not found'); return; }
+
+  if (window.__HSMI_EXPORT_WIRED__) { warn('already wired, skipping'); return; }
 
   // ===== CONSTANTS =====
-  const STORAGE_KEY = 'hsmi_field_map_v3'; // keep compatibility with previous mapping
+  const STORAGE_KEY = 'hsmi_field_map_v3';
   const HEADERS = [
     'timestamp_local','app_version','name_full','tester','location','sex','age',
     'tug_s','vo2_mlkgmin','sitreach_in','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','mobility_age'
-  ]; // fixed CSV order; UTC suppressed
+  ];
   const MAP_KEYS_ORDER = ['age','sex','tester','location','vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','sitreach_in'];
 
   // ===== EMBEDDED MAP =====
   function getEmbeddedMap(){
-    try{ const el=document.getElementById('hsmi_embedded_map'); if(!el) return {}; const txt=el.textContent||'{}'; const m=JSON.parse(txt); return (m && typeof m==='object')? m : {}; }catch(e){ return {}; }
+    try{ const el=document.getElementById('hsmi_embedded_map'); if(!el) return {}; const txt=(el.textContent||'').trim(); if(!txt) return {}; const m=JSON.parse(txt); return (m && typeof m==='object')? m : {}; } catch(e){ err('Embedded map JSON parse error:', e.message); return {}; }
   }
   const EMBEDDED_MAP = getEmbeddedMap();
 
   // ===== CONFIG =====
   const CONFIG = {
     filenamePattern:'mobility-age_{last}_{date}_{time}',
-    timeZone: null, // set to e.g. 'America/New_York' to force Eastern; null = use browser local
-    selectors:{
-      name:'#memberName',
-      sex:'#input-sex',
-      age:'#input-age',
-      tug_s:'#tug',
-      tester:null,    // leave null; use mapping wizard
-      location:null   // leave null; use mapping wizard
-    }
+    timeZone: null, // e.g., 'America/New_York' to force Eastern
+    selectors:{ name:'#memberName', sex:'#input-sex', age:'#input-age', tug_s:'#tug', tester:null, location:null }
   };
 
   // ===== UTILS =====
@@ -492,38 +491,21 @@ One‑time bake‑in steps (later):
   const slug=s=>(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   const buildFilename=(base)=>{ const {date,time}=nowParts(); const {first,last}=parseName(base?.name_full); return CONFIG.filenamePattern.replace('{first}',slug(first)).replace('{last}',slug(last)).replace('{date}',date).replace('{time}',time); };
   const downloadBlob=(content,mime,filename)=>{ const b=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); };
-  const toCSV=(rows)=>{ const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; };
-    const lines=[HEADERS.join(',')];
-    for(const r of rows){ lines.push(HEADERS.map(h=>esc(r[h])).join(',')); }
-    return lines.join('\n'); };
+  const toCSV=(rows)=>{ const esc=v=>{ if(v===null||v===undefined) return ''; const s=String(v); return /[",\n]/.test(s)? '"'+s.replace(/"/g,'""')+'"' : s; }; const lines=[HEADERS.join(',')]; for(const r of rows){ lines.push(HEADERS.map(h=>esc(r[h])).join(',')); } return lines.join('\n'); };
 
-  // Local timestamp with optional forced TZ (US)
-  function formatLocalTimestamp(tz){
-    try{
-      const d = new Date();
-      const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:false, timeZoneName:'short' }).formatToParts(d);
-      const get = (t)=> parts.find(p=>p.type===t)?.value || '';
-      const yyyy=get('year'), mm=get('month'), dd=get('day'), hh=get('hour'), mi=get('minute'), ss=get('second');
-      const tzName = get('timeZoneName');
-      return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss} ${tzName}`;
-    }catch(e){ return new Date().toString(); }
-  }
+  // Local timestamp
+  function formatLocalTimestamp(tz){ try{ const d=new Date(); const zone=tz||Intl.DateTimeFormat().resolvedOptions().timeZone; const parts=new Intl.DateTimeFormat('en-US',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false,timeZoneName:'short'}).formatToParts(d); const get=t=>parts.find(p=>p.type===t)?.value||''; const yyyy=get('year'),mm=get('month'),dd=get('day'),hh=get('hour'),mi=get('minute'),ss=get('second'); const tzName=get('timeZoneName'); return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss} ${tzName}`; }catch(e){ return new Date().toString(); } }
 
-  // JSON fallbacks (optional)
   function readJSON(id){ try{ const el=document.getElementById(id); if(!el) return null; return JSON.parse(el.textContent||''); }catch(e){ return null; } }
-
-  // Mapping storage & helpers
   function loadLocalMap(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
   function saveLocalMap(map){ localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); }
   function clearLocalMap(){ localStorage.removeItem(STORAGE_KEY); alert('HSMI: local mapping cleared.'); }
+
   function getMappedEl(entry){ if(!entry) return null; if(entry.type==='id') return document.getElementById(entry.value)||null; if(entry.type==='selector') return document.querySelector(entry.value)||null; if(entry.type==='xpath'){ try{ const r=document.evaluate(entry.value, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); return r.singleNodeValue; }catch(e){ return null; } } return null; }
   function buildRef(el){ if(!el) return null; if(el.id) return {type:'id',value:el.id}; const cls=(el.className||'').split(/\s+/).filter(Boolean).slice(0,2).join('.'); if(cls){ const sel=`${el.tagName.toLowerCase()}.${cls}`; try{ const found=document.querySelector(sel); if(found===el) return {type:'selector',value:sel}; }catch(e){} } const parts=[]; let n=el; while(n && n.nodeType===1 && n!==document.documentElement){ const tag=n.nodeName.toLowerCase(); const sibs=[...n.parentNode?.children||[]].filter(x=>x.nodeName===n.nodeName); const idx=sibs.indexOf(n)+1; parts.unshift(`${tag}[${idx}]`); if(tag==='table') break; n=n.parentNode; } return {type:'xpath', value:'/'+parts.join('/')}; }
 
-  // Mobility Age
   const getMobilityAge=()=>{ const v=numFrom(document.querySelector('#final')); return v!==''? v:''; };
 
-  // Label fallback (safety net for numeric rows)
   const LABEL_MAP=[
     {key:'vo2_mlkgmin', re:/vo\s*2|v[\.\u0307]?o\s*2|oxygen|ml\s*\/\s*kg\s*\/\s*min/i},
     {key:'sitreach_in', re:/sit\s*&?\s*reach|sit.?and.?reach|reach\s*\((in|cm)\)/i},
@@ -535,10 +517,8 @@ One‑time bake‑in steps (later):
   ];
   function readFromLabels(){ const out={}; const rows=[...document.querySelectorAll('table tr')]; for(const tr of rows){ const cells=[...tr.children]; if(cells.length<2) continue; const label=(cells[0].textContent||'').trim(); for(const m of LABEL_MAP){ if(m.re.test(label)){ const rest=cells.slice(1).map(td=>td.textContent||'').join(' '); const val=numFirst(rest); if(val!=='') out[m.key]=val; } } } return out; }
 
-  // Choose mapped value (embedded → local → selector → labels → JSON)
   function getValFromMap(key, asText=false){ const prefer = EMBEDDED_MAP[key] || loadLocalMap()[key] || null; const el = getMappedEl(prefer); if(!el) return ''; return asText ? text(el) : numFrom(el); }
 
-  // Collect record
   function collect(){
     const tugJ=readJSON('tug_json');
     const vo2J=readJSON('vo2_json');
@@ -568,7 +548,6 @@ One‑time bake‑in steps (later):
     return rec;
   }
 
-  // Mapping wizard (includes Tester + Location; suppress overlay clicks)
   function startMap(){
     const steps=[
       ['age','Click the **Age** NUMBER'],
@@ -584,15 +563,7 @@ One‑time bake‑in steps (later):
       ['sitreach_in','Click the **Sit & Reach** NUMBER']
     ];
     let i=0; let overlay, tip, hl;
-
-    function showTip(msg){
-      if(!overlay){
-        overlay=document.createElement('div'); overlay.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.06);pointer-events:none'; document.body.appendChild(overlay);
-        tip=document.createElement('div'); tip.style.cssText='position:fixed;z-index:99998;left:50%;top:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;font:14px system-ui;box-shadow:0 6px 14px rgba(0,0,0,.2)'; document.body.appendChild(tip);
-        document.addEventListener('click', onClick, true); document.addEventListener('keydown', onKey, true);
-      }
-      tip.innerHTML='HSMI map: '+msg+' <span style="opacity:.75">(Esc to cancel)</span>';
-    }
+    function showTip(msg){ if(!overlay){ overlay=document.createElement('div'); overlay.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.06);pointer-events:none'; document.body.appendChild(overlay); tip=document.createElement('div'); tip.style.cssText='position:fixed;z-index:99998;left:50%;top:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;font:14px system-ui;box-shadow:0 6px 14px rgba(0,0,0,.2)'; document.body.appendChild(tip); document.addEventListener('click', onClick, true); document.addEventListener('keydown', onKey, true);} tip.innerHTML='HSMI map: '+msg+' <span style="opacity:.75">(Esc to cancel)</span>'; }
     function highlight(el){ if(hl) hl.remove(); if(!el) return; const r=el.getBoundingClientRect(); hl=document.createElement('div'); hl.style.cssText=`position:fixed;z-index:99999;border:2px solid #0a84ff;border-radius:6px;pointer-events:none;left:${r.left-4}px;top:${r.top-4}px;width:${r.width+8}px;height:${r.height+8}px`; document.body.appendChild(hl); }
     function onClick(e){ const el=document.elementFromPoint(e.clientX,e.clientY); if(!el) return; e.preventDefault(); e.stopPropagation(); const key=steps[i][0]; const ref=buildRef(el); if(!ref){ alert('Could not identify that element. Click the digits/text.'); return; } const map=loadLocalMap(); map[key]=ref; saveLocalMap(map); highlight(el); i++; if(i<steps.length){ showTip(steps[i][1]); } else { cleanup(); alert('HSMI: mapping saved. Use **Copy mapping JSON** to embed.'); } }
     function onKey(e){ if(e.key==='Escape'){ cleanup(); alert('HSMI: mapping cancelled.'); } }
@@ -600,24 +571,17 @@ One‑time bake‑in steps (later):
     showTip(steps[i][1]);
   }
 
-  // Local date autofill (opt-in): set any <input type="date" data-local-autofill> and we'll fill with local date in CONFIG.timeZone
-  function toLocalISODate(tz){
-    try{ const zone = tz || Intl.DateTimeFormat().resolvedOptions().timeZone; return new Date().toLocaleDateString('en-CA', { timeZone: zone }); }
-    catch(e){ const d=new Date(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
-  }
-  function setLocalDateAutofill(tz){ document.querySelectorAll('input[type="date"][data-local-autofill]').forEach(inp=>{ if(!inp.value) inp.value = toLocalISODate(tz); }); }
-
-  // UI actions
   function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec,null,2)); }
   function onExportCSV(){ const rec=collect(); const f=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',f); }
   function onExportJSON(){ const rec=collect(); const f=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',f); }
-  function onAudit(){ const rec=collect(); const lines=HEADERS.map(h=>`${h}: ${rec[h] === '' ? '(blank)' : rec[h]}`); const usingEmbedded = Object.keys(EMBEDDED_MAP).length>0; lines.push('\nMapping source: '+(usingEmbedded?'EMBEDDED (all devices)':'localStorage (this device only)')); alert('HSMI audit (v5.2)\n\n'+lines.join('\n')); }
+  function onAudit(){ const rec=collect(); const lines=HEADERS.map(h=>`${h}: ${rec[h] === '' ? '(blank)' : rec[h]}`); const usingEmbedded = Object.keys(EMBEDDED_MAP).length>0; lines.push('\nMapping source: '+(usingEmbedded?'EMBEDDED (all devices)':'localStorage (this device only)')); alert('HSMI audit (v5.2.1)\n\n'+lines.join('\n')); }
   function onAuditMap(){ const local=loadLocalMap(); const use=Object.assign({}, EMBEDDED_MAP, local); const lines=['HSMI mapping refs:']; for(const k of MAP_KEYS_ORDER){ const m=use[k]; const el=getMappedEl(m); const val=el? text(el) : '(no element)'; lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | text: ${val || '(empty)'}`); } alert(lines.join('\n')); }
   function onCopyMap(){ const local=loadLocalMap(); const json=JSON.stringify(local, null, 2); try{ navigator.clipboard.writeText(json).then(()=>alert('HSMI: mapping copied. Paste into the hsmi_embedded_map <script> block, then commit.')); }catch(e){ prompt('Copy this JSON and paste into hsmi_embedded_map:', json); } }
-  function maybeHideMappingButtons(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap','btnCopyMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }); } }
 
-  function ready(fn){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', fn,{once:true}); else fn(); }
-  ready(()=>{
+  function hideMappingButtonsIfEmbedded(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap','btnCopyMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }
+
+  // Wire safely
+  function wire(){ try{
     document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
     document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
     document.getElementById('btnProbe')?.addEventListener('click', onProbe);
@@ -626,9 +590,16 @@ One‑time bake‑in steps (later):
     document.getElementById('btnCopyMap')?.addEventListener('click', onCopyMap);
     document.getElementById('btnMap')?.addEventListener('click', startMap);
     document.getElementById('btnClearMap')?.addEventListener('click', clearLocalMap);
-    maybeHideMappingButtons();
-    setLocalDateAutofill(CONFIG.timeZone);
-  });
+    hideMappingButtonsIfEmbedded();
+    window.__HSMI_EXPORT_WIRED__ = true;
+    log('wired');
+  }catch(e){ err('wire failed:', e); }
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', wire, {once:true}); else wire();
+
+  // Expose a tiny debug hook
+  window.hsmiExport = { rewire: wire, collect };
 })();
 </script>
 
