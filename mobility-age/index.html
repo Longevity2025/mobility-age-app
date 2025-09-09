@@ -344,19 +344,40 @@ document.addEventListener('DOMContentLoaded', function(){
       var tgSlope = (SLP && SLP.tug)?SLP.tug:0;
       var v2Slope = (SLP && SLP.vo2)?SLP.vo2:0;
 
-      var srMeanAdj = sr.mean + srSlope*(age - sr.mid);
-      var tgMeanAdj = tg.mean + tgSlope*(age - tg.mid);
-      var v2MeanAdj = v2.mean + v2Slope*(age - v2.mid);
+      // 1) slope-adjusted means
+var srMeanAdj = sr.mean + srSlope*(age - sr.mid);
+var tgMeanAdj = tg.mean + tgSlope*(age - tg.mid);
+var v2MeanAdj = v2.mean + v2Slope*(age - v2.mid);
 
-      var z_sit=zFromRaw(sit,srMeanAdj,sr.sd,false);
-      var z_tug_raw=zFromRaw(tugRaw,tgMeanAdj,tg.sd,true);
-      var z_vo2=zFromRaw(vo2Raw,v2MeanAdj,v2.sd,false);
-      var z_mtp=zFromPct(mtpPct);
-      var z_sway=zFromPct((sway_r_pct+sway_l_pct)/2.0);
-      var z_grip=zFromPct((grip_r_pct+grip_l_pct)/2.0);
+// 2) Z-score cap (VO2 & TUG only) — add once
+const ZCAP = 2.5;  // use 3.0 if you prefer
+function capZ(z, cap = ZCAP){ return Math.max(-cap, Math.min(z, cap)); }
 
-      var w={sit:1.0,tug:1.25,mtp:1.0,sway:1.0,grip:1.0,vo2:1.5};
-      var wz={sit:z_sit*w.sit, tug:z_tug_raw*w.tug, mtp:z_mtp*w.mtp, sway:z_sway*w.sway, grip:z_grip*w.grip, vo2:z_vo2*w.vo2};
+// 3) z-scores
+var z_sit   = zFromRaw(sit,    srMeanAdj, sr.sd, false);
+var z_tug_raw = zFromRaw(tugRaw, tgMeanAdj, tg.sd, true);   // TUG: lower=better handled by helper
+var z_vo2   = zFromRaw(vo2Raw, v2MeanAdj, v2.sd, false);
+var z_mtp   = zFromPct(mtpPct);
+var z_sway  = zFromPct((sway_r_pct + sway_l_pct)/2.0);
+var z_grip  = zFromPct((grip_r_pct + grip_l_pct)/2.0);
+
+// 4) apply caps only to TUG and VO2
+var z_tug = capZ(z_tug_raw);
+z_vo2 = capZ(z_vo2);
+
+// 5) weights (unchanged)
+var w  = { sit:1.0, tug:1.25, mtp:1.0, sway:1.0, grip:1.0, vo2:1.5 };
+
+// 6) weighted z (use capped values)
+var wz = {
+  sit:  z_sit * w.sit,
+  tug:  z_tug * w.tug,
+  mtp:  z_mtp * w.mtp,
+  sway: z_sway * w.sway,
+  grip: z_grip * w.grip,
+  vo2:  z_vo2 * w.vo2
+};
+
 
       // Apply MAE caps (>=21) for Sit & Reach, TUG, and VO2
       var mae={ 
@@ -375,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function(){
       if(tbody){
         tbody.innerHTML = ''
           + '<tr><td>Sit & Reach (in)</td><td>'+z_sit.toFixed(2)+'</td><td>'+w.sit.toFixed(2)+'</td><td>'+wz.sit.toFixed(2)+'</td><td>'+mae.sit.toFixed(2)+'</td></tr>'
-          + '<tr><td>TUG (cap ≥21 after weighting)</td><td>'+z_tug_raw.toFixed(2)+'</td><td>'+w.tug.toFixed(2)+'</td><td>'+wz.tug.toFixed(2)+'</td><td>'+mae.tug.toFixed(2)+'</td></tr>'
+          + '<tr><td>TUG (MAE floor ≥21; z capped ±'+ZCAP+')</td><td>'+z_tug.toFixed(2)+'</td><td>'+w.tug.toFixed(2)+'</td><td>'+wz.tug.toFixed(2)+'</td><td>'+mae.tug.toFixed(2)+'</td></tr>'
           + '<tr><td>Mid-Thigh Pull</td><td>'+z_mtp.toFixed(2)+'</td><td>'+w.mtp.toFixed(2)+'</td><td>'+wz.mtp.toFixed(2)+'</td><td>'+mae.mtp.toFixed(2)+'</td></tr>'
           + '<tr><td>Postural Sway (avg R/L pct)</td><td>'+z_sway.toFixed(2)+'</td><td>'+w.sway.toFixed(2)+'</td><td>'+wz.sway.toFixed(2)+'</td><td>'+mae.sway.toFixed(2)+'</td></tr>'
           + '<tr><td>Grip Strength (avg R/L pct)</td><td>'+z_grip.toFixed(2)+'</td><td>'+w.grip.toFixed(2)+'</td><td>'+wz.grip.toFixed(2)+'</td><td>'+mae.grip.toFixed(2)+'</td></tr>'
