@@ -3029,6 +3029,69 @@ function wireCsvExports() {
 
 })();
 </script>
+<script>
+/* Patch: lock sitreach_in to #sit; improve mobility_age grab */
+(function(){
+  // 1) Force sitreach_in to read from id="sit"
+  window.__compactCsv_readSitReach = function(){
+    const el = document.getElementById('sit');
+    return el && el.value != null ? String(el.value).trim() : '';
+  };
+
+  // 2) Stronger Mobility Age finder:
+  //    - Prefer explicit ids/data-keys if present
+  //    - Else, row labeled "Final Mobility Age" -> last <td>
+  window.__compactCsv_getMobilityAge = function(){
+    // direct element hooks if your app exposes them
+    const direct = document.getElementById('mobilityAge')
+               || document.getElementById('finalMobilityAge')
+               || document.querySelector('[data-key="mobilityAge"]')
+               || document.querySelector('[data-field="finalMobilityAge"]');
+    if (direct && direct.textContent) return direct.textContent.trim();
+    if (direct && direct.value)       return String(direct.value).trim();
+
+    // table fallback
+    const tables = Array.from(document.querySelectorAll('table'));
+    for (const t of tables){
+      const rows = Array.from(t.querySelectorAll('tbody tr'));
+      for (const tr of rows){
+        const first = tr.querySelector('td');
+        if (!first) continue;
+        const label = (first.textContent||'').trim().toLowerCase();
+        if (label.includes('final') && label.includes('mobility') && label.includes('age')){
+          const cells = Array.from(tr.querySelectorAll('td'));
+          const last  = cells[cells.length - 1];
+          return last ? (last.textContent||'').trim() : '';
+        }
+      }
+    }
+    // last resort: from window.app if set
+    if (window.app){
+      const v = window.app.mobilityAge ?? window.app.mobility_age ?? window.app.ma;
+      if (v != null && v !== '') return String(v).trim();
+    }
+    return '';
+  };
+
+  // 3) Wire into the compact exporter (only the new FL button uses these)
+  if (!window.__compactCsv_overridesInstalled){
+    window.__compactCsv_overridesInstalled = true;
+    document.addEventListener('click', function(e){
+      // only intercept our new button
+      const btn = e.target.closest('#btnExportCSV_FL');
+      if (!btn) return;
+
+      // Monkey-patch the helpers the FL exporter calls if they exist
+      if (typeof window.readSitReach === 'function') {
+        window.readSitReach = window.__compactCsv_readSitReach;
+      }
+      if (typeof window.getMobilityAge === 'function') {
+        window.getMobilityAge = window.__compactCsv_getMobilityAge;
+      }
+    }, true);
+  }
+})();
+</script>
 
 </body>
 </html>
