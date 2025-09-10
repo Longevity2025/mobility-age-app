@@ -1336,6 +1336,81 @@ function wireCsvExports() {
 </script>
 
 <!-- ====================== END MOBILITY APP: MEMBER FIRST/LAST PATCH ===================== -->
+<script>
+/* ---- Member Name → First/Last in-place swap (hotfix) ----
+   This finds the existing "Member Name" input and replaces that row
+   with two inputs: Member First Name + Member Last Name.
+   It also hides any leftover single-name control if present.
+*/
+(function(){
+  function makeSplitRowHTML(){
+    return `
+      <div class="mi-two-col" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+        <div>
+          <label for="memberFirst" class="form-label">Member First Name</label>
+          <input id="memberFirst" type="text" class="form-control" placeholder="e.g., John" autocomplete="given-name">
+        </div>
+        <div>
+          <label for="memberLast" class="form-label">Member Last Name</label>
+          <input id="memberLast" type="text" class="form-control" placeholder="e.g., Smith" autocomplete="family-name">
+        </div>
+      </div>`;
+  }
+
+  function swapInPlace(){
+    // Try several ways to locate the old "Member Name" control
+    const nameInput =
+      document.getElementById('memberName') ||
+      document.querySelector('input[name="memberName"]') ||
+      document.querySelector('input[placeholder*="Member Name" i]');
+
+    if (!nameInput) return false;
+
+    // Prefer to replace the whole row
+    const row = nameInput.closest('.form-row') || nameInput.parentElement;
+    if (!row) return false;
+
+    // Replace that row's contents with our split fields
+    row.innerHTML = makeSplitRowHTML();
+
+    // Hook up live update to keep window.app in sync
+    ['memberFirst','memberLast'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => {
+        if (typeof window.collectForm === 'function') window.collectForm();
+      });
+    });
+
+    // Run once so any summaries pick up derived memberName
+    if (typeof window.collectForm === 'function') window.collectForm();
+
+    return true;
+  }
+
+  function fallbackInsert(){
+    // If we couldn't find the old input, insert at the top of the first form
+    const form = document.querySelector('form, .form, .form-section, #intake, #member-block') || document.body;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = makeSplitRowHTML();
+    form.insertBefore(wrapper.firstElementChild, form.firstElementChild || null);
+
+    ['memberFirst','memberLast'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('input', () => {
+        if (typeof window.collectForm === 'function') window.collectForm();
+      });
+    });
+    if (typeof window.collectForm === 'function') window.collectForm();
+  }
+
+  // Run when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => { swapInPlace() || fallbackInsert(); });
+  } else {
+    swapInPlace() || fallbackInsert();
+  }
+})();
+</script>
 
 </body>
 </html>
