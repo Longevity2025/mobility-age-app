@@ -1659,6 +1659,37 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* === Minimal collectForm shim (only if missing) ===
+   Ensures the CSV ForceBind can read core fields + new names.
+   Uses your typical IDs: tester, testDate, location, memberFirst, memberLast.
+*/
+(function(){
+  if (typeof window.collectForm !== 'function') {
+    function gv(id){ var el = document.getElementById(id); return el ? (el.value || '').trim() : ''; }
+    window.collectForm = function(){
+      var f = {
+        tester: gv('tester'),
+        testDate: gv('testDate'),
+        location: gv('location'),
+        memberFirst: gv('memberFirst'),
+        memberLast: gv('memberLast')
+      };
+      f.memberName = [f.memberFirst, f.memberLast].filter(Boolean).join(' ');
+      // keep window.app in sync for filenames, etc.
+      window.app = window.app || {};
+      Object.assign(window.app, {
+        tester: f.tester, testDate: f.testDate, location: f.location,
+        memberFirst: f.memberFirst, memberLast: f.memberLast, memberName: f.memberName
+      });
+      return f;
+    };
+    console.log('[collectForm shim] Installed minimal collector.');
+  } else {
+    console.log('[collectForm shim] Existing collectForm detected; shim not installed.');
+  }
+})();
+</script>
 
 </body>
 </html>
