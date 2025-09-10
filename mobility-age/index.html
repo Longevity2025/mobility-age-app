@@ -1096,7 +1096,7 @@ function wireCsvExports() {
       await new Promise(r => setTimeout(r, 0));
       let csv = getSingleCsvString();
       if (!csv) { await new Promise(r => setTimeout(r, 50)); csv = getSingleCsvString(); }
-      if (!csv) return; // silent if still not ready
+      if (!csv) return;
       const name = buildSingleFilename();
       await exportCSV_iosFirst(name, csv);
     });
@@ -1114,24 +1114,20 @@ function wireCsvExports() {
       await exportCSV_iosFirst(name, csv);
     });
   }
-} // <-- this was missing
-
-// Run after DOM is ready
-if (document.readyState === 'loading') {
+}
+  if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', wireCsvExports);
 } else {
   wireCsvExports();
 }
 </script>
 
-// Keep your existing DOMContentLoaded logic (or use this):
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', wireCsvExports);
 } else {
   wireCsvExports();
 }
-</script>
-
 
 // keep your existing DOMContentLoaded logic
 if (document.readyState === 'loading') {
