@@ -1890,6 +1890,196 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* === RESULTS-TABLE SCRAPE EXPORTER =======================================
+   Builds CSV columns by reading the visible results table:
+   Columns detected: Test | Z | Weight | Weighted Z | MAE
+   Rows: Sit & Reach, TUG, Mid-Thigh Pull, Postural Sway, Grip Strength, VO₂ Max,
+         and the "Final Mobility Age" summary row.
+   Exports your usual metric data PLUS Member First/Last at the end.
+=========================================================================== */
+(function(){
+  // ---------- helpers ----------
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const txt = (el) => (el ? (el.textContent || '').trim() : '');
+  function toCsvLine(arr){
+    return arr.map(v=>{
+      const s = (v ?? '').toString();
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(',');
+  }
+  const makeCsvString = (headers, rows) => [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+  function downloadCsv(filename, csvString){
+    const blob = new Blob([csvString], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+  const safe = (s) => (s||'').toString().replaceAll(/[^\w-]+/g,'_');
+
+  // ---------- collect core fields ----------
+  function collectCore(){
+    // prefer existing collectForm
+    if (typeof window.collectForm === 'function') {
+      const f = window.collectForm();
+      return {
+        tester: f.tester||'', testDate: f.testDate||'', location: f.location||'',
+        memberName: f.memberName||'', memberFirst: f.memberFirst||'', memberLast: f.memberLast||''
+      };
+    }
+    const gv = id => (document.getElementById(id)?.value || '').trim();
+    const first = gv('memberFirst'), last = gv('memberLast');
+    return {
+      tester: gv('tester'), testDate: gv('testDate'), location: gv('location'),
+      memberFirst: first, memberLast: last, memberName: [first,last].filter(Boolean).join(' ')
+    };
+  }
+
+  // ---------- find & parse the results table ----------
+  function findResultsTable(){
+    // prioritize tables that contain "Final Mobility Age" and header "Test"
+    const tables = qsa('table');
+    for (const t of tables) {
+      const text = (t.innerText||'').toLowerCase();
+      if (text.includes('final mobility age') && text.includes('test')) return t;
+    }
+    return null;
+  }
+
+  function scrapeMetrics(){
+    const tbl = findResultsTable();
+    if (!tbl) return { headers: [], values: [] };
+
+    // header cells (expect: Test | Z | Weight | Weighted Z | MAE)
+    const headCells = qsa('thead th', tbl);
+    const hasHead = headCells.length >= 5;
+    const bodyRows = qsa('tbody tr', tbl);
+    if (!bodyRows.length) return { headers: [], values: [] };
+
+    // Build flattened headers like: "Sit & Reach (in) Z", "... Weight", "... Weighted Z", "... MAE"
+    // and capture values from the corresponding TDs.
+    const flatHeaders = [];
+    const flatValues  = [];
+
+    bodyRows.forEach(tr=>{
+      const tds = qsa('td', tr);
+      if (!tds.length) return;
+      const label = txt(tds[0]);
+
+      // summary row ("Final Mobility Age"): export single column
+      if (/final\s+mobility\s+age/i.test(label)) {
+        const v = txt(tds[tds.length-1]); // take the last numeric cell
+        flatHeaders.push('Final Mobility Age');
+        flatValues.push(v);
+        return;
+      }
+
+      // normal test row: expect columns [label, Z, Weight, Weighted Z, MAE]
+      const z   = txt(tds[1]||null);
+      const wt  = txt(tds[2]||null);
+      const wz  = txt(tds[3]||null);
+      const mae = txt(tds[4]||null);
+
+      // Only push when there's at least Z or MAE to avoid empty junk
+      if (z || mae || wt || wz) {
+        flatHeaders.push(`${label} Z`);           flatValues.push(z);
+        flatHeaders.push(`${label} Weight`);      flatValues.push(wt);
+        flatHeaders.push(`${label} Weighted Z`);  flatValues.push(wz);
+        flatHeaders.push(`${label} MAE`);         flatValues.push(mae);
+      }
+    });
+
+    return { headers: flatHeaders, values: flatValues };
+  }
+
+  // ---------- build payloads ----------
+  function buildSingle(){
+    const core = collectCore();
+    const met  = scrapeMetrics(); // guaranteed from DOM you see
+
+    const headers = ['Tester','Test Date','Location','Member Name']
+      .concat(met.headers)
+      .concat(['Member First','Member Last']);
+
+    const row = [core.tester, core.testDate, core.location, core.memberName]
+      .concat(met.values)
+      .concat([core.memberFirst, core.memberLast]);
+
+    const datePart = (core.testDate || new Date().toLocaleDateString()).replaceAll('/','-');
+    const filename = `mobility_${datePart}_${safe(core.memberName||'Member')}_@${safe(core.location||'Location')}.csv`;
+
+    return { headers, rows: [row], filename };
+  }
+
+  function buildBatch(){
+    const batch = (window.app && Array.isArray(window.app._batch)) ? window.app._batch : [];
+    if (!batch.length) return null;
+
+    // Use the *current* page’s table to define the metric header layout
+    const met = scrapeMetrics();
+    const baseHeaders = ['Tester','Test Date','Location','Member Name'].concat(met.headers);
+    const finalHeaders = baseHeaders.concat(['Member First','Member Last']);
+
+    const rows = batch.map(rec=>{
+      const first = (rec.memberFirst||'').toString().trim();
+      const last  = (rec.memberLast||'').toString().trim();
+      const name  = (rec.memberName && rec.memberName.trim()) ? rec.memberName : [first,last].filter(Boolean).join(' ');
+
+      // If the record carried its own metricValues, use them; otherwise fill blanks of correct length.
+      let metricValues = Array.isArray(rec.metricValues) ? rec.metricValues.slice() : null;
+      if (!metricValues || metricValues.length !== met.values.length) {
+        metricValues = new Array(met.values.length).fill('');
+      }
+
+      return [rec.tester||'', rec.testDate||'', rec.location||'', name||'']
+             .concat(metricValues)
+             .concat([first,last]);
+    });
+
+    const d = new Date(); const mm = String(d.getMonth()+1).padStart(2,'0'); const dd = String(d.getDate()).padStart(2,'0');
+    const label = safe((window.app && window.app.batchLabel) || 'batch');
+    const loc   = safe((window.app && window.app.location) || 'Location');
+    const filename = `mobility_batch_${d.getFullYear()}-${mm}-${dd}_${label}_@${loc}.csv`;
+
+    return { headers: finalHeaders, rows, filename };
+  }
+
+  // ---------- bind (capture) to override older handlers ----------
+  function bind(){
+    const buttons = qsa('button, a, [role="button"]');
+    let bound = 0;
+    buttons.forEach(btn=>{
+      const label = ((btn.id||'') + ' ' + (btn.textContent||'')).toLowerCase();
+      const isCsv = /csv/.test(label) || /download.*csv/.test(label);
+      if (!isCsv) return;
+
+      btn.addEventListener('click', function(e){
+        const isBatch = /batch/.test(label);
+        const payload = isBatch ? buildBatch() : buildSingle();
+        if (payload && payload.headers && payload.rows && payload.rows.length) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          const csv = makeCsvString(payload.headers, payload.rows);
+          downloadCsv(payload.filename, csv);
+          console.log('[CSV TableScrape] Exported', isBatch ? 'batch' : 'single', 'with metrics + First/Last.');
+        } else {
+          console.warn('[CSV TableScrape] No payload; falling back to original handler.');
+        }
+      }, { capture: true });
+      bound++;
+    });
+    console.log('[CSV TableScrape] Bound to', bound, 'CSV button(s).');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
+})();
+</script>
 
 </body>
 </html>
