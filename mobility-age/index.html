@@ -2977,6 +2977,58 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+(function(){
+  const qsa = (s, r=document)=>Array.from((r||document).querySelectorAll(s));
+  const txt = el => (el? (el.textContent||'').trim() : '');
+  function byLabel(rx){
+    for (const lab of qsa('label')) {
+      if (rx.test(txt(lab))) {
+        if (lab.htmlFor && document.getElementById(lab.htmlFor)) return document.getElementById(lab.htmlFor);
+        const row = lab.closest('.form-row') || lab.parentElement;
+        const inp = row ? row.querySelector('input,select,textarea') : null;
+        if (inp) return inp;
+      }
+    }
+    return null;
+  }
+
+  // 1) Sit & Reach probe
+  const sitKnown = ['sitreach_in','sit_reach_in','sitreach','sitReach','sitAndReach','sit_and_reach'];
+  let sitEl = byLabel(/sit\s*&?\s*reach/i);
+  if (!sitEl) for (const id of sitKnown){ sitEl = document.getElementById(id) || document.querySelector(`[name="${id}"]`); if (sitEl) break; }
+  if (!sitEl){
+    for (const el of qsa('input')) {
+      const idn = ((el.id||'')+' '+(el.name||'')).toLowerCase();
+      if (idn.includes('sit') && idn.includes('reach')) { sitEl = el; break; }
+    }
+  }
+  console.log('[DIAG] Sit&Reach element:',
+    sitEl ? {id: sitEl.id||null, name: sitEl.name||null, value: sitEl.value||''} : 'NOT FOUND');
+
+  // 2) Mobility Age probe
+  let maCell = null, maVal = '';
+  const tables = qsa('table');
+  for (const t of tables){
+    const rows = qsa('tbody tr', t);
+    for (const tr of rows){
+      const first = tr.querySelector('td');
+      if (first && /final\s+mobility\s+age/i.test(txt(first))){
+        const tds = qsa('td', tr);
+        maCell = tds.at(-1) || null;
+        maVal = maCell ? txt(maCell) : '';
+        break;
+      }
+    }
+    if (maCell) break;
+  }
+  const appKeys = (window.app && Object.keys(window.app)) || [];
+  const appMA = window.app ? (window.app.mobilityAge ?? window.app.mobility_age ?? window.app.ma ?? '') : '';
+  console.log('[DIAG] Final Mobility Age:',
+    { fromTable: maVal, fromApp: appMA, appKeys: appKeys.slice(0,30) });
+
+})();
+</script>
 
 </body>
 </html>
