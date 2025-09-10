@@ -1120,35 +1120,6 @@ function wireCsvExports() {
 } else {
   wireCsvExports();
 }
-</script>
-
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', wireCsvExports);
-} else {
-  wireCsvExports();
-}
-
-// keep your existing DOMContentLoaded logic
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', wireCsvExports);
-} else {
-  wireCsvExports();
-}
-</script>
-
-
-  // Optional: quick console peek so you can see what we detected
-  console.log('[Export wiring] singleBtn:', !!singleBtn, 'batchBtn:', !!batchBtn);
-  if (window.app) console.log('[Export wiring] app keys:', Object.keys(window.app));
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', wireCsvExports);
-} else {
-  wireCsvExports();
-}
-</script>
 
 </body>
 </html>
