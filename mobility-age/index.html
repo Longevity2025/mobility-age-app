@@ -1480,6 +1480,40 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* --- Rebind CSV buttons so the patched exporter (with First/Last) runs --- */
+(function(){
+  function rebind(id){
+    const btn = document.getElementById(id);
+    if (!btn) return false;
+    const clone = btn.cloneNode(true);        // removes all old listeners
+    btn.replaceWith(clone);                   // swap in-place, keep same position
+    clone.id = id;                            // ensure same id remains
+    return true;
+  }
+
+  function run(){
+    const singleOK = rebind('downloadCsv');        // single-record export button
+    const batchOK  = rebind('downloadCsvBatch');   // batch export button
+
+    // Now (re)attach our patched handlers that include Member First/Last
+    if (typeof window.wireCsvExports === 'function') {
+      window.wireCsvExports();
+      if (window.console && console.log) {
+        console.log('[CSV Rebind] single:', singleOK, 'batch:', batchOK, '-> patched exporter wired');
+      }
+    } else {
+      console.warn('[CSV Rebind] wireCsvExports not found; check that the Member First/Last patch block is present.');
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', run);
+  } else {
+    run();
+  }
+})();
+</script>
 
 </body>
 </html>
