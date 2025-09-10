@@ -3092,6 +3092,148 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* FINAL COMPACT EXPORT (First+Last) — locked to your IDs and visible text */
+(function(){
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const qs  = (s, r=document) => r.querySelector(s);
+  const gv  = id => (document.getElementById(id)?.value || '').trim();
+  const app = () => (window.app = window.app || {});
+
+  function toCsvLine(arr){
+    return arr.map(v=>{
+      const s = (v ?? '').toString();
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(',');
+  }
+  const makeCsv = (headers, rows) => [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+
+  const tsLocal  = () => new Date().toLocaleString('en-US',{hour12:false,timeZoneName:'short'});
+  const safeFile = s => (s||'').toString().replace(/[^\w-]+/g,'_');
+
+  // --- Sit & Reach: your input is id="sit"
+  function readSitReach(){ return gv('sit'); }
+
+  // --- Mobility Age: find element with "Final Mobility Age" and take last number nearby
+  function getMobilityAge(){
+    // prefer app if it’s set correctly
+    const vApp = app().mobilityAge ?? app().mobility_age ?? app().ma;
+    if (vApp !== undefined && vApp !== null && vApp !== '') return String(vApp).trim();
+
+    // Search any element that contains the phrase
+    const phrase = 'final mobility age';
+    const candidates = qsa('body *').filter(el => (el.textContent||'').toLowerCase().includes(phrase));
+    if (candidates.length){
+      // choose the smallest text block that contains the phrase (closest to the label)
+      candidates.sort((a,b)=>a.textContent.length - b.textContent.length);
+      const container = candidates[0].closest('tr, .row, .form-row, div, li') || candidates[0];
+
+      // 1) try explicit numeric cells within that container
+      const numElems = qsa('td, th, span, strong, b, div', container)
+        .map(el => (el.textContent||'').trim())
+        .filter(t => /\d/.test(t));
+
+      if (numElems.length){
+        // take the last numeric-looking token from the last such element
+        const lastText = numElems[numElems.length-1];
+        const nums = lastText.match(/-?\d+(?:\.\d+)?/g);
+        if (nums && nums.length) return nums[nums.length-1];
+      }
+
+      // 2) fallback: parse numbers from the whole container text
+      const allNums = (container.textContent||'').match(/-?\d+(?:\.\d+)?/g);
+      if (allNums && allNums.length) return allNums[allNums.length-1];
+    }
+    return '';
+  }
+
+  function readAny(idList){
+    for (const id of idList){
+      const el = document.getElementById(id) || qs(`[name="${id}"]`);
+      if (el && el.value != null && el.value !== '') return el.value.trim();
+      const a = app()[id];
+      if (a != null && a !== '') return (''+a).trim();
+    }
+    return '';
+  }
+
+  function buildRow(){
+    const first = readAny(['memberFirst','member_first','first_name']);
+    const last  = readAny(['memberLast','member_last','last_name']);
+    const name_full = (last && first) ? `${last}, ${first}` : (app().memberName || `${first} ${last}`.trim());
+
+    return [
+      tsLocal(),                                   // timestamp_local
+      (app().version || 'v9.27'),                  // app_version
+      name_full,                                   // name_full
+      first,                                       // member_first
+      last,                                        // member_last
+      readAny(['tester']),                         // tester
+      readAny(['location']),                       // location
+      readAny(['sex','gender']),                   // sex
+      readAny(['age']),                            // age
+      readAny(['tug_s','tug']),                    // tug_s
+      readAny(['vo2_mlkgm','vo2_mlkgmin','vo2']),  // vo2_mlkgm
+      readSitReach(),                              // sitreach_in  (id="sit")
+      readAny(['mtp_pct','mtp']),                  // mtp_pct
+      readAny(['grip_r_pct','grip_r']),            // grip_r_pct
+      readAny(['grip_l_pct','grip_l']),            // grip_l_pct
+      readAny(['sway_r_pct','sway_r']),            // sway_r_pct
+      readAny(['sway_l_pct','sway_l']),            // sway_l_pct
+      getMobilityAge()                             // mobility_age (from label row)
+    ];
+  }
+
+  function bind(){
+    // Add/locate the new button
+    let btn = document.getElementById('btnExportCSV_FL');
+    if (!btn){
+      const anchor = document.getElementById('btnExportCSV') ||
+                     qsa('button, a, [role="button"]').find(el => /export/i.test(el.textContent||''));
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'btnExportCSV_FL';
+      btn.textContent = 'Export CSV (First+Last)';
+      if (anchor && anchor.className) btn.className = anchor.className;
+      (anchor?.parentElement || document.body).appendChild(btn);
+    }
+
+    // Block any legacy handlers on this button only
+    ['pointerdown','mousedown','click'].forEach(type=>{
+      btn.addEventListener(type, (e)=>{ e.preventDefault(); e.stopImmediatePropagation(); }, {capture:true});
+    });
+
+    btn.addEventListener('click', ()=>{
+      const HEADERS = [
+        'timestamp_local','app_version','name_full','member_first','member_last',
+        'tester','location','sex','age',
+        'tug_s','vo2_mlkgm','sitreach_in','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','mobility_age'
+      ];
+      const row = buildRow();
+      const csv = makeCsv(HEADERS, [row]);
+
+      const datePart = (readAny(['testDate']) || new Date().toLocaleDateString()).replaceAll('/','-');
+      const locPart  = safeFile(readAny(['location']) || 'Location');
+      const nm       = (app().memberName || `${row[3]||''} ${row[4]||''}` || 'Member').toString().trim();
+      const filename = `mobility_${datePart}_${safeFile(nm)}_@${locPart}.csv`;
+
+      // Temporarily silence the old "header changed" alert (just in case)
+      const oldAlert = window.alert; window.alert = ()=>{};
+      setTimeout(()=>{ window.alert = oldAlert; }, 2000);
+
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+
+      console.log('[Final Compact Export] CSV with First/Last + sitreach_in + mobility_age.');
+    }, {capture:true});
+  }
+
+  if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', bind); } else { bind(); }
+})();
+</script>
 
 </body>
 </html>
