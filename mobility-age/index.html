@@ -2080,6 +2080,150 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* === BATCH BRIDGE (stops header-mismatch popups) ==========================
+   - Intercepts your "Add to Batch" button and pushes a row we build from the
+     visible results table (same order every time).
+   - Maintains one stable base header (core + metrics). First/Last are appended
+     only at export, so batch rows never change shape.
+   - Clears the old batch automatically if it was created with a different header.
+============================================================================ */
+(function(){
+  // ---------- tiny helpers ----------
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const txt = (el) => (el ? (el.textContent || '').trim() : '');
+
+  function collectCore(){
+    if (typeof window.collectForm === 'function') {
+      const f = window.collectForm();
+      return {
+        tester: f.tester||'', testDate: f.testDate||'', location: f.location||'',
+        memberName: f.memberName||'', memberFirst: f.memberFirst||'', memberLast: f.memberLast||''
+      };
+    }
+    const gv = id => (document.getElementById(id)?.value || '').trim();
+    const first = gv('memberFirst'), last = gv('memberLast');
+    return {
+      tester: gv('tester'), testDate: gv('testDate'), location: gv('location'),
+      memberFirst: first, memberLast: last, memberName: [first,last].filter(Boolean).join(' ')
+    };
+  }
+
+  function findResultsTable(){
+    const tables = qsa('table');
+    for (const t of tables) {
+      const text = (t.innerText||'').toLowerCase();
+      if (text.includes('final mobility age') && text.includes('test')) return t;
+    }
+    return null;
+  }
+
+  function scrapeMetricHeadersAndValues(){
+    const tbl = findResultsTable();
+    if (!tbl) return { headers: [], values: [] };
+
+    const rows = qsa('tbody tr', tbl);
+    const headers = [];
+    const values  = [];
+
+    rows.forEach(tr=>{
+      const tds = qsa('td', tr);
+      if (!tds.length) return;
+      const label = txt(tds[0]);
+
+      // Final row (single value)
+      if (/final\s+mobility\s+age/i.test(label)) {
+        const v = txt(tds[tds.length-1]);
+        headers.push('Final Mobility Age');
+        values.push(v);
+        return;
+      }
+      // Normal row: [label, Z, Weight, Weighted Z, MAE]
+      const z   = txt(tds[1]||null);
+      const wt  = txt(tds[2]||null);
+      const wz  = txt(tds[3]||null);
+      const mae = txt(tds[4]||null);
+
+      if (z || wt || wz || mae) {
+        headers.push(`${label} Z`);          values.push(z);
+        headers.push(`${label} Weight`);     values.push(wt);
+        headers.push(`${label} Weighted Z`); values.push(wz);
+        headers.push(`${label} MAE`);        values.push(mae);
+      }
+    });
+
+    return { headers, values };
+  }
+
+  function stableBaseHeaders(){
+    window.app = window.app || {};
+    if (Array.isArray(window.app.__csvBaseHeaders) && window.app.__csvBaseHeaders.length) {
+      return window.app.__csvBaseHeaders.slice();
+    }
+    const met = scrapeMetricHeadersAndValues().headers;
+    const base = ['Tester','Test Date','Location','Member Name'].concat(met);
+    window.app.__csvBaseHeaders = base.slice();
+    return base;
+  }
+
+  function addCurrentToBatch(){
+    const core = collectCore();
+    const met  = scrapeMetricHeadersAndValues();
+    const base = stableBaseHeaders();
+
+    // If header shape changed (e.g., after you updated the app), start a new batch
+    const sameShape = Array.isArray(window.app.__csvBaseHeaders)
+                      && window.app.__csvBaseHeaders.join('|') === base.join('|');
+    if (!sameShape) {
+      window.app._batch = [];
+      window.app.__csvBaseHeaders = base.slice();
+      console.warn('[Batch Bridge] Header shape changed — starting a new batch.');
+    }
+
+    window.app._batch = window.app._batch || [];
+    window.app._batch.push({
+      tester: core.tester,
+      testDate: core.testDate,
+      location: core.location,
+      memberName: core.memberName,
+      memberFirst: core.memberFirst,
+      memberLast: core.memberLast,
+      metricValues: met.values.slice()  // exactly matches base metric headers
+    });
+
+    // Optional toast
+    console.log(`[Batch Bridge] Added record #${window.app._batch.length}`);
+    if (!document.body.dataset.noBatchAlert) {
+      try { alert(`Added to batch (#${window.app._batch.length}).`); } catch(e){}
+    }
+  }
+
+  function bindAddButtons(){
+    // Try common IDs and fall back to text search
+    const ids = ['btnAddToBatch','addToBatch','btnBatch','addBatch','queueRecord'];
+    const fromIds = ids.map(id=>document.getElementById(id)).filter(Boolean);
+    const byText = qsa('button, a, [role="button"]').filter(el=>{
+      const t = (el.textContent||'').toLowerCase();
+      return /add.*batch/.test(t) || /queue/.test(t);
+    });
+    const btns = Array.from(new Set([...fromIds, ...byText]));
+    btns.forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.preventDefault();
+        e.stopImmediatePropagation(); // stop the old handler that shows "header changed"
+        addCurrentToBatch();
+      }, { capture: true });
+    });
+    console.log('[Batch Bridge] Bound to', btns.length, 'Add-to-batch button(s).');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindAddButtons);
+  } else {
+    bindAddButtons();
+  }
+})();
+</script>
 
 </body>
 </html>
