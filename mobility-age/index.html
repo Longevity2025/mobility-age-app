@@ -1087,29 +1087,33 @@ function findButtonByIdOrText(id, textIncludes) {
 
 function wireCsvExports() {
   // SINGLE
-  const singleBtn = findButtonByIdOrText('downloadCsvBtn', 'download csv');
-  if (singleBtn) {
-    singleBtn.addEventListener('click', async (e) => {
-      // Prevent any old handler from doing its own download first
-      e.preventDefault?.(); e.stopPropagation?.();
-      const csv = getSingleCsvString();
-      if (!csv) { alert('CSV not ready for this record.'); return; }
-      const name = buildSingleFilename();
-      await exportCSV_iosFirst(name, csv);
-    }, { capture: true });
+const singleBtn = findButtonByIdOrText('downloadCsvBtn', 'download csv');
+if (singleBtn) {
+  singleBtn.addEventListener('click', async () => {
+    // let your original CSV-building handler run first
+    await new Promise(r => setTimeout(r, 0));
+
+    const csv = getSingleCsvString();
+    if (!csv) { alert('CSV not ready for this record.'); return; }
+
+    const name = buildSingleFilename();
+    await exportCSV_iosFirst(name, csv);
+  });
   }
 
   // BATCH
   const batchBtn = findButtonByIdOrText('downloadBatchCsvBtn', 'batch');
-  if (batchBtn) {
-    batchBtn.addEventListener('click', async (e) => {
-      e.preventDefault?.(); e.stopPropagation?.();
-      const csv = getBatchCsvString();
-      if (!csv) { alert('Batch CSV not ready.'); return; }
-      const name = buildBatchFilename();
-      await exportCSV_iosFirst(name, csv);
-    }, { capture: true });
-  }
+if (batchBtn) {
+  batchBtn.addEventListener('click', async () => {
+    await new Promise(r => setTimeout(r, 0));
+
+    const csv = getBatchCsvString();
+    if (!csv) { alert('Batch CSV not ready.'); return; }
+
+    const name = buildBatchFilename();
+    await exportCSV_iosFirst(name, csv);
+  });
+}
 
   // Optional: quick console peek so you can see what we detected
   console.log('[Export wiring] singleBtn:', !!singleBtn, 'batchBtn:', !!batchBtn);
