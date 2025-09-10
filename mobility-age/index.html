@@ -1514,6 +1514,151 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* === FORCE-BOUND CSV EXPORTER (adds Member First/Last) ===
+   - Finds likely CSV buttons by id OR label text.
+   - Hooks a capture-phase listener so it runs before older handlers.
+   - If we can build the patched CSV, we stop the old handler and download ours.
+   - Else we fall back to your original exporter.
+*/
+(function(){
+  // ---------- helpers ----------
+  function toCsvLine(arr){
+    return arr.map(v=>{
+      const s = (v ?? '').toString();
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(',');
+  }
+  function makeCsvString(headers, rows){
+    return [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+  }
+  function downloadCsv(filename, csvString){
+    const blob = new Blob([csvString], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+  function dateSafeStr(){
+    const d = new Date();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  }
+  function safe(s){ return (s||'').toString().replaceAll(/[^\w-]+/g,'_'); }
+
+  // Build headers/rows using our patched collectForm + (if present) metric arrays.
+  function buildSingleCsv(){
+    if (typeof window.collectForm !== 'function') return null;
+    const f = window.collectForm();
+    const metricHeaders = (window.app && Array.isArray(window.app.metricHeaders)) ? window.app.metricHeaders : [];
+    const metricValues  = (window.app && Array.isArray(window.app.metricValues))  ? window.app.metricValues  : [];
+
+    const headers = ['Tester','Test Date','Location','Member Name']
+      .concat(metricHeaders)
+      .concat(['Member First','Member Last']);
+    const row     = [f.tester, f.testDate, f.location, f.memberName]
+      .concat(metricValues)
+      .concat([f.memberFirst, f.memberLast]);
+
+    // Must at least have the core 4 cols; metrics may be empty and that's OK.
+    return { headers, rows: [row],
+      filename: `mobility_${(f.testDate||dateSafeStr()).replaceAll('/','-')}_${safe(f.memberName||'Member')}_@${safe(f.location||'Location')}.csv`
+    };
+  }
+
+  function buildBatchCsv(){
+    const batch = (window.app && Array.isArray(window.app._batch)) ? window.app._batch : null;
+    if (!batch || !batch.length) return null;
+
+    const metricHeaders = (window.app && Array.isArray(window.app.metricHeaders)) ? window.app.metricHeaders : [];
+    const headers = ['Tester','Test Date','Location','Member Name']
+      .concat(metricHeaders)
+      .concat(['Member First','Member Last']);
+
+    const rows = batch.map(rec=>{
+      const first = (rec.memberFirst||'').toString().trim();
+      const last  = (rec.memberLast||'').toString().trim();
+      const name  = (rec.memberName && rec.memberName.trim()) ? rec.memberName
+                    : [first,last].filter(Boolean).join(' ');
+      const metrics = (rec.metricValues && Array.isArray(rec.metricValues)) ? rec.metricValues
+                      : ((window.app && Array.isArray(window.app.metricValues)) ? window.app.metricValues : []);
+      return [
+        rec.tester||'', rec.testDate||'', rec.location||'', name||''
+      ].concat(metrics).concat([first,last]);
+    });
+
+    const label = safe((window.app && window.app.batchLabel) || 'batch');
+    const loc   = safe((window.app && window.app.location) || 'Location');
+    const filename = `mobility_batch_${dateSafeStr()}_${label}_@${loc}.csv`;
+
+    return { headers, rows, filename };
+  }
+
+  // Find CSV buttons robustly (ids OR text)
+  function findCsvButtons(){
+    const ids = [
+      'downloadCsv','downloadCsvBatch', // our earlier ids
+      'btnDownloadCSV','btnDownloadCsv','btnCsv', // common alternates
+      'csvDownload','csvSingle','csvBatch'
+    ];
+    const fromIds = ids.map(id=>document.getElementById(id)).filter(Boolean);
+
+    // Also find by visible text
+    const byText = Array.from(document.querySelectorAll('button, a, [role="button"]')).filter(el=>{
+      const t = (el.textContent||'').trim().toLowerCase();
+      return /csv/.test(t) || /download.*csv/.test(t);
+    });
+
+    // De-duplicate while preserving order
+    const seen = new Set();
+    return [...fromIds, ...byText].filter(el=>{
+      if (!el || seen.has(el)) return false;
+      seen.add(el); return true;
+    });
+  }
+
+  function attach(){
+    const btns = findCsvButtons();
+    if (!btns.length) {
+      console.warn('[CSV ForceBind] No CSV buttons found.');
+      return;
+    }
+    btns.forEach(btn=>{
+      btn.addEventListener('click', function onClick(e){
+        // Heuristic: if “batch” appears in id or text, do batch
+        const label = ((btn.id||'') + ' ' + (btn.textContent||'')).toLowerCase();
+        const isBatch = /batch/.test(label);
+
+        const payload = isBatch ? buildBatchCsv() : buildSingleCsv();
+
+        if (payload && payload.headers && payload.rows && payload.headers.length >= 4) {
+          // We can produce a patched CSV → stop old handlers and download ours
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          const csv = makeCsvString(payload.headers, payload.rows);
+          downloadCsv(payload.filename, csv);
+
+          console.log('[CSV ForceBind] Patched CSV exported (added Member First/Last). Button:', btn.id || btn.textContent.trim());
+        } else {
+          // Fall back to original handler
+          console.warn('[CSV ForceBind] Could not build patched CSV (missing data). Letting original handler run.');
+        }
+      }, { capture: true }); // capture so we run before earlier listeners
+    });
+
+    console.log('[CSV ForceBind] Bound to', btns.length, 'CSV button(s).');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+})();
+</script>
 
 </body>
 </html>
