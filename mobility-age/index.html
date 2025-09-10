@@ -1120,6 +1120,222 @@ function wireCsvExports() {
 } else {
   wireCsvExports();
 }
+<!-- ======================== MOBILITY APP: MEMBER FIRST/LAST PATCH ========================
+     Drop this entire block right before </body>. It adds First/Last inputs, derives
+     legacy Member Name, and updates CSV export (single + batch) to include the
+     two new columns at the end while keeping "Member Name" unchanged.
+========================================================================================= -->
+
+<!-- 1) HTML: Member First/Last UI (replaces the old "Member Name" row) -->
+<style>
+  /* Keeps layout consistent with your current form */
+  .mi-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+  @media (max-width: 640px){ .mi-two-col { grid-template-columns: 1fr; } }
+</style>
+
+<div id="member-name-split" class="form-row mi-two-col" style="margin-top:.5rem;">
+  <div>
+    <label for="memberFirst" class="form-label">Member First Name</label>
+    <input id="memberFirst" type="text" class="form-control" placeholder="e.g., John" autocomplete="given-name">
+  </div>
+  <div>
+    <label for="memberLast" class="form-label">Member Last Name</label>
+    <input id="memberLast" type="text" class="form-control" placeholder="e.g., Smith" autocomplete="family-name">
+  </div>
+</div>
+
+<script>
+/* 2) JS: Derive legacy Member Name, keep window.app current, and extend CSV exports.
+   This assumes you're already using the wireCsvExports() helper we added earlier. */
+
+(function(){
+  // --- small helpers ---
+  const $ = (s, r=document) => r.querySelector(s);
+  const val = (id) => { const el = document.getElementById(id); return el ? (el.value || '').trim() : ''; };
+
+  // Hide any old single "Member Name" input if still present (visual tidy only)
+  const legacyNameRow = document.getElementById('memberName') || $('[name="memberName"]');
+  if (legacyNameRow) {
+    // Try to hide the whole row if possible
+    const row = legacyNameRow.closest('.form-row') || legacyNameRow.parentElement;
+    if (row) row.style.display = 'none'; else legacyNameRow.style.display = 'none';
+  }
+
+  // ---- collectForm() decorator (non-breaking) ----
+  // If you already have collectForm(), we augment it; otherwise we create it.
+  const existingCollect = window.collectForm;
+
+  function deriveMemberName(first, last){
+    return [first, last].filter(Boolean).join(' ').trim();
+  }
+
+  window.collectForm = function collectFormPatched(){
+    let base = existingCollect ? existingCollect() : {};
+
+    // Pull other top-level fields if your existing collector didn't
+    // (kept harmless if already present)
+    const tester   = base.tester   ?? val('tester');
+    const testDate = base.testDate ?? val('testDate');
+    const location = base.location ?? val('location');
+
+    const memberFirst = val('memberFirst');
+    const memberLast  = val('memberLast');
+    const memberName  = deriveMemberName(memberFirst, memberLast);
+
+    // Keep app state in sync (many of your views read from window.app)
+    window.app = window.app || {};
+    Object.assign(window.app, {
+      tester, testDate, location,
+      memberFirst, memberLast, memberName
+    });
+
+    // Return a flat record used by CSV/export; preserve everything already in base.
+    return Object.assign({}, base, {
+      tester, testDate, location,
+      memberName,            // legacy full name (unchanged column)
+      memberFirst,           // NEW column (added at CSV tail)
+      memberLast             // NEW column (added at CSV tail)
+    });
+  };
+
+  // Keep window.app live-updated while typing (optional)
+  ['memberFirst','memberLast'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => window.collectForm());
+  });
+
+  // ---- CSV export patch ----
+  // We re-define wireCsvExports to ensure the two new columns appear at the end.
+  // This safely overwrites the earlier helper you installed.
+  window.wireCsvExports = function wireCsvExportsPatched(){
+    const singleBtn = document.getElementById('downloadCsv');       // your single-record button
+    const batchBtn  = document.getElementById('downloadCsvBatch');  // your batch-records button
+
+    function toCsvLine(arr){
+      // Escape commas/quotes/newlines
+      return arr.map(v=>{
+        const s = (v ?? '').toString();
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+      }).join(',');
+    }
+    function makeCsvString(headers, rows){
+      return [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+    }
+    function downloadCsv(filename, csvString){
+      const blob = new Blob([csvString], {type:'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+    }
+
+    // Build standard headers (add your metric headers in between as you already do)
+    function buildHeaders(baseMetricHeaders){
+      const core = ['Tester', 'Test Date', 'Location', 'Member Name'];
+      const tail = ['Member First','Member Last']; // NEW at the end (non-breaking)
+      return core.concat(baseMetricHeaders || []).concat(tail);
+    }
+
+    // Build a single row from collectForm + provided metric values
+    function buildRow(baseMetricValues){
+      const f = window.collectForm();
+      const core = [f.tester, f.testDate, f.location, f.memberName];
+      const tail = [f.memberFirst, f.memberLast]; // NEW
+      return core.concat(baseMetricValues || []).concat(tail);
+    }
+
+    // SINGLE EXPORT
+    if (singleBtn) {
+      singleBtn.addEventListener('click', () => {
+        // Grab your current computed values (adapt if your app exposes them differently)
+        // Expectation: window.app.metrics is an ordered array matching your headers
+        const metricHeaders = (window.app && window.app.metricHeaders) || [
+          // ↓ If you previously enumerated specific columns, keep them here:
+          // 'TUG (s)', 'VO₂max (ml/kg/min)', 'Sit & Reach (in)', 'MTP (kg or %tile)', ...
+          // 'Grip (avg %tile)', 'Sway (avg %tile)', 'Mobility Index', 'Mobility Age', 'MAE TUG', ...
+        ];
+        const metricValues = (window.app && window.app.metricValues) || [
+          // ↓ Likewise, the matching values in the same order
+          // window.app.tug, window.app.vo2, window.app.sitReach, ... etc.
+        ];
+
+        const headers = buildHeaders(metricHeaders);
+        const row     = buildRow(metricValues);
+
+        const csv = makeCsvString(headers, [row]);
+
+        // Filename: keep your current logic; fallback to MemberName_Date_Location.csv
+        const dateSafe = (window.app?.testDate || '').replaceAll('/','-') || new Date().toLocaleDateString().replaceAll('/','-');
+        const locPart  = (window.app?.location || 'Location').replaceAll(/[^\w-]+/g,'_');
+        const namePart = (window.app?.memberName || 'Member').replaceAll(/[^\w-]+/g,'_');
+        const filename = `mobility_${dateSafe}_${namePart}_@${locPart}.csv`;
+
+        downloadCsv(filename, csv);
+      });
+    }
+
+    // BATCH EXPORT
+    // Assumes you’re queueing records in window.app._batch (array of objects),
+    // which our earlier helper set up. We append the two new columns at the end.
+    if (batchBtn) {
+      batchBtn.addEventListener('click', () => {
+        const batch = (window.app && Array.isArray(window.app._batch)) ? window.app._batch.slice() : [];
+        if (!batch.length) {
+          alert('No records batched yet.');
+          return;
+        }
+
+        const metricHeaders = (window.app && window.app.metricHeaders) || [];
+        const headers = buildHeaders(metricHeaders);
+
+        const rows = batch.map(rec => {
+          // Merge the queued record with current schema so we can grab names safely
+          const fLike = Object.assign({}, rec);
+          // Guarantee derived memberName in case only first/last were stored
+          fLike.memberName = fLike.memberName || deriveMemberName(fLike.memberFirst || '', fLike.memberLast || '');
+          const core = [fLike.tester, fLike.testDate, fLike.location, fLike.memberName];
+
+          const metricValues = (rec.metricValues && Array.isArray(rec.metricValues))
+            ? rec.metricValues
+            : (window.app?.metricValues || []);
+
+          const tail = [fLike.memberFirst || '', fLike.memberLast || ''];
+          return core.concat(metricValues || []).concat(tail);
+        });
+
+        // Filename: keep your established pattern with label + location if present
+        const today = new Date();
+        const y = today.getFullYear();
+        const m = String(today.getMonth()+1).padStart(2,'0');
+        const d = String(today.getDate()).padStart(2,'0');
+        const label = (window.app?.batchLabel || 'batch').replaceAll(/[^\w-]+/g,'_');
+        const locPart = (window.app?.location || 'Location').replaceAll(/[^\w-]+/g,'_');
+        const filename = `mobility_batch_${y}-${m}-${d}_${label}_@${locPart}.csv`;
+
+        const csv = makeCsvString(headers, rows);
+        downloadCsv(filename, csv);
+      });
+    }
+
+    // Optional: console peek
+    if (window.console && console.log) {
+      console.log('[Member Split Patch] singleBtn:', !!singleBtn, 'batchBtn:', !!batchBtn);
+    }
+  };
+
+  // Auto-wire now if DOM is ready; otherwise wait for DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', window.wireCsvExports);
+  } else {
+    window.wireCsvExports();
+  }
+})();
+</script>
+
+<!-- ====================== END MOBILITY APP: MEMBER FIRST/LAST PATCH ===================== -->
 
 </body>
 </html>
