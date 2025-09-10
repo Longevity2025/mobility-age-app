@@ -3234,6 +3234,137 @@ function wireCsvExports() {
   if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', bind); } else { bind(); }
 })();
 </script>
+<script>
+/* COMPACT, ISOLATED EXPORT (no legacy handlers touched)
+   Columns: timestamp_local, app_version, name_full, member_first, member_last,
+            tester, location, sex, age, tug_s, vo2_mlkgm, sitreach_in, mtp_pct,
+            grip_r_pct, grip_l_pct, sway_r_pct, sway_l_pct, mobility_age
+*/
+(function(){
+  const qsa = (s, r=document) => Array.from((r||document).querySelectorAll(s));
+  const gv  = id => (document.getElementById(id)?.value || '').trim();
+  const app = () => (window.app = window.app || {});
+  const tsLocal  = () => new Date().toLocaleString('en-US',{hour12:false,timeZoneName:'short'});
+  const safeFile = s => (s||'').toString().replace(/[^\w-]+/g,'_');
+  const toCsvLine = arr => arr.map(v=>{
+    const s = (v ?? '').toString();
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(',');
+  const makeCsv = (headers, rows) => [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+
+  // robust getter: read from window.app first, then by id/name
+  function readAny(keys){
+    for (const k of keys){
+      if (app()[k] != null && app()[k] !== '') return (''+app()[k]).trim();
+      const el = document.getElementById(k) || document.querySelector(`[name="${k}"]`);
+      if (el && el.value != null && el.value !== '') return el.value.trim();
+    }
+    return '';
+  }
+
+  // SIT & REACH — your field is id="sit"
+  function readSitReach(){ return gv('sit'); }
+
+  // MOBILITY AGE — average the visible MAE column (matches UI)
+  function readMobilityAgeFromMAE(){
+    // Find a table that has a header cell containing "MAE"
+    const candidates = qsa('table').filter(t => (t.innerText||'').toLowerCase().includes('mae'));
+    for (const tbl of candidates){
+      const rows = qsa('tbody tr', tbl);
+      if (!rows.length) continue;
+      const maes = [];
+      for (const tr of rows){
+        const cells = qsa('td', tr);
+        if (!cells.length) continue;
+        const label = (cells[0].textContent||'').trim().toLowerCase();
+        if (/final\s+mobility\s+age/.test(label)) continue; // skip summary row
+        const last = cells[cells.length-1];
+        if (!last) continue;
+        const m = (last.textContent||'').match(/-?\d+(?:\.\d+)?/);
+        if (m) maes.push(parseFloat(m[0]));
+      }
+      if (maes.length){
+        const avg = maes.reduce((a,b)=>a+b,0)/maes.length;
+        return (Math.round(avg*100)/100).toFixed(2);
+      }
+    }
+    return ''; // graceful fallback
+  }
+
+  function buildRow(){
+    const first = readAny(['memberFirst','member_first','first_name','fname']);
+    const last  = readAny(['memberLast','member_last','last_name','lname']);
+    const name_full = (last && first) ? `${last}, ${first}` : (app().memberName || `${first} ${last}`.trim());
+
+    return [
+      tsLocal(),                                   // timestamp_local
+      (app().version || 'v9.27'),                  // app_version
+      name_full,                                   // name_full
+      first,                                       // member_first
+      last,                                        // member_last
+      readAny(['tester']),                         // tester
+      readAny(['location']),                       // location
+      readAny(['sex','gender']),                   // sex
+      readAny(['age']),                            // age
+      readAny(['tug_s','tug']),                    // tug_s
+      readAny(['vo2_mlkgm','vo2_mlkgmin','vo2']),  // vo2_mlkgm
+      readSitReach(),                              // sitreach_in  (id="sit")
+      readAny(['mtp_pct','mtp']),                  // mtp_pct
+      readAny(['grip_r_pct','grip_r']),            // grip_r_pct
+      readAny(['grip_l_pct','grip_l']),            // grip_l_pct
+      readAny(['sway_r_pct','sway_r']),            // sway_r_pct
+      readAny(['sway_l_pct','sway_l']),            // sway_l_pct
+      readMobilityAgeFromMAE()                     // mobility_age (avg of MAE column)
+    ];
+  }
+
+  function addButtonAndBind(){
+    // Create a NEW button so we don't touch your existing Export
+    let anchor = document.getElementById('btnExportCSV') ||
+                 qsa('button, a, [role="button"]').find(el => /export/i.test(el.textContent||''));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'exportCompactFL';
+    btn.textContent = 'Export CSV (First+Last Compact)';
+    if (anchor && anchor.className) btn.className = anchor.className;
+    (anchor?.parentElement || document.body).appendChild(btn);
+
+    // Block any legacy listeners on THIS button only
+    ['pointerdown','mousedown','click'].forEach(type=>{
+      btn.addEventListener(type, (e)=>{ e.preventDefault(); e.stopImmediatePropagation(); }, {capture:true});
+    });
+
+    btn.addEventListener('click', ()=>{
+      // temporary alert mute (just in case anything else tries to fire)
+      const oldAlert = window.alert; window.alert = ()=>{}; setTimeout(()=>{ window.alert = oldAlert; }, 2000);
+
+      const HEADERS = [
+        'timestamp_local','app_version','name_full','member_first','member_last',
+        'tester','location','sex','age',
+        'tug_s','vo2_mlkgm','sitreach_in','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','mobility_age'
+      ];
+      const row = buildRow();
+      const csv = makeCsv(HEADERS, [row]);
+
+      const datePart = (readAny(['testDate']) || new Date().toLocaleDateString()).replaceAll('/','-');
+      const locPart  = safeFile(readAny(['location']) || 'Location');
+      const nm       = (app().memberName || `${row[3]||''} ${row[4]||''}` || 'Member').toString().trim();
+      const filename = `mobility_${datePart}_${safeFile(nm)}_@${locPart}.csv`;
+
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+
+      console.log('[Compact FL] Exported compact CSV.');
+    }, {capture:true});
+  }
+
+  if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', addButtonAndBind); }
+  else { addButtonAndBind(); }
+})();
+</script>
 
 </body>
 </html>
