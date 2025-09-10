@@ -1,4 +1,4 @@
-controls
+
 <!doctype html>
 <html>
 <head>
@@ -8,7 +8,7 @@ controls
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:#fafafa;color:#111}
   .wrap{max-width:980px;margin:24px auto;padding:0 12px}
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px}
+  .car{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:16px}
   .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   .row{display:grid;grid-template-columns:220px 1fr;gap:10px;align-items:center}
   input,select{font:inherit;padding:8px 10px;border:1px solid #e5e7eb;border-radius:10px}
@@ -1120,6 +1120,111 @@ function wireCsvExports() {
 } else {
   wireCsvExports();
 }
+<!-- === First/Last Name patch (non-destructive) === -->
+<style>
+  .name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 0.5rem 0 1rem; }
+  .name-row label { display:block; font-weight:600; margin-bottom:0.25rem; }
+  .visually-hidden { position:absolute !important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+</style>
+
+<script>
+(function () {
+  function ready(fn){ (document.readyState === 'loading') ? document.addEventListener('DOMContentLoaded', fn) : fn(); }
+
+  ready(function () {
+    // 1) Ensure there is a #memberName input (create hidden if missing).
+    var memberInput = document.getElementById('memberName');
+    if (!memberInput) {
+      memberInput = document.createElement('input');
+      memberInput.type = 'text';
+      memberInput.id = 'memberName';
+      memberInput.name = 'memberName';
+      memberInput.className = 'visually-hidden';
+      document.body.appendChild(memberInput); // safe place; stays hidden
+    }
+
+    // 2) Hide any existing visible "Member Name" label/input
+    var memberLabel = document.querySelector('label[for="memberName"]');
+    if (memberLabel) memberLabel.style.display = 'none';
+    if (memberInput) memberInput.style.display = 'none'; // keep value-only, not visible
+
+    // 3) Insert First/Last controls near the old member field (or at top of form if not found)
+    var insertAnchor = (memberLabel && memberLabel.parentElement) || (memberInput && memberInput.parentElement) || document.querySelector('form') || document.body;
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'name-row';
+    wrapper.innerHTML = `
+      <div>
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="firstName" autocomplete="given-name">
+      </div>
+      <div>
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="lastName" autocomplete="family-name">
+      </div>
+    `;
+    insertAnchor.parentNode.insertBefore(wrapper, insertAnchor.nextSibling);
+
+    var firstEl = wrapper.querySelector('#firstName');
+    var lastEl  = wrapper.querySelector('#lastName');
+
+    // 4) Prefill first/last from existing memberName value (supports "Last, First" or "First Last")
+    (function prefillFromMember(){
+      var v = (memberInput.value || '').trim();
+      if (!v) return;
+      var first = '', last = '';
+      if (v.includes(',')) {
+        var parts = v.split(',');
+        last  = (parts[0] || '').trim();
+        first = (parts.slice(1).join(',') || '').trim();
+      } else {
+        var parts = v.split(/\s+/);
+        if (parts.length === 1) {
+          first = parts[0];
+        } else {
+          first = parts.slice(0, -1).join(' ');
+          last  = parts.slice(-1)[0];
+        }
+      }
+      if (first && !firstEl.value) firstEl.value = first;
+      if (last  && !lastEl.value)  lastEl.value  = last;
+      syncHidden();
+    })();
+
+    // 5) Keep hidden #memberName synchronized
+    function syncHidden() {
+      var f = (firstEl.value || '').trim();
+      var l = (lastEl.value  || '').trim();
+      memberInput.value = (f && l) ? (f + ' ' + l) : (f || l); // "First Last" or single if only one present
+      // If other code listens for 'input' on #memberName, fire it:
+      var evt;
+      try {
+        evt = new Event('input', { bubbles: true });
+      } catch (e) {
+        evt = document.createEvent('Event'); evt.initEvent('input', true, true);
+      }
+      memberInput.dispatchEvent(evt);
+    }
+
+    firstEl.addEventListener('input', syncHidden);
+    lastEl.addEventListener('input', syncHidden);
+
+    // 6) Keep things tidy on form reset (if your page uses a <form>)
+    var form = insertAnchor.closest && insertAnchor.closest('form');
+    if (form) {
+      form.addEventListener('reset', function(){
+        setTimeout(function(){
+          firstEl.value = '';
+          lastEl.value  = '';
+          syncHidden();
+        }, 0);
+      });
+    }
+
+  });
+})();
+</script>
+<!-- === End First/Last Name patch === -->
 
 </body>
 </html>
