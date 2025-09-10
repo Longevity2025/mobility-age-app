@@ -957,6 +957,171 @@ Drop this whole block just before </body>. Replace older export blocks entirely.
   setTimeout(patch, 150); // safety in case BatchCSV initializes a tick later
 })();
 </script>
+<script>
+/* ======================= iPad/iPhone–first CSV Export SHIM ======================= */
+
+/* Detect Apple touch (iPad can report "Mac" in UA) */
+const isIOSFamily = (() => {
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+})();
+
+/* Unified export (Share sheet on iOS; download elsewhere) */
+async function exportCSV_iosFirst(filename, csvString) {
+  const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8' });
+
+  if (isIOSFamily && navigator.canShare) {
+    try {
+      const file = new File([blob], filename, { type: 'text/csv' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: filename, text: 'Mobility export' });
+        return;
+      }
+    } catch (e) { /* fall through */ }
+  }
+
+  if (isIOSFamily) {
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 15000);
+    return;
+  }
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+}
+
+/* -------- Helpers to find your CSV strings regardless of naming -------- */
+
+function tryFuncs(funcNames) {
+  for (const name of funcNames) {
+    const fn = name.split('.').reduce((o,k)=>o && o[k], window);
+    if (typeof fn === 'function') {
+      try { const val = fn(); if (val) return val; } catch {}
+    }
+  }
+  return '';
+}
+
+function tryVars(varNames) {
+  for (const path of varNames) {
+    const val = path.split('.').reduce((o,k)=>o && o[k], window);
+    if (typeof val === 'string' && val.trim()) return val;
+  }
+  return '';
+}
+
+function getSingleCsvString() {
+  // Common variable/function candidates we’ve seen in your builds
+  const varCandidates = [
+    'app.csvString', 'app.csv_string', 'app.currentCsv', 'app.singleCsv',
+    'csvString', 'currentCsv', 'singleCsv'
+  ];
+  const fnCandidates = [
+    'app.buildCurrentCsv', 'app.buildCsv', 'buildCurrentCsv', 'buildCsv', 'buildCsvSomehow'
+  ];
+  return tryVars(varCandidates) || tryFuncs(fnCandidates);
+}
+
+function getBatchCsvString() {
+  const varCandidates = [
+    'app.batchCsvString', 'app.csvStringBatch', 'app.batch_csv', 'app.batchCsv',
+    'batchCsvString', 'csvStringBatch', 'batchCsv'
+  ];
+  const fnCandidates = [
+    'app.buildBatchCsv', 'buildBatchCsv'
+  ];
+  return tryVars(varCandidates) || tryFuncs(fnCandidates);
+}
+
+/* -------- Filename builder that adapts to your state -------- */
+
+function localISODate() {
+  const d = new Date();
+  return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+}
+function slug(s) { return String(s||'').trim().replace(/\s+/g,'_').replace(/[^A-Za-z0-9_\-]/g,''); }
+
+function getField(...candidates) {
+  for (const path of candidates) {
+    const v = path.split('.').reduce((o,k)=>o && o[k], window);
+    if (typeof v === 'string' && v) return v;
+  }
+  return '';
+}
+
+function buildSingleFilename() {
+  const date = getField('app.localDate') || localISODate();
+  const last = slug(getField('app.lastName','app.lname','lastName','lname'));
+  const first = slug(getField('app.firstName','app.fname','firstName','fname'));
+  const loc = slug(getField('app.locationLabel','app.location','locationLabel','location') || 'loc');
+  const explicit = getField('app.csvFilename','csvFilename');
+  return explicit || `mobility_${date}_${last}_${first}_${loc}.csv`;
+}
+
+function buildBatchFilename() {
+  const date = getField('app.localDate') || localISODate();
+  const label = slug(getField('app.batchLabel','app.label','batchLabel','label') || 'batch');
+  const loc = slug(getField('app.locationLabel','app.location','locationLabel','location') || 'loc');
+  const explicit = getField('app.batchCsvFilename','batchCsvFilename');
+  return explicit || `mobility_batch_${date}_${label}_${loc}.csv`;
+}
+
+/* -------- Find your buttons by ID or by visible text -------- */
+
+function findButtonByIdOrText(id, textIncludes) {
+  let el = id ? document.getElementById(id) : null;
+  if (el) return el;
+  const candidates = Array.from(document.querySelectorAll('button, a, [role="button"]'));
+  const needle = (textIncludes || '').toLowerCase();
+  return candidates.find(btn => (btn.textContent || btn.innerText || '').toLowerCase().includes(needle)) || null;
+}
+
+/* -------- Wire everything up -------- */
+
+function wireCsvExports() {
+  // SINGLE
+  const singleBtn = findButtonByIdOrText('downloadCsvBtn', 'download csv');
+  if (singleBtn) {
+    singleBtn.addEventListener('click', async (e) => {
+      // Prevent any old handler from doing its own download first
+      e.preventDefault?.(); e.stopPropagation?.();
+      const csv = getSingleCsvString();
+      if (!csv) { alert('CSV not ready for this record.'); return; }
+      const name = buildSingleFilename();
+      await exportCSV_iosFirst(name, csv);
+    }, { capture: true });
+  }
+
+  // BATCH
+  const batchBtn = findButtonByIdOrText('downloadBatchCsvBtn', 'batch');
+  if (batchBtn) {
+    batchBtn.addEventListener('click', async (e) => {
+      e.preventDefault?.(); e.stopPropagation?.();
+      const csv = getBatchCsvString();
+      if (!csv) { alert('Batch CSV not ready.'); return; }
+      const name = buildBatchFilename();
+      await exportCSV_iosFirst(name, csv);
+    }, { capture: true });
+  }
+
+  // Optional: quick console peek so you can see what we detected
+  console.log('[Export wiring] singleBtn:', !!singleBtn, 'batchBtn:', !!batchBtn);
+  if (window.app) console.log('[Export wiring] app keys:', Object.keys(window.app));
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', wireCsvExports);
+} else {
+  wireCsvExports();
+}
+</script>
 
 </body>
 </html>
