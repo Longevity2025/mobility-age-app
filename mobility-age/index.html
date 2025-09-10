@@ -1411,6 +1411,75 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* ---- Legacy #memberName compatibility shim ----
+   Creates a hidden <input id="memberName"> and keeps it synced to
+   Member First/Last, dispatching input/change events so any existing
+   listeners keep your calculations running.
+*/
+(function(){
+  function $(id){ return document.getElementById(id); }
+
+  function ensureLegacyNameInput(){
+    let el = $('memberName');
+    if (!el) {
+      el = document.createElement('input');
+      el.type = 'text';
+      el.id = 'memberName';
+      el.name = 'memberName';
+      el.style.display = 'none';
+      // put it inside your form if present
+      (document.querySelector('form, .form, #intake') || document.body).appendChild(el);
+    }
+    return el;
+  }
+
+  function fullName(){
+    const first = ($('memberFirst')?.value || '').trim();
+    const last  = ($('memberLast')?.value  || '').trim();
+    return [first, last].filter(Boolean).join(' ');
+  }
+
+  function syncLegacy(){
+    const legacy = ensureLegacyNameInput();
+    const next = fullName();
+    if (legacy.value !== next) {
+      legacy.value = next;
+
+      // keep window.app in sync too
+      window.app = window.app || {};
+      window.app.memberName  = next;
+      window.app.memberFirst = ($('memberFirst')?.value || '').trim();
+      window.app.memberLast  = ($('memberLast')?.value  || '').trim();
+
+      // fire the same events your app already listens for
+      legacy.dispatchEvent(new Event('input',  { bubbles: true }));
+      legacy.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    // re-run collectForm if present so downstream CSV/export stays correct
+    if (typeof window.collectForm === 'function') window.collectForm();
+  }
+
+  function wire(){
+    ['memberFirst','memberLast'].forEach(id=>{
+      const el = $(id);
+      if (el) {
+        el.addEventListener('input',  syncLegacy);
+        el.addEventListener('change', syncLegacy);
+      }
+    });
+    // initial sync at load
+    syncLegacy();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire);
+  } else {
+    wire();
+  }
+})();
+</script>
 
 </body>
 </html>
