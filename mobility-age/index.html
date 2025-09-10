@@ -1119,90 +1119,120 @@ function wireCsvExports() {
   document.addEventListener('DOMContentLoaded', wireCsvExports);
 } else {
   wireCsvExports();
+  }  <!-- ← close the JS block -->
 
-<!-- ===== MOBILITY APP: MEMBER FIRST/LAST PATCH v2 (static insert) ===== -->
+</script>  <!-- ← close the <script> tag BEFORE injecting HTML/CSS -->
+<!-- ===== MOBILITY APP: MEMBER FIRST/LAST PATCH v3 (targeted insert) ===== -->
 <style>
-  #namePatchRoot { margin: 0.5rem 0 1rem; }
-  #namePatchGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-  #namePatchGrid label { display:block; font-weight:600; margin-bottom:0.25rem; }
+  .name-row { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin:0.5rem 0 1rem; }
+  .name-row label { display:block; font-weight:600; margin-bottom:0.25rem; }
   .offscreen { position:absolute; left:-9999px; width:1px; height:1px; opacity:0; }
 </style>
 
-<div id="namePatchRoot">
-  <div id="namePatchGrid">
-    <div>
-      <label for="firstName">First Name</label>
-      <input type="text" id="firstName" name="firstName" autocomplete="given-name">
-    </div>
-    <div>
-      <label for="lastName">Last Name</label>
-      <input type="text" id="lastName" name="lastName" autocomplete="family-name">
-    </div>
-  </div>
-</div>
-
 <script>
-(function () {
-  // 1) Use the original memberName input if it exists; otherwise create a hidden mirror
-  var existing = document.getElementById('memberName');
-  var memberInput = existing;
-  if (!memberInput) {
-    memberInput = document.createElement('input');
-    memberInput.type = 'text';
-    memberInput.id = 'memberName';
-    memberInput.name = 'memberName';
-    memberInput.className = 'offscreen';
-    document.body.appendChild(memberInput);
-  } else {
-    // Hide the original visible control + label if present
-    var lab = document.querySelector('label[for="memberName"]');
-    if (lab) lab.style.display = 'none';
-    memberInput.classList.add('offscreen');
-  }
-
-  // 2) Wire sync between First/Last and hidden memberName
-  var firstEl = document.getElementById('firstName');
-  var lastEl  = document.getElementById('lastName');
-
-  function syncHidden() {
-    var f = (firstEl.value || '').trim();
-    var l = (lastEl.value  || '').trim();
-    memberInput.value = f && l ? (l + ', ' + f) : (f || l);
-
-    try { memberInput.dispatchEvent(new Event('input', { bubbles:true })); }
-    catch(e){ var evt=document.createEvent('Event'); evt.initEvent('input', true, true); memberInput.dispatchEvent(evt); }
-  }
-  firstEl.addEventListener('input', syncHidden);
-  lastEl.addEventListener('input', syncHidden);
-
-  // 3) Prefill First/Last from any existing memberName value (supports "Last, First" or "First Last")
-  (function prefill(){
-    var v = (memberInput.value || '').trim(); if (!v) return;
-    var f = '', l = '';
-    if (v.includes(',')) {
-      var parts = v.split(',');
-      l = (parts[0] || '').trim();
-      f = (parts.slice(1).join(',') || '').trim();
+(function(){
+  function ready(fn){
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', fn);
     } else {
-      var parts = v.split(/\s+/);
-      if (parts.length === 1) { f = parts[0]; }
-      else { f = parts.slice(0, -1).join(' '); l = parts.slice(-1)[0]; }
+      // Run after the current JS finishes building the UI
+      setTimeout(fn, 0);
     }
-    if (!firstEl.value && f) firstEl.value = f;
-    if (!lastEl.value  && l) lastEl.value  = l;
-    syncHidden();
-  })();
-
-  // 4) Keep tidy on form resets (if your page uses a <form>)
-  var form = firstEl.closest && firstEl.closest('form');
-  if (form) {
-    form.addEventListener('reset', function(){
-      setTimeout(function(){ firstEl.value=''; lastEl.value=''; syncHidden(); }, 0);
-    });
   }
+
+  ready(function(){
+    // ---- CONFIG: if you know your controls container, set it here for precision ----
+    var explicitControls = document.querySelector('#controls') 
+                        || document.querySelector('.controls') 
+                        || document.querySelector('#left-col') 
+                        || document.querySelector('#app');
+
+    function $(sel, root){ return (root||document).querySelector(sel); }
+    function make(el, html){ var d=document.createElement(el); if(html) d.innerHTML=html; return d; }
+
+    // Find existing memberName label/input to anchor insertion (AFTER UI is built)
+    var memberInput = $('#memberName');
+    var memberLabel = $('label[for="memberName"]');
+
+    // Fallback controls container
+    var controls = (memberLabel && memberLabel.parentElement) || (memberInput && memberInput.parentElement)
+                || explicitControls || $('form') || document.body;
+
+    // Build First/Last UI
+    var wrapper = make('div');
+    wrapper.className = 'name-row';
+    wrapper.innerHTML = `
+      <div>
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="firstName" autocomplete="given-name">
+      </div>
+      <div>
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="lastName" autocomplete="family-name">
+      </div>
+    `;
+
+    // Insert near old Member Name; else at top of controls
+    if (memberLabel && memberLabel.parentElement) {
+      memberLabel.parentElement.insertAdjacentElement('afterend', wrapper);
+    } else if (memberInput && memberInput.parentElement) {
+      memberInput.parentElement.insertAdjacentElement('afterend', wrapper);
+    } else if (controls && controls.firstChild) {
+      controls.insertBefore(wrapper, controls.firstChild);
+    } else {
+      (controls || document.body).appendChild(wrapper);
+    }
+
+    // Keep legacy #memberName (hidden) so existing code continues to work
+    if (!memberInput) {
+      memberInput = make('input');
+      memberInput.type = 'text';
+      memberInput.id = 'memberName';
+      memberInput.name = 'memberName';
+      memberInput.className = 'offscreen';
+      (controls || document.body).appendChild(memberInput);
+    } else {
+      memberInput.classList.add('offscreen');
+      if (memberLabel) memberLabel.style.display = 'none';
+    }
+
+    var firstEl = $('#firstName', wrapper);
+    var lastEl  = $('#lastName',  wrapper);
+
+    // Sync as "Last, First" (change to `${f} ${l}` if you prefer)
+    function syncHidden(){
+      var f = (firstEl.value || '').trim();
+      var l = (lastEl.value  || '').trim();
+      memberInput.value = (f && l) ? (l + ', ' + f) : (f || l);
+      try { memberInput.dispatchEvent(new Event('input', {bubbles:true})); }
+      catch(e){ var evt=document.createEvent('Event'); evt.initEvent('input', true, true); memberInput.dispatchEvent(evt); }
+    }
+    firstEl.addEventListener('input', syncHidden);
+    lastEl .addEventListener('input', syncHidden);
+
+    // Prefill from existing memberName ("Last, First" or "First Last")
+    (function prefill(){
+      var v = (memberInput.value || '').trim(); if (!v) return;
+      var f='', l='';
+      if (v.includes(',')) { var p=v.split(','); l=(p[0]||'').trim(); f=(p.slice(1).join(',')||'').trim(); }
+      else { var p=v.split(/\s+/); if (p.length===1) f=p[0]; else { f=p.slice(0,-1).join(' '); l=p.slice(-1)[0]; } }
+      if (!firstEl.value && f) firstEl.value=f;
+      if (!lastEl.value  && l) lastEl.value =l;
+      syncHidden();
+    })();
+
+    // Handle form reset
+    var form = controls && controls.closest ? controls.closest('form') : null;
+    if (form) {
+      form.addEventListener('reset', function(){
+        setTimeout(function(){ firstEl.value=''; lastEl.value=''; syncHidden(); }, 0);
+      });
+    }
+  });
 })();
 </script>
-<!-- ===== End FIRST/LAST PATCH v2 ===== -->
+
+<!-- ===== End FIRST/LAST PATCH v3 ===== -->
 
 </body>
 </html>
