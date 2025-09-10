@@ -2358,6 +2358,135 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* COMPACT CSV EXPORT (matches your screenshot schema exactly)
+   Columns: timestamp_local, app_version, name_full, tester, location, sex, age,
+            tug_s, vo2_mlkgm, sitreach_in, mtp_pct, grip_r_pct, grip_l_pct,
+            sway_r_pct, sway_l_pct, mobility_age
+   - name_full is derived from Member First/Last as "Last, First".
+   - Reads values from window.app when available; otherwise from inputs.
+   - Mobility Age pulled from window.app or the visible results table.
+*/
+(function(){
+  // -------- helpers --------
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const gv = id => (document.getElementById(id)?.value || '').trim();
+  const app = () => (window.app = window.app || {});
+  const safeName = s => (s||'').toString();
+  const tsLocal = () => new Date().toLocaleString('en-US', { hour12:false, timeZoneName:'short' });
+  function toCsvLine(arr){
+    return arr.map(v=>{
+      const s = (v ?? '').toString();
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(',');
+  }
+  const makeCsv = (headers, rows) => [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+  function downloadCsv(filename, csv){
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+
+  // Mobility Age from state or table
+  function getMobilityAge(){
+    if (app().mobilityAge != null) return app().mobilityAge;
+    const tbl = qsa('table').find(t => (t.innerText||'').toLowerCase().includes('final mobility age'));
+    if (!tbl) return '';
+    const lastRow = qsa('tbody tr', tbl).pop();
+    if (!lastRow) return '';
+    const cells = qsa('td', lastRow);
+    return cells.length ? (cells[cells.length-1].textContent||'').trim() : '';
+  }
+
+  // Prefer window.app[key], else input with same id
+  function read(key){
+    if (app()[key] != null && app()[key] !== '') return app()[key];
+    return gv(key);
+  }
+
+  function buildRow(){
+    // Names
+    const first = gv('memberFirst') || app().memberFirst || '';
+    const last  = gv('memberLast')  || app().memberLast  || '';
+    const name_full = (last && first) ? `${last}, ${first}` : (app().memberName || `${first} ${last}`.trim());
+
+    // Build fixed schema row
+    const row = [
+      tsLocal(),                                 // timestamp_local
+      safeName(app().version || 'v9.27'),        // app_version (fallback)
+      name_full,                                 // name_full (derived)
+      read('tester'),                            // tester
+      read('location'),                          // location
+      read('sex') || read('gender') || '',       // sex (or gender)
+      read('age') || '',                         // age
+      read('tug_s') || '',                       // tug_s
+      read('vo2_mlkgm') || read('vo2_mlkgmin') || read('vo2') || '', // vo2_mlkgm (per your header)
+      read('sitreach_in') || '',                 // sitreach_in
+      read('mtp_pct') || '',                     // mtp_pct
+      read('grip_r_pct') || '',                  // grip_r_pct
+      read('grip_l_pct') || '',                  // grip_l_pct
+      read('sway_r_pct') || '',                  // sway_r_pct
+      read('sway_l_pct') || '',                  // sway_l_pct
+      getMobilityAge() || ''                     // mobility_age
+    ];
+
+    return row;
+  }
+
+  function bindCompactExport(){
+    // Use your console-reported ID first
+    let btn = document.getElementById('btnExportCSV');
+    if (!btn){
+      // fallback by text if ID changes
+      btn = qsa('button, a, [role="button"]').find(el=>{
+        const t = (el.textContent||'').toLowerCase();
+        return /export/.test(t) && /csv/.test(t);
+      });
+    }
+    if (!btn) { console.warn('[Compact CSV] Export button not found.'); return; }
+
+    // Remove old handlers by cloning
+    const clone = btn.cloneNode(true);
+    btn.replaceWith(clone);
+
+    clone.addEventListener('click', (e)=>{
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      const HEADERS = [
+        'timestamp_local','app_version','name_full','tester','location','sex','age',
+        'tug_s','vo2_mlkgm','sitreach_in','mtp_pct','grip_r_pct','grip_l_pct',
+        'sway_r_pct','sway_l_pct','mobility_age'
+      ];
+
+      const row = buildRow();
+      const csv = makeCsv(HEADERS, [row]);
+
+      // Filename: date + name + location (like your pattern)
+      const datePart = (read('testDate') || new Date().toLocaleDateString()).replaceAll('/','-');
+      const locPart  = (read('location') || 'Location').toString().replaceAll(/[^\w-]+/g,'_');
+      const namePart = (app().memberName || `${(gv('memberFirst')||'')}_${(gv('memberLast')||'')}` || 'Member')
+                        .toString().trim().replaceAll(/[^\w-]+/g,'_');
+
+      const filename = `mobility_${datePart}_${namePart}_@${locPart}.csv`;
+
+      downloadCsv(filename, csv);
+      console.log('[Compact CSV] Exported with compact schema.');
+    }, { capture:true });
+
+    console.log('[Compact CSV] Bound to Export button:', clone.id || clone.textContent.trim());
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindCompactExport);
+  } else {
+    bindCompactExport();
+  }
+})();
+</script>
 
 </body>
 </html>
