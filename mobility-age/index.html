@@ -2487,6 +2487,200 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* === SAFE, COMPACT EXPORT (adds a second button; no interference) =========
+   - Ensures Member First/Last inputs exist and keeps legacy #memberName synced.
+   - Adds a new button next to your Export: "Export CSV (First+Last)".
+   - Exports exactly these columns, in this order:
+     timestamp_local, app_version, name_full, tester, location, sex, age,
+     tug_s, vo2_mlkgm, sitreach_in, mtp_pct, grip_r_pct, grip_l_pct,
+     sway_r_pct, sway_l_pct, mobility_age
+============================================================================ */
+(function(){
+  // ---------- small utils ----------
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const qs  = (s, r=document) => r.querySelector(s);
+  const gv  = id => (document.getElementById(id)?.value || '').trim();
+  const app = () => (window.app = window.app || {});
+  const safeFile = s => (s||'').toString().replace(/[^\w-]+/g,'_');
+  const tsLocal  = () => new Date().toLocaleString('en-US',{hour12:false,timeZoneName:'short'});
+  function toCsvLine(arr){
+    return arr.map(v=>{
+      const s = (v ?? '').toString();
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(',');
+  }
+  const makeCsv = (headers, rows) => [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+  function downloadCsv(filename, csv){
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+
+  // ---------- 1) Ensure First/Last UI exists + keep legacy memberName ----------
+  function ensureFirstLast(){
+    // If inputs already present, just wire syncing
+    let first = document.getElementById('memberFirst');
+    let last  = document.getElementById('memberLast');
+
+    // If not present, try to replace the old Member Name row in-place
+    if (!first || !last){
+      const legacy = document.getElementById('memberName') ||
+                     qs('input[name="memberName"]') ||
+                     qs('input[placeholder*="Member Name" i]');
+      if (legacy){
+        const row = legacy.closest('.form-row') || legacy.parentElement || legacy;
+        row.innerHTML = `
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+            <div>
+              <label class="form-label" for="memberFirst">Member First Name</label>
+              <input id="memberFirst" type="text" class="form-control" placeholder="e.g., John" autocomplete="given-name">
+            </div>
+            <div>
+              <label class="form-label" for="memberLast">Member Last Name</label>
+              <input id="memberLast" type="text" class="form-control" placeholder="e.g., Smith" autocomplete="family-name">
+            </div>
+          </div>`;
+      } else {
+        // Fallback: insert after Location row if we can find it
+        const loc = document.getElementById('location');
+        const wrap = document.createElement('div');
+        wrap.innerHTML = `
+          <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.5rem;">
+            <div>
+              <label class="form-label" for="memberFirst">Member First Name</label>
+              <input id="memberFirst" type="text" class="form-control" placeholder="e.g., John" autocomplete="given-name">
+            </div>
+            <div>
+              <label class="form-label" for="memberLast">Member Last Name</label>
+              <input id="memberLast" type="text" class="form-control" placeholder="e.g., Smith" autocomplete="family-name">
+            </div>
+          </div>`;
+        if (loc && loc.parentElement) loc.parentElement.insertAdjacentElement('afterend', wrap.firstElementChild);
+        else document.body.appendChild(wrap.firstElementChild);
+      }
+    }
+
+    // Legacy hidden #memberName kept in sync so existing listeners fire
+    let legacyHidden = document.getElementById('memberName');
+    if (!legacyHidden){
+      legacyHidden = document.createElement('input');
+      legacyHidden.type = 'text'; legacyHidden.id = 'memberName'; legacyHidden.name = 'memberName';
+      legacyHidden.style.display = 'none';
+      (qs('form') || document.body).appendChild(legacyHidden);
+    }
+
+    function sync(){
+      const f = gv('memberFirst'), l = gv('memberLast');
+      const full = [f,l].filter(Boolean).join(' ');
+      legacyHidden.value = full;
+      window.app = window.app || {};
+      app().memberFirst = f; app().memberLast = l; app().memberName = full;
+      legacyHidden.dispatchEvent(new Event('input', {bubbles:true}));
+      legacyHidden.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+
+    ['memberFirst','memberLast'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el){ el.addEventListener('input', sync); el.addEventListener('change', sync); }
+    });
+    sync(); // initial
+  }
+
+  // ---------- 2) Build the compact row (uses IDs or app state) ----------
+  function readAny(keys){
+    for (const k of keys){
+      if (k in app() && app()[k] !== '' && app()[k] != null) return app()[k];
+      const el = document.getElementById(k) || qs(`[name="${k}"]`);
+      if (el && el.value != null && el.value !== '') return el.value.trim();
+    }
+    return '';
+  }
+  function getMobilityAge(){
+    if (app().mobilityAge != null && app().mobilityAge !== '') return app().mobilityAge;
+    // table fallback
+    const tbl = qsa('table').find(t => (t.innerText||'').toLowerCase().includes('final mobility age'));
+    if (tbl){
+      const lastRow = qsa('tbody tr', tbl).pop();
+      if (lastRow){
+        const tds = qsa('td', lastRow);
+        if (tds.length) return (tds[tds.length-1].textContent||'').trim();
+      }
+    }
+    return '';
+  }
+  function buildCompactRow(){
+    const first = readAny(['memberFirst']);
+    const last  = readAny(['memberLast']);
+    const name_full = (last && first) ? `${last}, ${first}` : (app().memberName || `${first} ${last}`.trim());
+
+    return [
+      tsLocal(),
+      app().version || 'v9.27',
+      name_full,
+      readAny(['tester']),
+      readAny(['location']),
+      readAny(['sex','gender']),
+      readAny(['age']),
+      readAny(['tug_s','tug']),                       // tug_s
+      readAny(['vo2_mlkgm','vo2_mlkgmin','vo2']),     // vo2_mlkgm
+      readAny(['sitreach_in','sit_and_reach_in','sitreach']), // sitreach_in
+      readAny(['mtp_pct','mtp']),                     // mtp_pct
+      readAny(['grip_r_pct','grip_r']),               // grip_r_pct
+      readAny(['grip_l_pct','grip_l']),               // grip_l_pct
+      readAny(['sway_r_pct','sway_r']),               // sway_r_pct
+      readAny(['sway_l_pct','sway_l']),               // sway_l_pct
+      getMobilityAge()                                // mobility_age
+    ];
+  }
+
+  // ---------- 3) Add a new Export button & bind only to it ----------
+  function addCompactExportButton(){
+    // Try to place it right after your existing Export button
+    let anchorBtn = document.getElementById('btnExportCSV') ||
+                    qsa('button, a, [role="button"]').find(el => /export/.test((el.textContent||'').toLowerCase()));
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'btnExportCSV_FL';
+    btn.textContent = 'Export CSV (First+Last)';
+    // Copy classes for consistent styling
+    if (anchorBtn && anchorBtn.className) btn.className = anchorBtn.className;
+    if (anchorBtn && anchorBtn.parentElement){
+      anchorBtn.insertAdjacentElement('afterend', btn);
+    } else {
+      document.body.appendChild(btn);
+    }
+
+    btn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      const HEADERS = [
+        'timestamp_local','app_version','name_full','tester','location','sex','age',
+        'tug_s','vo2_mlkgm','sitreach_in','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','mobility_age'
+      ];
+      const row = buildCompactRow();
+      const csv = makeCsv(HEADERS, [row]);
+
+      const datePart = (readAny(['testDate']) || new Date().toLocaleDateString()).replaceAll('/','-');
+      const locPart  = safeFile(readAny(['location']) || 'Location');
+      const nm       = app().memberName || `${readAny(['memberFirst'])} ${readAny(['memberLast'])}`.trim() || 'Member';
+      const filename = `mobility_${datePart}_${safeFile(nm)}_@${locPart}.csv`;
+
+      downloadCsv(filename, csv);
+      console.log('[Compact FL Export] Exported compact CSV.');
+    }, { capture:true });
+  }
+
+  // boot
+  function boot(){
+    ensureFirstLast();
+    addCompactExportButton();
+  }
+  if (document.readyState === 'loading'){ document.addEventListener('DOMContentLoaded', boot); } else { boot(); }
+})();
+</script>
 
 </body>
 </html>
