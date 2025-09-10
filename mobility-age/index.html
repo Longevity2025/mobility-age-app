@@ -2224,6 +2224,140 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* FINAL EXPORT REBIND — single Export only (adds First/Last + metrics) */
+(function(){
+  // Helpers
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const txt = (el) => (el ? (el.textContent || '').trim() : '');
+  const safe = (s) => (s||'').toString().replaceAll(/[^\w-]+/g,'_');
+  function toCsvLine(arr){
+    return arr.map(v=>{
+      const s = (v ?? '').toString();
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(',');
+  }
+  const makeCsv = (headers, rows) => [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+  function downloadCsv(filename, csv){
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+
+  // Collect core fields (tester/date/location + names)
+  function collectCore(){
+    const gv = id => (document.getElementById(id)?.value || '').trim();
+    const first = gv('memberFirst'), last = gv('memberLast');
+    const name  = [first,last].filter(Boolean).join(' ');
+    let f = { tester: gv('tester'), testDate: gv('testDate'), location: gv('location'),
+              memberFirst:first, memberLast:last, memberName:name };
+    if (typeof window.collectForm === 'function') {
+      const cf = window.collectForm(); // prefer existing if present
+      f = Object.assign(f, cf, {
+        memberFirst: cf.memberFirst ?? first,
+        memberLast:  cf.memberLast  ?? last,
+        memberName:  cf.memberName  ?? name
+      });
+    }
+    return f;
+  }
+
+  // Find & scrape the visible results table
+  function scrapeTable(){
+    const tables = qsa('table');
+    let tbl = null;
+    for (const t of tables) {
+      const text = (t.innerText||'').toLowerCase();
+      if (text.includes('final mobility age') && text.includes('test')) { tbl = t; break; }
+    }
+    if (!tbl) return { headers:[], values:[] };
+
+    const rows = qsa('tbody tr', tbl);
+    const headers = [];
+    const values  = [];
+
+    rows.forEach(tr=>{
+      const tds = qsa('td', tr);
+      if (!tds.length) return;
+      const label = txt(tds[0]);
+
+      if (/final\s+mobility\s+age/i.test(label)) {
+        const v = txt(tds[tds.length-1]);
+        headers.push('Final Mobility Age'); values.push(v);
+        return;
+      }
+      const z   = txt(tds[1]||null);
+      const wt  = txt(tds[2]||null);
+      const wz  = txt(tds[3]||null);
+      const mae = txt(tds[4]||null);
+
+      if (z || wt || wz || mae) {
+        headers.push(`${label} Z`);           values.push(z);
+        headers.push(`${label} Weight`);      values.push(wt);
+        headers.push(`${label} Weighted Z`);  values.push(wz);
+        headers.push(`${label} MAE`);         values.push(mae);
+      }
+    });
+
+    return { headers, values };
+  }
+
+  function buildSingleCsv(){
+    const core = collectCore();
+    const met  = scrapeTable();
+
+    const headers = ['Tester','Test Date','Location','Member Name']
+      .concat(met.headers)
+      .concat(['Member First','Member Last']);
+
+    const row = [core.tester, core.testDate, core.location, core.memberName]
+      .concat(met.values)
+      .concat([core.memberFirst, core.memberLast]);
+
+    const datePart = (core.testDate || new Date().toLocaleDateString()).replaceAll('/','-');
+    const filename = `mobility_${datePart}_${safe(core.memberName||'Member')}_@${safe(core.location||'Location')}.csv`;
+
+    return { headers, rows:[row], filename };
+  }
+
+  function bindExport(){
+    // Prefer your known ID from console: btnExportCSV
+    let btn = document.getElementById('btnExportCSV');
+    // Fallbacks by text if ID ever changes
+    if (!btn){
+      btn = qsa('button, a, [role="button"]').find(el=>{
+        const t = (el.textContent||'').toLowerCase();
+        return /export/.test(t) && /csv/.test(t);
+      });
+    }
+    if (!btn) { console.warn('[Final Export Rebind] Export button not found.'); return; }
+
+    // Clone to remove any old handlers / onclick attributes
+    const clone = btn.cloneNode(true);
+    btn.replaceWith(clone);
+
+    clone.addEventListener('click', (e)=>{
+      e.preventDefault();
+      e.stopImmediatePropagation(); // ensure NO old code runs
+      const payload = buildSingleCsv();
+      const csv = makeCsv(payload.headers, payload.rows);
+      downloadCsv(payload.filename, csv);
+      console.log('[Final Export Rebind] Exported single CSV with metrics + First/Last.');
+    }, { capture:true });
+
+    console.log('[Final Export Rebind] Bound to Export button:', clone.id || clone.textContent.trim());
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindExport);
+  } else {
+    bindExport();
+  }
+})();
+</script>
 
 </body>
 </html>
