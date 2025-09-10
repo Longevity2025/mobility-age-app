@@ -1083,37 +1083,64 @@ function findButtonByIdOrText(id, textIncludes) {
   return candidates.find(btn => (btn.textContent || btn.innerText || '').toLowerCase().includes(needle)) || null;
 }
 
-/* -------- Wire everything up -------- */
+<!-- -------- Wire everything up -------- -->
 
+<script>
 function wireCsvExports() {
+  if (!isIOSFamily) return; // iPad/iPhone only
+
   // SINGLE
-const singleBtn = findButtonByIdOrText('downloadCsvBtn', 'download csv');
-if (singleBtn) {
-  singleBtn.addEventListener('click', async () => {
-    // let your original CSV-building handler run first
-    await new Promise(r => setTimeout(r, 0));
-
-    const csv = getSingleCsvString();
-    if (!csv) { alert('CSV not ready for this record.'); return; }
-
-    const name = buildSingleFilename();
-    await exportCSV_iosFirst(name, csv);
-  });
+  const singleBtn = findButtonByIdOrText('downloadCsvBtn', 'download csv');
+  if (singleBtn) {
+    singleBtn.addEventListener('click', async () => {
+      await new Promise(r => setTimeout(r, 0));
+      let csv = getSingleCsvString();
+      if (!csv) { await new Promise(r => setTimeout(r, 50)); csv = getSingleCsvString(); }
+      if (!csv) return; // silent if still not ready
+      const name = buildSingleFilename();
+      await exportCSV_iosFirst(name, csv);
+    });
   }
 
   // BATCH
   const batchBtn = findButtonByIdOrText('downloadBatchCsvBtn', 'batch');
-if (batchBtn) {
-  batchBtn.addEventListener('click', async () => {
-    await new Promise(r => setTimeout(r, 0));
+  if (batchBtn) {
+    batchBtn.addEventListener('click', async () => {
+      await new Promise(r => setTimeout(r, 0));
+      let csv = getBatchCsvString();
+      if (!csv) { await new Promise(r => setTimeout(r, 50)); csv = getBatchCsvString(); }
+      if (!csv) return;
+      const name = buildBatchFilename();
+      await exportCSV_iosFirst(name, csv);
+    });
+  }
+} // <-- this was missing
 
-    const csv = getBatchCsvString();
-    if (!csv) { alert('Batch CSV not ready.'); return; }
-
-    const name = buildBatchFilename();
-    await exportCSV_iosFirst(name, csv);
-  });
+// Run after DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', wireCsvExports);
+} else {
+  wireCsvExports();
 }
+</script>
+
+// Keep your existing DOMContentLoaded logic (or use this):
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', wireCsvExports);
+} else {
+  wireCsvExports();
+}
+</script>
+
+
+// keep your existing DOMContentLoaded logic
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', wireCsvExports);
+} else {
+  wireCsvExports();
+}
+</script>
+
 
   // Optional: quick console peek so you can see what we detected
   console.log('[Export wiring] singleBtn:', !!singleBtn, 'batchBtn:', !!batchBtn);
