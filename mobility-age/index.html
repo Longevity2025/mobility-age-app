@@ -1690,6 +1690,206 @@ function wireCsvExports() {
   }
 })();
 </script>
+<script>
+/* === CSV Metrics Harmony Patch ===========================================
+   Goal: ensure the CSV includes your usual metric columns AND the new
+   "Member First/Last" tail, while keeping headers stable for batch.
+   - Tries window.app.metricHeaders/metricValues first.
+   - If missing, infers from your on-screen summary table (TH/TD scan).
+   - Stores a stable base header in window.app.__csvBaseHeaders
+     (core + metric headers, no name tail) so each row matches.
+   - Appends ["Member First","Member Last"] only at final export.
+=========================================================================== */
+(function(){
+  // -------- small helpers --------
+  const qsa = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+  const txt = (el) => (el ? (el.textContent || '').trim() : '');
+  const safe = (s) => (s||'').toString().replaceAll(/[^\w-]+/g,'_');
+  function toCsvLine(arr){
+    return arr.map(v=>{
+      const s = (v ?? '').toString();
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    }).join(',');
+  }
+  const makeCsvString = (headers, rows) => [toCsvLine(headers), ...rows.map(toCsvLine)].join('\n');
+  function downloadCsv(filename, csvString){
+    const blob = new Blob([csvString], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+  }
+
+  // -------- get form core --------
+  function collectCore(){
+    // prefer your existing collectForm if present
+    if (typeof window.collectForm === 'function') {
+      const f = window.collectForm();
+      return {
+        tester: f.tester || '',
+        testDate: f.testDate || '',
+        location: f.location || '',
+        memberName: f.memberName || '',
+        memberFirst: f.memberFirst || '',
+        memberLast: f.memberLast || ''
+      };
+    }
+    // minimal fallback
+    const gv = id => (document.getElementById(id)?.value || '').trim();
+    const first = gv('memberFirst'), last = gv('memberLast');
+    const name = [first,last].filter(Boolean).join(' ');
+    return {
+      tester: gv('tester'), testDate: gv('testDate'), location: gv('location'),
+      memberName: name, memberFirst: first, memberLast: last
+    };
+  }
+
+  // -------- get metrics: try app vars, else infer from DOM --------
+  function getMetrics(){
+    // 1) preferred: explicit arrays
+    if (window.app && Array.isArray(window.app.metricHeaders) && Array.isArray(window.app.metricValues) && window.app.metricHeaders.length === window.app.metricValues.length && window.app.metricHeaders.length > 0) {
+      return { headers: window.app.metricHeaders.slice(), values: window.app.metricValues.slice() };
+    }
+
+    // 2) infer from a visible summary table
+    // Heuristics: look for a table that has THs containing known metric keywords
+    const metricHints = /tug|vo2|sit|reach|mtp|grip|sway|mobility|age|index|mae/i;
+
+    // Candidate tables: any <table>, prioritize ones with id/class hints
+    const tables = [
+      ...qsa('table#results, table#summary, table.results, table.summary, .results table, .summary table'),
+      ...qsa('table')
+    ];
+
+    for (const tbl of tables) {
+      const ths = qsa('thead th', tbl);
+      if (!ths.length) continue;
+      const labels = ths.map(th => txt(th));
+      const hasHint = labels.some(l => metricHints.test(l));
+      if (!hasHint) continue;
+
+      // grab the first data row
+      const firstRow = qsa('tbody tr', tbl)[0] || null;
+      if (!firstRow) continue;
+      const cells = qsa('td', firstRow).map(td => txt(td));
+
+      // Keep only metric columns: often the first few columns are name/date/location;
+      // try to detect and drop them by label match
+      const dropHeads = /tester|name|member|date|location/i;
+      const metricPairs = labels.map((h,i)=>({h, v: cells[i] ?? ''}))
+                                .filter(p => !dropHeads.test(p.h));
+
+      const headers = metricPairs.map(p=>p.h);
+      const values  = metricPairs.map(p=>p.v);
+
+      if (headers.length) return { headers, values };
+    }
+
+    // 3) give up gracefully: no metrics
+    return { headers: [], values: [] };
+  }
+
+  // -------- stable base header (core + metrics) --------
+  function getStableBaseHeaders(){
+    window.app = window.app || {};
+    if (Array.isArray(window.app.__csvBaseHeaders) && window.app.__csvBaseHeaders.length) {
+      return window.app.__csvBaseHeaders.slice();
+    }
+    const core = ['Tester','Test Date','Location','Member Name'];
+    const met = getMetrics().headers;
+    const base = core.concat(met);
+    window.app.__csvBaseHeaders = base.slice(); // cache for later rows
+    return base;
+  }
+
+  // -------- build single/batch payloads --------
+  function buildSingle(){
+    const core = collectCore();
+    const met  = getMetrics();
+    const baseHeaders = getStableBaseHeaders();
+    // Ensure order aligns with cached base
+    const coreRow = [core.tester, core.testDate, core.location, core.memberName];
+    const row = coreRow.concat(met.values);
+    // Append our new tail at export time only
+    const finalHeaders = baseHeaders.concat(['Member First','Member Last']);
+    const finalRow     = row.concat([core.memberFirst, core.memberLast]);
+
+    const datePart = (core.testDate || new Date().toLocaleDateString()).replaceAll('/','-');
+    const filename = `mobility_${datePart}_${safe(core.memberName||'Member')}_@${safe(core.location||'Location')}.csv`;
+
+    return { headers: finalHeaders, rows: [finalRow], filename };
+  }
+
+  function buildBatch(){
+    const batch = (window.app && Array.isArray(window.app._batch)) ? window.app._batch : [];
+    if (!batch.length) return null;
+
+    const baseHeaders = getStableBaseHeaders(); // same across rows
+    const finalHeaders = baseHeaders.concat(['Member First','Member Last']);
+
+    const rows = batch.map(rec=>{
+      // Derive name if needed
+      const first = (rec.memberFirst||'').toString().trim();
+      const last  = (rec.memberLast||'').toString().trim();
+      const name  = (rec.memberName && rec.memberName.trim()) ? rec.memberName : [first,last].filter(Boolean).join(' ');
+
+      // If the record already stored metricValues in the same order, use them;
+      // otherwise try to infer from DOM for at least current record shape.
+      let metricValues = Array.isArray(rec.metricValues) ? rec.metricValues.slice() : getMetrics().values.slice();
+
+      const coreRow = [rec.tester||'', rec.testDate||'', rec.location||'', name||''];
+      return coreRow.concat(metricValues).concat([first,last]);
+    });
+
+    const label = safe((window.app && window.app.batchLabel) || 'batch');
+    const loc   = safe((window.app && window.app.location) || 'Location');
+    const d = new Date(); const mm = String(d.getMonth()+1).padStart(2,'0'); const dd = String(d.getDate()).padStart(2,'0');
+    const filename = `mobility_batch_${d.getFullYear()}-${mm}-${dd}_${label}_@${loc}.csv`;
+
+    return { headers: finalHeaders, rows, filename };
+  }
+
+  // -------- bind export that *replaces* older handlers on click --------
+  function bindPatchedExporter(){
+    const buttons = Array.from(new Set([
+      document.getElementById('downloadCsv'),
+      document.getElementById('downloadCsvBatch'),
+      ...qsa('button, a, [role="button"]')
+    ].filter(Boolean)));
+
+    buttons.forEach(btn=>{
+      const label = ((btn.id||'') + ' ' + (btn.textContent||'')).toLowerCase();
+      const isCsvish = /csv/.test(label) || /download.*csv/.test(label);
+      if (!isCsvish) return;
+
+      btn.addEventListener('click', function(e){
+        const isBatch = /batch/.test(label);
+        const payload = isBatch ? buildBatch() : buildSingle();
+
+        if (payload && payload.headers && payload.rows && payload.rows.length) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+
+          const csv = makeCsvString(payload.headers, payload.rows);
+          downloadCsv(payload.filename, csv);
+          console.log('[CSV Harmony] Exported with metrics + First/Last. Type:', isBatch ? 'batch' : 'single');
+        } else {
+          console.warn('[CSV Harmony] No payload built; letting original handler run.');
+        }
+      }, { capture: true });
+    });
+
+    console.log('[CSV Harmony] Bound patched exporter.');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindPatchedExporter);
+  } else {
+    bindPatchedExporter();
+  }
+})();
+</script>
 
 </body>
 </html>
