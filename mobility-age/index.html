@@ -304,19 +304,40 @@ document.addEventListener('DOMContentLoaded', function(){
     return true;
   }
 
-  function clearAll(){
-    var ids = [
-'tester','location','firstName','lastName','memberName','phone','age',
-  'sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'
-];
-
-    for(var i=0;i<ids.length;i++){ var el=document.getElementById(ids[i]); if(el){ el.value=''; } }
-    var sex = document.getElementById('sex');
-    if(sex){ sex.value=''; }
-    var tbody = document.getElementById('rows'); if(tbody){ tbody.innerHTML=''; }
-    var fin = document.getElementById('final'); if(fin){ fin.textContent=''; }
+<script>
+// ...
+function clearAll(){
+  // inputs
+  var ids = [
+    'tester','location','memberName','firstName','lastName',
+    'phone','age','sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'
+  ];
+  for (var i=0;i<ids.length;i++){
+    var el = document.getElementById(ids[i]);
+    if (el) el.value = '';
   }
-  window.__clearAll = clearAll;
+  var sex = document.getElementById('sex');
+  if (sex) sex.value = '';
+
+  // table rows + final number
+  var tbody = document.getElementById('rows'); if (tbody) tbody.innerHTML = '';
+  var fin   = document.getElementById('final'); if (fin) fin.textContent = '';
+
+  // NEW: clear the summary/readout line in the Results section
+  var summary =
+    document.getElementById('who') ||
+    document.getElementById('summary') ||
+    document.querySelector('[data-summary]') ||
+    document.querySelector('#results .readout');
+  if (summary) summary.textContent = '';
+
+  // optional: trigger a render cycle so anything cached gets reset
+  if (typeof render === 'function') render();
+}
+window.__clearAll = clearAll;
+// ...
+</script>
+
 
   function render(){
     var dbg = document.getElementById('dbg'), errBox = document.getElementById('err');
