@@ -307,33 +307,31 @@ document.addEventListener('DOMContentLoaded', function(){
 <script>
 // ...
 function clearAll(){
-  // inputs
+  // Clear input controls (safe if some IDs don't exist)
   var ids = [
     'tester','location','memberName','firstName','lastName',
     'phone','age','sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'
   ];
-  for (var i=0;i<ids.length;i++){
+  for (var i = 0; i < ids.length; i++) {
     var el = document.getElementById(ids[i]);
     if (el) el.value = '';
   }
-  var sex = document.getElementById('sex');
-  if (sex) sex.value = '';
 
-  // table rows + final number
-  var tbody = document.getElementById('rows'); if (tbody) tbody.innerHTML = '';
-  var fin   = document.getElementById('final'); if (fin) fin.textContent = '';
+  // Clear rows + final number
+  var tbody = document.getElementById('rows');  if (tbody) tbody.innerHTML = '';
+  var fin   = document.getElementById('final'); if (fin)   fin.textContent = '';
 
-  // NEW: clear the summary/readout line in the Results section
+  // Clear the summary (“Member: … • Age: … • Sex: …”)
   var summary =
     document.getElementById('who') ||
-    document.getElementById('summary') ||
-    document.querySelector('[data-summary]') ||
-    document.querySelector('#results .readout');
+    document.querySelector('#results .readout') ||
+    document.querySelector('[data-summary]');
   if (summary) summary.textContent = '';
 
-  // optional: trigger a render cycle so anything cached gets reset
+  // Optional: refresh UI if your app exposes render()
   if (typeof render === 'function') render();
 }
+
 window.__clearAll = clearAll;
 // ...
 </script>
