@@ -305,7 +305,11 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function clearAll(){
-    var ids = ['tester','location','memberName','phone','age','sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'];
+    var ids = [
+'tester','location','firstName','lastName','memberName','phone','age',
+  'sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'
+];
+
     for(var i=0;i<ids.length;i++){ var el=document.getElementById(ids[i]); if(el){ el.value=''; } }
     var sex = document.getElementById('sex');
     if(sex){ sex.value=''; }
