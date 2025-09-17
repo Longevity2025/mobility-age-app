@@ -333,7 +333,7 @@ function clearAll(){
 
 window.__clearAll = clearAll;
 // ...
-</script>
+
 
 
   function render(){
@@ -445,24 +445,54 @@ var wz = {
 
   // Hook up Clear button
   document.addEventListener('click', function(ev){
-    if(ev.target && ev.target.id === 'clearBtn'){
+    if (ev.target && ev.target.id === 'clearBtn'){
       ev.preventDefault();
       clearAll();
     }
   });
 
+  function clearAll(){
+    // Inputs (safe to include ids that may not exist)
+    var ids = [
+      'tester','location','memberName','firstName','lastName',
+      'phone','age','sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2','testDate','sex'
+    ];
+    for (var i=0;i<ids.length;i++){
+      var el = document.getElementById(ids[i]);
+      if (!el) continue;
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+    }
+
+    // Results table + final number
+    var tbody = document.getElementById('rows');  if (tbody) tbody.innerHTML = '';
+    var fin   = document.getElementById('final'); if (fin)   fin.textContent = '';
+
+    // Summary line (Member / Age / Sex)
+    var summary =
+      document.getElementById('who') ||
+      document.querySelector('#results .readout') ||
+      document.querySelector('[data-summary]');
+    if (summary) summary.textContent = '';
+
+    // Refresh the UI if present
+    if (typeof render === 'function') render();
+  }
+  window.__clearAll = clearAll;
+
   // Start empty (except date)
   function startEmpty(){
     clearAll();
     var td = document.getElementById('testDate');
-    if(td){ try{ td.value = new Date().toISOString().slice(0,10); }catch(e){} }
+    if (td){ try{ td.value = new Date().toISOString().slice(0,10); }catch(e){} }
   }
   startEmpty();
 
   // Render timer
   setInterval(render, 500);
-})();
-</script>
+})();  
+</script>  
+
 <!-- Mobility Age App • v9.27 • Build 2025-09-04 • Branded (logo embedded) • Clean (no debug) -->
   <!--
 <!--
