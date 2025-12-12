@@ -1045,7 +1045,14 @@ Drop this whole block just before
       const isCSV = obj && obj.type && /(text\/csv|application\/vnd\.ms-excel)/i.test(obj.type);
       if (!window.__BATCHCSV_SUPPRESS && isCSV) {
         const reader = new FileReader();
-        reader.onload = () => { try { BatchCSV.addFromSingleCSV(reader.result); } catch(e){} };
+        reader.onload = () => {
+        try {
+          BatchCSV.addFromSingleCSV(reader.result);
+          if (window.updateBatchBadge) {
+            try { window.updateBatchBadge(); } catch (_) {}
+          }
+        } catch(e){}
+      };
         reader.readAsText(obj);
       }
     } catch(e) {}
@@ -1068,6 +1075,9 @@ Drop this whole block just before
             ? atob(payload)
             : decodeURIComponent(payload);
           BatchCSV.addFromSingleCSV(csv);
+          if (window.updateBatchBadge) {
+            try { window.updateBatchBadge(); } catch (_) {}
+          }
         }
       } catch(e){}
     }
