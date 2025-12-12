@@ -1021,6 +1021,9 @@ Drop this whole block just before
   function clearBatch(confirmFirst = true) {
     if (!confirmFirst || confirm('Clear the batched rows? This cannot be undone.')) {
       setState({ header: null, rows: [] });
+      if (window.updateBatchBadge) {
+        try { window.updateBatchBadge(); } catch (e) {}
+      }
     }
   }
 
@@ -1032,6 +1035,20 @@ Drop this whole block just before
 
   window.BatchCSV = { addFromSingleCSV, export: exportBatch, clear: clearBatch, sizeInfo };
 })();
+
+// Global helper to refresh the floating "CSV Batch" badge, if present
+window.updateBatchBadge = function() {
+  try {
+    if (!window.BatchCSV || typeof window.BatchCSV.sizeInfo !== 'function') return;
+    const info = window.BatchCSV.sizeInfo();
+    const badge = document.getElementById('batchcsv-count');
+    if (badge) {
+      const n = info && typeof info.rows === 'number' ? info.rows : 0;
+      badge.textContent = `CSV Batch · ${n} row${n === 1 ? '' : '(s)'}`;
+    }
+  } catch (e) {}
+};
+
 
 /* === Auto-capture whatever your app already downloads as CSV ===
    Works for both Blob+URL (type text/csv or vnd.ms-excel) and data: URLs.
