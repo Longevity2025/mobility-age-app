@@ -373,9 +373,9 @@ var timer = setInterval(function(){
   <div id="results" class="card" style="margin-top:14px;">
     <h2>Results</h2>
     <div id="who"></div>
-    <table><thead><tr><th>Test</th><th>Z</th><th>Weight</th><th>Weighted Z</th><th>MAE</th></tr></thead>
+    <table><thead><tr><th>Test</th><th>Z</th><th>MAE</th></tr></thead>
       <tbody id="rows"></tbody>
-      <tfoot><tr><th colspan="4">Final Mobility Age</th><th id="final"></th></tr></tfoot>
+      <tfoot><tr><th colspan="2">Final Mobility Age</th><th id="final"></th></tr></tfoot>
     </table>
   </div>
 </div>
@@ -594,12 +594,12 @@ var wz = {
       if(who){ who.textContent='Member: '+(document.getElementById('memberName').value||'(No name)')+' • Age: '+age+' • Sex: '+sex; }
       if(tbody){
         tbody.innerHTML = ''
-          + '<tr><td>Sit & Reach (in)</td><td>'+z_sit.toFixed(2)+'</td><td>'+w.sit.toFixed(2)+'</td><td>'+wz.sit.toFixed(2)+'</td><td>'+mae.sit.toFixed(2)+'</td></tr>'
-          + '<tr><td>TUG (MAE floor ≥21; z capped ±'+ZCAP+')</td><td>'+z_tug.toFixed(2)+'</td><td>'+w.tug.toFixed(2)+'</td><td>'+wz.tug.toFixed(2)+'</td><td>'+mae.tug.toFixed(2)+'</td></tr>'
-          + '<tr><td>Mid-Thigh Pull</td><td>'+z_mtp.toFixed(2)+'</td><td>'+w.mtp.toFixed(2)+'</td><td>'+wz.mtp.toFixed(2)+'</td><td>'+mae.mtp.toFixed(2)+'</td></tr>'
-          + '<tr><td>Postural Sway (avg R/L pct)</td><td>'+z_sway.toFixed(2)+'</td><td>'+w.sway.toFixed(2)+'</td><td>'+wz.sway.toFixed(2)+'</td><td>'+mae.sway.toFixed(2)+'</td></tr>'
-          + '<tr><td>Grip Strength (avg R/L pct)</td><td>'+z_grip.toFixed(2)+'</td><td>'+w.grip.toFixed(2)+'</td><td>'+wz.grip.toFixed(2)+'</td><td>'+mae.grip.toFixed(2)+'</td></tr>'
-          + '<tr><td>VO₂ Max</td><td>'+z_vo2.toFixed(2)+'</td><td>'+w.vo2.toFixed(2)+'</td><td>'+wz.vo2.toFixed(2)+'</td><td>'+mae.vo2.toFixed(2)+'</td></tr>';
+          + '<tr><td>Sit & Reach (in)</td><td>'+z_sit.toFixed(2)+'</td><td>'+mae.sit.toFixed(2)+'</td></tr>'
+          + '<tr><td>TUG (MAE floor ≥21; z capped ±'+ZCAP+')</td><td>'+z_tug.toFixed(2)+'</td><td>'+mae.tug.toFixed(2)+'</td></tr>'
+          + '<tr><td>Mid-Thigh Pull</td><td>'+z_mtp.toFixed(2)+'</td><td>'+mae.mtp.toFixed(2)+'</td></tr>'
+          + '<tr><td>Postural Sway (avg R/L pct)</td><td>'+z_sway.toFixed(2)+'</td><td>'+mae.sway.toFixed(2)+'</td></tr>'
+          + '<tr><td>Grip Strength (avg R/L pct)</td><td>'+z_grip.toFixed(2)+'</td><td>'+mae.grip.toFixed(2)+'</td></tr>'
+          + '<tr><td>VO₂ Max</td><td>'+z_vo2.toFixed(2)+'</td><td>'+mae.vo2.toFixed(2)+'</td></tr>';
       }
       if(fin){ fin.textContent = final.toFixed(2); }
 
@@ -1873,9 +1873,9 @@ function wireCsvExports() {
           var trs = resultsTable.querySelectorAll('tr');
           for (var i=0;i<trs.length;i++){
             var tds = trs[i].querySelectorAll('td');
-            if (tds.length >= 5) {
+            if (tds.length >= 3) {
               var tName = (tds[0].textContent || '').trim();
-              var maeRaw = (tds[4].textContent || '').trim();
+              var maeRaw = (tds[2].textContent || '').trim();
               var maeVal = parseFloat(maeRaw.replace(/[^0-9.\-]/g,''));
               if (!isNaN(maeVal)) {
                 var d = maeVal - ageVal;
@@ -1987,11 +1987,11 @@ function wireCsvExports() {
         if (resultsSection && resultsSection.parentNode){
           var p = document.createElement('p');
           p.className = 'report-body';
-          p.textContent = 'Your six Mobility Age Equivalent (MAE) scores and your overall HSMI are shown below. The three middle columns—Z score, Weight, and Weighted Z—show how we standardize your results against a large database of people your age and gender, and then apply research-based weights to each test. This is how we derive your six MAEs. Your final Mobility Age is the average of those six weighted MAEs. Your SENS Health Coach will walk you through how you performed on each MAE and what your overall Mobility Age means for your healthspan and mobility goals.';
+          p.textContent = 'Your six Mobility Age Equivalent (MAE) scores and your overall Mobility Age are shown below. We standardize your six test results against a large database of people your age and gender and then apply research-based weights to each test to derive your MAEs. Your final Mobility Age is the average of those six weighted MAEs. Your SENS Health Coach will walk you through how you performed on each MAE and what your overall Mobility Age means for your healthspan and mobility goals.';
           resultsSection.parentNode.insertBefore(p, resultsSection);
           var legend = document.createElement('p');
           legend.className = 'results-legend';
-          legend.textContent = 'Your Z score compares your performance to thousands of people your age and gender. A positive Z score (above 0.0) means you outperformed that group, while a negative score (below 0.0) means you underperformed. Each Z score is multiplied by a weight that reflects its contribution to longevity. The highest weight, 1.5, is assigned to your aerobic capacity (VO₂ max), because it has the strongest association with long-term health and survival.';
+          legend.textContent = 'Your Z score compares your performance to thousands of people your age and gender. A positive Z score (above 0.0) means you outperformed that group, while a negative score (below 0.0) means you underperformed. Each Z score is multiplied by a weight that reflects its contribution to longevity. The highest weight is assigned to your aerobic capacity (VO₂ max), because it has the strongest association with long-term health and survival.';
           resultsSection.appendChild(legend);
         }
       } catch (e) {}
