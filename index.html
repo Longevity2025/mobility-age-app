@@ -3227,36 +3227,34 @@ if (btn) btn.addEventListener('click', function(e){
 <script>
   (function () {
     var gate = document.getElementById('nlf-gate');
-    var opened = false;
 
     function unlock() { gate.style.display = 'none'; }
     function lock()   { gate.style.display = 'flex'; }
 
-    netlifyIdentity.on('login', function () { unlock(); netlifyIdentity.close(); });
-    netlifyIdentity.on('logout', function () { window.location.reload(); });
-
-    // If URL contains invite/recovery token, unlock immediately so widget can handle it
-    if (window.location.hash && (
-        window.location.hash.indexOf('invite_token') !== -1 ||
-        window.location.hash.indexOf('recovery_token') !== -1 ||
-        window.location.hash.indexOf('access_token') !== -1
-    )) {
-      unlock();
-      return;
-    }
-
-    // Poll until the widget has initialised and we know the user state
-    var poll = setInterval(function () {
-      if (typeof netlifyIdentity.currentUser !== 'function') return;
-      clearInterval(poll);
-      var user = netlifyIdentity.currentUser();
+    netlifyIdentity.on('init', function (user) {
       if (user) {
         unlock();
-      } else if (!opened) {
-        opened = true;
+      } else {
         netlifyIdentity.open('login');
       }
-    }, 200);
+    });
+
+    netlifyIdentity.on('login', function () {
+      unlock();
+      netlifyIdentity.close();
+    });
+
+    netlifyIdentity.on('logout', function () {
+      lock();
+      netlifyIdentity.open('login');
+    });
+
+    netlifyIdentity.on('close', function () {
+      // If modal is closed but no user, re-open it (prevent bypassing login)
+      if (!netlifyIdentity.currentUser()) {
+        setTimeout(function () { netlifyIdentity.open('login'); }, 300);
+      }
+    });
   })();
 </script>
 </body>
