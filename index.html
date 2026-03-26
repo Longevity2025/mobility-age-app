@@ -3233,10 +3233,7 @@ if (btn) btn.addEventListener('click', function(e){
     function lock()   { gate.style.display = 'flex'; }
 
     netlifyIdentity.on('login', function () { unlock(); netlifyIdentity.close(); });
-    netlifyIdentity.on('logout', function () {
-      lock();
-      setTimeout(function () { netlifyIdentity.open('login'); }, 500);
-    });
+    netlifyIdentity.on('logout', function () { window.location.reload(); });
 
     // If URL contains invite/recovery token, unlock immediately so widget can handle it
     if (window.location.hash && (
