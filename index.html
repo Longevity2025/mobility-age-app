@@ -263,7 +263,6 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body data-v='v10' data-app-version="">
-<div id="nlf-app-content" style="display:none">
 
 
 <!-- print cover (print-only) -->
@@ -3215,28 +3214,49 @@ if (btn) btn.addEventListener('click', function(e){
 
 
 <!-- Netlify Identity gate -->
+<style>
+  #nlf-gate {
+    position: fixed; inset: 0; background: #fff;
+    z-index: 99999; display: flex;
+    align-items: center; justify-content: center;
+    font-family: sans-serif; font-size: 1rem; color: #555;
+  }
+</style>
+<div id="nlf-gate">Checking login…</div>
 <script>
   (function () {
-    function unlock() {
-      document.getElementById('nlf-app-content').style.display = '';
+    var gate = document.getElementById('nlf-gate');
+    var opened = false;
+
+    function unlock() { gate.style.display = 'none'; }
+    function lock()   { gate.style.display = 'flex'; }
+
+    netlifyIdentity.on('login', function () { unlock(); netlifyIdentity.close(); });
+    netlifyIdentity.on('logout', function () { window.location.reload(); });
+
+    // If URL contains invite/recovery token, unlock immediately so widget can handle it
+    if (window.location.hash && (
+        window.location.hash.indexOf('invite_token') !== -1 ||
+        window.location.hash.indexOf('recovery_token') !== -1 ||
+        window.location.hash.indexOf('access_token') !== -1
+    )) {
+      unlock();
+      return;
     }
 
-    netlifyIdentity.init();
-
-    netlifyIdentity.on('init', function (user) {
+    // Poll until the widget has initialised and we know the user state
+    var poll = setInterval(function () {
+      if (typeof netlifyIdentity.currentUser !== 'function') return;
+      clearInterval(poll);
+      var user = netlifyIdentity.currentUser();
       if (user) {
         unlock();
-      } else {
+      } else if (!opened) {
+        opened = true;
         netlifyIdentity.open('login');
       }
-    });
-
-    netlifyIdentity.on('login', function () {
-      unlock();
-      netlifyIdentity.close();
-    });
+    }, 200);
   })();
 </script>
-</div><!-- end nlf-app-content -->
 </body>
 </html>
