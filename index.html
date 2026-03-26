@@ -3234,6 +3234,16 @@ if (btn) btn.addEventListener('click', function(e){
     netlifyIdentity.on('login', function () { unlock(); netlifyIdentity.close(); });
     netlifyIdentity.on('logout', function () { lock(); netlifyIdentity.open('login'); });
 
+    // If URL contains invite/recovery token, unlock immediately so widget can handle it
+    if (window.location.hash && (
+        window.location.hash.indexOf('invite_token') !== -1 ||
+        window.location.hash.indexOf('recovery_token') !== -1 ||
+        window.location.hash.indexOf('access_token') !== -1
+    )) {
+      unlock();
+      return;
+    }
+
     // Poll until the widget has initialised and we know the user state
     var poll = setInterval(function () {
       if (typeof netlifyIdentity.currentUser !== 'function') return;
