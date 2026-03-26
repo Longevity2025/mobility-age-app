@@ -3232,6 +3232,7 @@ if (btn) btn.addEventListener('click', function(e){
     function lock()   { gate.style.display = 'flex'; }
 
     netlifyIdentity.on('init', function (user) {
+      console.log('NLF init, user:', user ? user.email : 'none');
       if (user) {
         unlock();
       } else {
@@ -3239,12 +3240,14 @@ if (btn) btn.addEventListener('click', function(e){
       }
     });
 
-    netlifyIdentity.on('login', function () {
+    netlifyIdentity.on('login', function (user) {
+      console.log('NLF login:', user.email);
       unlock();
       netlifyIdentity.close();
     });
 
     netlifyIdentity.on('logout', function () {
+      console.log('NLF logout fired');
       lock();
       netlifyIdentity.open('login');
     });
