@@ -3248,13 +3248,6 @@ if (btn) btn.addEventListener('click', function(e){
       lock();
       netlifyIdentity.open('login');
     });
-
-    netlifyIdentity.on('close', function () {
-      // If modal is closed but no user, re-open it (prevent bypassing login)
-      if (!netlifyIdentity.currentUser()) {
-        setTimeout(function () { netlifyIdentity.open('login'); }, 300);
-      }
-    });
   })();
 </script>
 </body>
