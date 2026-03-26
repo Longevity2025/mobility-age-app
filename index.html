@@ -3248,6 +3248,9 @@ if (btn) btn.addEventListener('click', function(e){
     var poll = setInterval(function () {
       if (typeof netlifyIdentity.currentUser !== 'function') return;
       clearInterval(poll);
+      // Boost widget above app's high z-index elements
+      var iframe = document.getElementById('netlify-identity-widget');
+      if (iframe) iframe.style.zIndex = '2147483647';
       var user = netlifyIdentity.currentUser();
       if (user) {
         unlock();
