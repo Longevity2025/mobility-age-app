@@ -263,6 +263,7 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
 <body data-v='v10' data-app-version="">
+<div id="nlf-app-content" style="display:none">
 
 
 <!-- print cover (print-only) -->
@@ -3214,20 +3215,11 @@ if (btn) btn.addEventListener('click', function(e){
 
 
 <!-- Netlify Identity gate -->
-<style>
-  #nlf-gate {
-    position: fixed; inset: 0; background: #fff;
-    z-index: 100; display: flex;
-    align-items: center; justify-content: center;
-    font-family: sans-serif; font-size: 1rem; color: #555;
-  }
-</style>
-<div id="nlf-gate">Checking login…</div>
 <script>
   (function () {
-    var gate = document.getElementById('nlf-gate');
-
-    function unlock() { gate.style.display = 'none'; }
+    function unlock() {
+      document.getElementById('nlf-app-content').style.display = '';
+    }
 
     netlifyIdentity.init();
 
@@ -3245,5 +3237,6 @@ if (btn) btn.addEventListener('click', function(e){
     });
   })();
 </script>
+</div><!-- end nlf-app-content -->
 </body>
 </html>
