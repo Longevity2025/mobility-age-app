@@ -2056,6 +2056,7 @@ Drop this whole block just before
     el.style.background = isError ? '#fff3e0' : '#e3f0fb';
     el.style.color      = isError ? '#7a3500' : '#003f74';
     el.style.border     = isError ? '1px solid #ffb74d' : '1px solid #64b0e0';
+    setTimeout(function(){ el.style.display = 'none'; }, 5000);
   }
 
   async function onExportDB(){
