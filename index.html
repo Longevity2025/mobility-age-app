@@ -1853,6 +1853,8 @@ Drop this whole block just before
 
 <section id="hsmi-export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
   <button id="btnExportCSV" class="btn">Download CSV</button>
+  <button id="btnExportDB" class="btn">Export to Database</button>
+  <div id="dbExportMsg" style="display:none; grid-column:1/-1; font-size:13px; padding:6px 10px; border-radius:8px;"></div>
 </section>
 
 <script>
@@ -2035,6 +2037,72 @@ Drop this whole block just before
 })();
 </script>
 
+
+<!-- Supabase client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* === Export to Database (Supabase) === */
+(function(){
+  const SUPABASE_URL  = 'https://sbrghdlbctqswwmpbnwm.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNicmdoZGxiY3Rxc3d3bXBibndtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDc3MzAsImV4cCI6MjA5MDgyMzczMH0.7Q0pZ4hrZeWnASPev2_f5dc967d0L4mIAYjPY_h6GPk';
+  const TABLE         = 'hsmi_records';
+
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  function showMsg(text, isError){
+    var el = document.getElementById('dbExportMsg');
+    if (!el) return;
+    el.textContent = text;
+    el.style.display = 'block';
+    el.style.background = isError ? '#fee2e2' : '#dcfce7';
+    el.style.color      = isError ? '#7f1d1d' : '#166534';
+    el.style.border     = isError ? '1px solid #fecaca' : '1px solid #86efac';
+    setTimeout(function(){ el.style.display = 'none'; }, 5000);
+  }
+
+  async function onExportDB(){
+    var btn = document.getElementById('btnExportDB');
+    if (!btn) return;
+
+    // collect() is exposed on window.hsmiExport by the existing export script
+    if (!window.hsmiExport || typeof window.hsmiExport.collect !== 'function'){
+      showMsg('Error: could not read form data. Please try again.', true);
+      return;
+    }
+
+    var rec = window.hsmiExport.collect();
+
+    // Basic guard: require at least a name or mobility age
+    if (!rec.name_full && !rec.mobility_age){
+      showMsg('Nothing to save — please complete the assessment first.', true);
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      var { error } = await client.from(TABLE).insert([rec]);
+      if (error) throw error;
+      showMsg('✓ Saved to database successfully.', false);
+    } catch(e) {
+      console.error('HSMI DB export error:', e);
+      showMsg('Error saving to database: ' + (e.message || String(e)), true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Export to Database';
+    }
+  }
+
+  function wire(){
+    var btn = document.getElementById('btnExportDB');
+    if (btn) btn.addEventListener('click', onExportDB);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire, {once:true});
+  else wire();
+})();
+</script>
 
 <script>
 /* === CSV Batcher (localStorage) === */
