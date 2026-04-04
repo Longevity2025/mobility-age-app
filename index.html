@@ -1852,7 +1852,6 @@ Drop this whole block just before
 }</script>
 
 <section id="hsmi-export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
-  <div id="dbExportMsg" style="display:none; grid-column:1/-1; font-size:13px; padding:8px 12px; border-radius:8px;"></div>
   <button id="btnExportCSV" class="btn">Download CSV</button>
   <button id="btnExportDB" class="btn">Export to Database</button>
 </section>
@@ -3279,6 +3278,24 @@ if (btn) btn.addEventListener('click', function(e){
 </script>
 
 
+
+<!-- DB export floating notification -->
+<div id="dbExportMsg" style="
+  display:none;
+  position:fixed;
+  top:80px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:99999;
+  min-width:280px;
+  max-width:90vw;
+  padding:12px 20px;
+  border-radius:10px;
+  font-size:15px;
+  font-weight:700;
+  text-align:center;
+  box-shadow:0 4px 16px rgba(0,0,0,0.15);
+"></div>
 
 <!-- Netlify Identity gate -->
 <style>
