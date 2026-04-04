@@ -1852,9 +1852,9 @@ Drop this whole block just before
 }</script>
 
 <section id="hsmi-export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
+  <div id="dbExportMsg" style="display:none; grid-column:1/-1; font-size:13px; padding:8px 12px; border-radius:8px;"></div>
   <button id="btnExportCSV" class="btn">Download CSV</button>
   <button id="btnExportDB" class="btn">Export to Database</button>
-  <div id="dbExportMsg" style="display:none; grid-column:1/-1; font-size:13px; padding:6px 10px; border-radius:8px;"></div>
 </section>
 
 <script>
@@ -2054,10 +2054,9 @@ Drop this whole block just before
     if (!el) return;
     el.textContent = text;
     el.style.display = 'block';
-    el.style.background = isError ? '#fee2e2' : '#dcfce7';
-    el.style.color      = isError ? '#7f1d1d' : '#166534';
-    el.style.border     = isError ? '1px solid #fecaca' : '1px solid #86efac';
-    setTimeout(function(){ el.style.display = 'none'; }, 5000);
+    el.style.background = isError ? '#fff3e0' : '#e3f0fb';
+    el.style.color      = isError ? '#7a3500' : '#003f74';
+    el.style.border     = isError ? '1px solid #ffb74d' : '1px solid #64b0e0';
   }
 
   async function onExportDB(){
