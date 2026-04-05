@@ -1874,7 +1874,7 @@ Drop this whole block just before
   // ===== CONSTANTS =====
   const STORAGE_KEY = 'hsmi_field_map_v3';
   const HEADERS = [
-    'timestamp_local','app_version','name_full','tester','location','sex','age',
+    'timestamp_local','app_version','name_full','phone','tester','location','sex','age',
     'body_weight_lbs','body_weight_kg',
     'tug_s','vo2_mlkgmin','sitreach_in',
     'mtp_kg','mtp_pct',
@@ -1945,6 +1945,7 @@ Drop this whole block just before
       timestamp_local: formatLocalTimestamp(CONFIG.timeZone),
       app_version: document.body.getAttribute('data-app-version')||'',
       name_full: text($(CONFIG.selectors.name)),
+      phone: (document.getElementById('phone')||{}).value || '',
       tester: getValFromMap('tester', true) || text($(CONFIG.selectors.tester)) || '',
       location: getValFromMap('location', true) || text($(CONFIG.selectors.location)) || '',
       sex: getValFromMap('sex', true) || text($(CONFIG.selectors.sex)) || '',
