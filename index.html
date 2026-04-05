@@ -2071,6 +2071,7 @@ Drop this whole block just before
     }
 
     var rec = window.hsmiExport.collect();
+    delete rec.phone; // phone is CSV-only, not stored in database
 
     // Basic guard: require at least a name or mobility age
     if (!rec.name_full && !rec.mobility_age){
