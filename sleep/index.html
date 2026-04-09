@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sleep Assessment — Health Span Mobility Index</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --teal:   #1A6B8A;
+    --teal-lt:#D0E8F2;
+    --green:  #2E6B4F;
+    --purple: #7B4F9E;
+    --amber:  #9E5B1A;
+    --red:    #8A1A1A;
+    --bg:     #F4F6F9;
+    --surface:#FFFFFF;
+    --text:   #1A1A2E;
+    --muted:  #6B7280;
+    --border: #E2E8F0;
+    --radius: 12px;
+  }
+
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem 1rem 4rem; }
+  .container { max-width: 680px; margin: 0 auto; }
+
+  /* Header */
+  .header { margin-bottom: 2rem; }
+  .header h1 { font-family: 'DM Serif Display', serif; font-size: 1.9rem; color: var(--text); margin-bottom: 0.3rem; }
+  .header p { font-size: 0.875rem; color: var(--muted); }
+  .header-rule { height: 3px; background: linear-gradient(90deg, var(--teal), var(--purple), var(--red)); border-radius: 2px; margin-top: 0.85rem; }
+
+  /* Progress bar */
+  .progress-wrap { margin-bottom: 1.5rem; }
+  .progress-bar { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--teal); border-radius: 3px; transition: width 0.3s ease; width: 0%; }
+  .progress-label { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
+
+  /* Card */
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  .card-header { padding: 0.85rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+  .card-num { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; color: #fff; flex-shrink: 0; }
+  .card-title { font-size: 0.9rem; font-weight: 600; color: #fff; letter-spacing: 0.04em; text-transform: uppercase; }
+  .card-body { padding: 1.25rem; }
+
+  .s0 .card-header { background: #444; }
+  .s1 .card-header { background: var(--teal); }
+  .s2 .card-header { background: var(--green); }
+  .s3 .card-header { background: var(--purple); }
+  .s4 .card-header { background: var(--amber); }
+  .s5 .card-header { background: var(--red); }
+
+  /* Form fields */
+  .field { margin-bottom: 1.1rem; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label { font-size: 0.875rem; font-weight: 500; color: var(--text); margin-bottom: 0.5rem; display: block; }
+
+  input[type=text], input[type=date], select {
+    width: 100%; padding: 0.55rem 0.75rem; border: 1.5px solid var(--border);
+    border-radius: 8px; font-size: 0.9rem; font-family: 'DM Sans', sans-serif;
+    color: var(--text); background: #FAFBFC; outline: none; transition: border-color 0.15s;
+  }
+  input[type=text]:focus, input[type=date]:focus, select:focus { border-color: var(--teal); }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+  /* Radio options */
+  .q-item { margin-bottom: 1.25rem; }
+  .q-item:last-child { margin-bottom: 0; }
+  .q-item.unanswered { background: #FFF8F0; border-radius: 8px; padding: 0.75rem; border: 1px solid #F5C97A; }
+  .q-text { font-size: 0.875rem; font-weight: 500; color: var(--text); margin-bottom: 0.6rem; line-height: 1.4; }
+  .q-num { display: inline-block; font-size: 0.7rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.4rem; }
+
+  .options { display: flex; flex-direction: column; gap: 0.4rem; }
+  .opt-label { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.75rem; border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.12s; font-size: 0.875rem; color: var(--muted); background: #FAFBFC; user-select: none; }
+  .opt-label:hover { border-color: #aaa; color: var(--text); }
+  .opt-label input[type=radio] { display: none; }
+  .opt-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; transition: all 0.12s; }
+  .opt-label input[type=radio]:checked ~ .opt-dot { border-color: var(--teal); background: var(--teal); box-shadow: inset 0 0 0 3px #fff; }
+  .opt-label:has(input[type=radio]:checked) { border-color: var(--teal); color: var(--text); background: var(--teal-lt); font-weight: 500; }
+
+  /* Submit */
+  .submit-section { margin-top: 1.5rem; }
+  .validation-msg { display: none; background: #FFF3CD; border: 1px solid #F5C97A; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.85rem; color: #856404; margin-bottom: 1rem; }
+  .submit-btn { width: 100%; padding: 0.9rem; font-size: 1rem; font-family: 'DM Sans', sans-serif; font-weight: 600; background: var(--teal); color: #fff; border: none; border-radius: var(--radius); cursor: pointer; transition: background 0.15s; letter-spacing: 0.02em; }
+  .submit-btn:hover { background: #155a75; }
+  .submit-btn:disabled { background: #9BB5BF; cursor: not-allowed; }
+
+  /* Thank you screen */
+  .thankyou { display: none; text-align: center; padding: 3rem 1.5rem; }
+  .thankyou.visible { display: block; }
+  .thankyou-icon { width: 64px; height: 64px; background: var(--teal-lt); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; }
+  .thankyou-icon svg { width: 32px; height: 32px; stroke: var(--teal); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .thankyou h2 { font-family: 'DM Serif Display', serif; font-size: 1.75rem; color: var(--text); margin-bottom: 0.75rem; }
+  .thankyou p { font-size: 0.95rem; color: var(--muted); line-height: 1.7; max-width: 420px; margin: 0 auto; }
+
+  .form-area { transition: opacity 0.3s; }
+  .form-area.hidden { opacity: 0; pointer-events: none; }
+
+  @media (max-width: 520px) {
+    .field-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Sleep Assessment</h1>
+    <p>Health Span Mobility Index &nbsp;·&nbsp; Please answer all questions as honestly as you can.</p>
+    <div class="header-rule"></div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">0 of 25 questions answered</div>
+  </div>
+
+  <div class="form-area" id="formArea">
+
+    <!-- Member Info -->
+    <div class="card s0">
+      <div class="card-header">
+        <div class="card-num">&#9679;</div>
+        <div class="card-title">Your Information</div>
+      </div>
+      <div class="card-body">
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="member-id">Member ID or Name</label>
+            <input type="text" id="member-id" placeholder="As provided by your coach" autocomplete="off">
+          </div>
+          <div class="field">
+            <label class="field-label" for="intake-date">Today's Date</label>
+            <input type="date" id="intake-date">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="member-dob">Date of Birth</label>
+            <input type="date" id="member-dob">
+          </div>
+          <div class="field">
+            <label class="field-label" for="member-sex">Biological Sex</label>
+            <select id="member-sex">
+              <option value="">— Select —</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="prefer_not">Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 1: Sleep Schedule -->
+    <div class="card s1">
+      <div class="card-header">
+        <div class="card-num">1</div>
+        <div class="card-title">Sleep Schedule &amp; Duration</div>
+      </div>
+      <div class="card-body">
+
+        <div class="q-item" data-q="1">
+          <div class="q-text"><span class="q-num">Q1</span>On a typical weeknight, what time do you go to bed?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q1" value="a"><div class="opt-dot"></div>Before 9:00 PM</label>
+            <label class="opt-label"><input type="radio" name="q1" value="b"><div class="opt-dot"></div>9:00–10:30 PM</label>
+            <label class="opt-label"><input type="radio" name="q1" value="c"><div class="opt-dot"></div>10:30 PM–12:00 AM</label>
+            <label class="opt-label"><input type="radio" name="q1" value="d"><div class="opt-dot"></div>After 12:00 AM</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="2">
+          <div class="q-text"><span class="q-num">Q2</span>On a typical weekday, what time do you wake up?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q2" value="a"><div class="opt-dot"></div>Before 5:30 AM</label>
+            <label class="opt-label"><input type="radio" name="q2" value="b"><div class="opt-dot"></div>5:30–7:00 AM</label>
+            <label class="opt-label"><input type="radio" name="q2" value="c"><div class="opt-dot"></div>7:00–8:30 AM</label>
+            <label class="opt-label"><input type="radio" name="q2" value="d"><div class="opt-dot"></div>After 8:30 AM</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="3">
+          <div class="q-text"><span class="q-num">Q3</span>On a typical night, how many hours of actual sleep do you get?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q3" value="a"><div class="opt-dot"></div>Less than 5 hours</label>
+            <label class="opt-label"><input type="radio" name="q3" value="b"><div class="opt-dot"></div>5–6 hours</label>
+            <label class="opt-label"><input type="radio" name="q3" value="c"><div class="opt-dot"></div>6–7 hours</label>
+            <label class="opt-label"><input type="radio" name="q3" value="d"><div class="opt-dot"></div>7–8 hours</label>
+            <label class="opt-label"><input type="radio" name="q3" value="e"><div class="opt-dot"></div>More than 8 hours</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="4">
+          <div class="q-text"><span class="q-num">Q4</span>On weekends, how does your sleep schedule shift compared to weekdays?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q4" value="a"><div class="opt-dot"></div>Same schedule as weekdays</label>
+            <label class="opt-label"><input type="radio" name="q4" value="b"><div class="opt-dot"></div>Up to 1 hour later</label>
+            <label class="opt-label"><input type="radio" name="q4" value="c"><div class="opt-dot"></div>1–2 hours later</label>
+            <label class="opt-label"><input type="radio" name="q4" value="d"><div class="opt-dot"></div>More than 2 hours later</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="5">
+          <div class="q-text"><span class="q-num">Q5</span>How often do you nap during the day?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q5" value="a"><div class="opt-dot"></div>Never</label>
+            <label class="opt-label"><input type="radio" name="q5" value="b"><div class="opt-dot"></div>Rarely (once a week or less)</label>
+            <label class="opt-label"><input type="radio" name="q5" value="c"><div class="opt-dot"></div>Sometimes (2–3x per week)</label>
+            <label class="opt-label"><input type="radio" name="q5" value="d"><div class="opt-dot"></div>Most days</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="6">
+          <div class="q-text"><span class="q-num">Q6</span>When you nap, how long do you typically sleep?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q6" value="a"><div class="opt-dot"></div>Under 20 minutes</label>
+            <label class="opt-label"><input type="radio" name="q6" value="b"><div class="opt-dot"></div>20–45 minutes</label>
+            <label class="opt-label"><input type="radio" name="q6" value="c"><div class="opt-dot"></div>45–90 minutes</label>
+            <label class="opt-label"><input type="radio" name="q6" value="d"><div class="opt-dot"></div>Over 90 minutes</label>
+            <label class="opt-label"><input type="radio" name="q6" value="e"><div class="opt-dot"></div>I don't nap</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="7">
+          <div class="q-text"><span class="q-num">Q7</span>Overall, do you feel you get enough sleep?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q7" value="a"><div class="opt-dot"></div>Yes, I feel well-rested</label>
+            <label class="opt-label"><input type="radio" name="q7" value="b"><div class="opt-dot"></div>Mostly, but I could use a bit more</label>
+            <label class="opt-label"><input type="radio" name="q7" value="c"><div class="opt-dot"></div>No, I rarely feel rested</label>
+            <label class="opt-label"><input type="radio" name="q7" value="d"><div class="opt-dot"></div>I'm not sure</label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 2: Sleep Quality -->
+    <div class="card s2">
+      <div class="card-header">
+        <div class="card-num">2</div>
+        <div class="card-title">Sleep Quality</div>
+      </div>
+      <div class="card-body">
+
+        <div class="q-item" data-q="8">
+          <div class="q-text"><span class="q-num">Q8</span>How long does it typically take you to fall asleep once in bed?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q8" value="a"><div class="opt-dot"></div>Under 10 minutes</label>
+            <label class="opt-label"><input type="radio" name="q8" value="b"><div class="opt-dot"></div>10–20 minutes</label>
+            <label class="opt-label"><input type="radio" name="q8" value="c"><div class="opt-dot"></div>20–45 minutes</label>
+            <label class="opt-label"><input type="radio" name="q8" value="d"><div class="opt-dot"></div>Over 45 minutes</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="9">
+          <div class="q-text"><span class="q-num">Q9</span>How often do you wake up during the night?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q9" value="a"><div class="opt-dot"></div>Rarely or never</label>
+            <label class="opt-label"><input type="radio" name="q9" value="b"><div class="opt-dot"></div>Once, and I fall back asleep easily</label>
+            <label class="opt-label"><input type="radio" name="q9" value="c"><div class="opt-dot"></div>Multiple times, but fall back easily</label>
+            <label class="opt-label"><input type="radio" name="q9" value="d"><div class="opt-dot"></div>Multiple times and struggle to return to sleep</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="10">
+          <div class="q-text"><span class="q-num">Q10</span>How would you rate the overall quality of your sleep?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q10" value="a"><div class="opt-dot"></div>1 — Very poor</label>
+            <label class="opt-label"><input type="radio" name="q10" value="b"><div class="opt-dot"></div>2 — Poor</label>
+            <label class="opt-label"><input type="radio" name="q10" value="c"><div class="opt-dot"></div>3 — Fair</label>
+            <label class="opt-label"><input type="radio" name="q10" value="d"><div class="opt-dot"></div>4 — Good</label>
+            <label class="opt-label"><input type="radio" name="q10" value="e"><div class="opt-dot"></div>5 — Excellent</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="11">
+          <div class="q-text"><span class="q-num">Q11</span>How restless is your sleep?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q11" value="a"><div class="opt-dot"></div>Very restless — lots of tossing and turning</label>
+            <label class="opt-label"><input type="radio" name="q11" value="b"><div class="opt-dot"></div>Somewhat restless</label>
+            <label class="opt-label"><input type="radio" name="q11" value="c"><div class="opt-dot"></div>Mostly still</label>
+            <label class="opt-label"><input type="radio" name="q11" value="d"><div class="opt-dot"></div>Very still and deep</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="12">
+          <div class="q-text"><span class="q-num">Q12</span>Do you snore, or have you ever been told you stop breathing during sleep?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q12" value="a"><div class="opt-dot"></div>Yes — I snore loudly or have been told I stop breathing</label>
+            <label class="opt-label"><input type="radio" name="q12" value="b"><div class="opt-dot"></div>Mild snoring only</label>
+            <label class="opt-label"><input type="radio" name="q12" value="c"><div class="opt-dot"></div>Not that I know of</label>
+            <label class="opt-label"><input type="radio" name="q12" value="d"><div class="opt-dot"></div>I sleep alone and am not sure</label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 3: Daytime Effects -->
+    <div class="card s3">
+      <div class="card-header">
+        <div class="card-num">3</div>
+        <div class="card-title">Daytime Effects</div>
+      </div>
+      <div class="card-body">
+
+        <div class="q-item" data-q="13">
+          <div class="q-text"><span class="q-num">Q13</span>How do you typically feel when you wake up in the morning?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q13" value="a"><div class="opt-dot"></div>Refreshed and alert</label>
+            <label class="opt-label"><input type="radio" name="q13" value="b"><div class="opt-dot"></div>Groggy but okay within 30 minutes</label>
+            <label class="opt-label"><input type="radio" name="q13" value="c"><div class="opt-dot"></div>Fatigued — takes over an hour to feel functional</label>
+            <label class="opt-label"><input type="radio" name="q13" value="d"><div class="opt-dot"></div>Exhausted regardless of how much I slept</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="14">
+          <div class="q-text"><span class="q-num">Q14</span>How would you describe your energy levels during the day?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q14" value="a"><div class="opt-dot"></div>Steady energy all day</label>
+            <label class="opt-label"><input type="radio" name="q14" value="b"><div class="opt-dot"></div>Mild afternoon dip</label>
+            <label class="opt-label"><input type="radio" name="q14" value="c"><div class="opt-dot"></div>Significant afternoon crash</label>
+            <label class="opt-label"><input type="radio" name="q14" value="d"><div class="opt-dot"></div>Fatigued for most of the day</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="15">
+          <div class="q-text"><span class="q-num">Q15</span>How does your sleep affect your ability to concentrate?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q15" value="a"><div class="opt-dot"></div>I feel sharp and focused</label>
+            <label class="opt-label"><input type="radio" name="q15" value="b"><div class="opt-dot"></div>Occasional brain fog</label>
+            <label class="opt-label"><input type="radio" name="q15" value="c"><div class="opt-dot"></div>Frequent difficulty concentrating</label>
+            <label class="opt-label"><input type="radio" name="q15" value="d"><div class="opt-dot"></div>Significant impairment most days</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="16">
+          <div class="q-text"><span class="q-num">Q16</span>How does your sleep affect your mood?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q16" value="a"><div class="opt-dot"></div>Stable and positive</label>
+            <label class="opt-label"><input type="radio" name="q16" value="b"><div class="opt-dot"></div>Somewhat irritable or flat</label>
+            <label class="opt-label"><input type="radio" name="q16" value="c"><div class="opt-dot"></div>Noticeably moody or anxious</label>
+            <label class="opt-label"><input type="radio" name="q16" value="d"><div class="opt-dot"></div>Significantly affected most days</label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 4: Habits & Environment -->
+    <div class="card s4">
+      <div class="card-header">
+        <div class="card-num">4</div>
+        <div class="card-title">Habits &amp; Environment</div>
+      </div>
+      <div class="card-body">
+
+        <div class="q-item" data-q="17">
+          <div class="q-text"><span class="q-num">Q17</span>How do you use caffeine?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q17" value="a"><div class="opt-dot"></div>None</label>
+            <label class="opt-label"><input type="radio" name="q17" value="b"><div class="opt-dot"></div>Morning only (before noon)</label>
+            <label class="opt-label"><input type="radio" name="q17" value="c"><div class="opt-dot"></div>Afternoon (before 3 PM)</label>
+            <label class="opt-label"><input type="radio" name="q17" value="d"><div class="opt-dot"></div>Evening or unpredictable timing</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="18">
+          <div class="q-text"><span class="q-num">Q18</span>How often do you drink alcohol near bedtime?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q18" value="a"><div class="opt-dot"></div>Never</label>
+            <label class="opt-label"><input type="radio" name="q18" value="b"><div class="opt-dot"></div>Rarely</label>
+            <label class="opt-label"><input type="radio" name="q18" value="c"><div class="opt-dot"></div>1–2x per week</label>
+            <label class="opt-label"><input type="radio" name="q18" value="d"><div class="opt-dot"></div>Most nights</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="19">
+          <div class="q-text"><span class="q-num">Q19</span>How do you use screens (phone, TV, tablet) before bed?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q19" value="a"><div class="opt-dot"></div>No screens within 1 hour of bed</label>
+            <label class="opt-label"><input type="radio" name="q19" value="b"><div class="opt-dot"></div>Screens until 30 minutes before bed</label>
+            <label class="opt-label"><input type="radio" name="q19" value="c"><div class="opt-dot"></div>Screens right up until I sleep</label>
+            <label class="opt-label"><input type="radio" name="q19" value="d"><div class="opt-dot"></div>Screens in bed until I fall asleep</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="20">
+          <div class="q-text"><span class="q-num">Q20</span>How often do you exercise?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q20" value="a"><div class="opt-dot"></div>No regular exercise</label>
+            <label class="opt-label"><input type="radio" name="q20" value="b"><div class="opt-dot"></div>1–2x per week</label>
+            <label class="opt-label"><input type="radio" name="q20" value="c"><div class="opt-dot"></div>3–4x per week</label>
+            <label class="opt-label"><input type="radio" name="q20" value="d"><div class="opt-dot"></div>5 or more times per week</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="21">
+          <div class="q-text"><span class="q-num">Q21</span>When do you typically exercise?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q21" value="a"><div class="opt-dot"></div>Morning (before noon)</label>
+            <label class="opt-label"><input type="radio" name="q21" value="b"><div class="opt-dot"></div>Afternoon</label>
+            <label class="opt-label"><input type="radio" name="q21" value="c"><div class="opt-dot"></div>Evening (after 7 PM)</label>
+            <label class="opt-label"><input type="radio" name="q21" value="d"><div class="opt-dot"></div>I don't exercise regularly</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="22">
+          <div class="q-text"><span class="q-num">Q22</span>How would you describe your bedroom sleeping environment?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q22" value="a"><div class="opt-dot"></div>Cool, dark, and quiet</label>
+            <label class="opt-label"><input type="radio" name="q22" value="b"><div class="opt-dot"></div>Mostly good, with minor issues</label>
+            <label class="opt-label"><input type="radio" name="q22" value="c"><div class="opt-dot"></div>Too warm, bright, or noisy</label>
+            <label class="opt-label"><input type="radio" name="q22" value="d"><div class="opt-dot"></div>Significant environmental issues</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="23">
+          <div class="q-text"><span class="q-num">Q23</span>What best describes your pre-bedtime routine?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q23" value="a"><div class="opt-dot"></div>Consistent wind-down routine (reading, stretching, etc.)</label>
+            <label class="opt-label"><input type="radio" name="q23" value="b"><div class="opt-dot"></div>Sometimes wind down, sometimes not</label>
+            <label class="opt-label"><input type="radio" name="q23" value="c"><div class="opt-dot"></div>Usually working or stimulated right up until bed</label>
+            <label class="opt-label"><input type="radio" name="q23" value="d"><div class="opt-dot"></div>No real routine</label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 5: Concerns & Context -->
+    <div class="card s5">
+      <div class="card-header">
+        <div class="card-num">5</div>
+        <div class="card-title">Concerns &amp; Context</div>
+      </div>
+      <div class="card-body">
+
+        <div class="q-item" data-q="24">
+          <div class="q-text"><span class="q-num">Q24</span>How often does stress or worry interfere with your sleep?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q24" value="a"><div class="opt-dot"></div>Rarely affects my sleep</label>
+            <label class="opt-label"><input type="radio" name="q24" value="b"><div class="opt-dot"></div>Occasionally</label>
+            <label class="opt-label"><input type="radio" name="q24" value="c"><div class="opt-dot"></div>Frequently</label>
+            <label class="opt-label"><input type="radio" name="q24" value="d"><div class="opt-dot"></div>Almost every night</label>
+          </div>
+        </div>
+
+        <div class="q-item" data-q="25">
+          <div class="q-text"><span class="q-num">Q25</span>What is your primary sleep concern right now?</div>
+          <div class="options">
+            <label class="opt-label"><input type="radio" name="q25" value="a"><div class="opt-dot"></div>Difficulty falling asleep</label>
+            <label class="opt-label"><input type="radio" name="q25" value="b"><div class="opt-dot"></div>Staying asleep / nighttime waking</label>
+            <label class="opt-label"><input type="radio" name="q25" value="c"><div class="opt-dot"></div>Not feeling rested despite adequate sleep</label>
+            <label class="opt-label"><input type="radio" name="q25" value="d"><div class="opt-dot"></div>Sleep schedule / consistency</label>
+            <label class="opt-label"><input type="radio" name="q25" value="e"><div class="opt-dot"></div>Daytime fatigue or concentration</label>
+            <label class="opt-label"><input type="radio" name="q25" value="f"><div class="opt-dot"></div>No specific concern</label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="submit-section">
+      <div class="validation-msg" id="validationMsg">
+        Please answer all highlighted questions before submitting.
+      </div>
+      <button class="submit-btn" id="submitBtn" onclick="handleSubmit()">Submit Assessment</button>
+    </div>
+
+  </div><!-- /form-area -->
+
+  <!-- Thank you screen -->
+  <div class="thankyou" id="thankyou">
+    <div class="thankyou-icon">
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2>Thank you!</h2>
+    <p>Your sleep assessment has been submitted. Your health coach will review your responses and discuss the results with you at your next session.</p>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  const TOTAL_Q = 25;
+
+  // Set today's date as default
+  document.getElementById('intake-date').value = new Date().toISOString().split('T')[0];
+
+  // Progress tracking
+  function updateProgress() {
+    let answered = 0;
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      if (document.querySelector(`input[name="q${i}"]:checked`)) answered++;
+    }
+    const pct = Math.round((answered / TOTAL_Q) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = `${answered} of ${TOTAL_Q} questions answered`;
+  }
+
+  document.querySelectorAll('input[type=radio]').forEach(r => {
+    r.addEventListener('change', () => {
+      const item = r.closest('.q-item');
+      if (item) item.classList.remove('unanswered');
+      updateProgress();
+    });
+  });
+
+  function collectAnswers() {
+    const answers = {};
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      const checked = document.querySelector(`input[name="q${i}"]:checked`);
+      answers[`q${i}`] = checked ? checked.value : null;
+    }
+    return answers;
+  }
+
+  async function handleSubmit() {
+    // Validate all 25 questions answered
+    let allAnswered = true;
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      const item = document.querySelector(`[data-q="${i}"]`);
+      const checked = document.querySelector(`input[name="q${i}"]:checked`);
+      if (!checked) {
+        item.classList.add('unanswered');
+        allAnswered = false;
+      } else {
+        item.classList.remove('unanswered');
+      }
+    }
+
+    if (!allAnswered) {
+      document.getElementById('validationMsg').style.display = 'block';
+      document.querySelector('.q-item.unanswered').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    document.getElementById('validationMsg').style.display = 'none';
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    const payload = {
+      member_id: document.getElementById('member-id').value.trim(),
+      dob: document.getElementById('member-dob').value,
+      sex: document.getElementById('member-sex').value,
+      intake_date: document.getElementById('intake-date').value,
+      answers: collectAnswers(),
+      submitted_at: new Date().toISOString()
+    };
+
+    try {
+      await fetch('/.netlify/functions/sleep-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.error('Submission error:', err);
+    }
+
+    // Always show thank you — member doesn't see the report
+    document.getElementById('formArea').classList.add('hidden');
+    setTimeout(() => {
+      document.getElementById('formArea').style.display = 'none';
+      document.getElementById('thankyou').classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 300);
+  }
+
+  updateProgress();
+</script>
+</body>
+</html>
