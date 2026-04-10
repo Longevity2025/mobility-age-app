@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stress Assessment — Health Span Mobility Index</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --indigo:#3D3A8A; --indigo-lt:#E0DFFA;
+    --teal:#1A6B8A; --teal-lt:#D0E8F2;
+    --rose:#8A2A4A; --rose-lt:#F5D4DF;
+    --amber:#9E5B1A; --amber-lt:#F5E6D4;
+    --green:#2E6B4F; --green-lt:#D4EDE2;
+    --bg:#F4F6F9; --surface:#FFFFFF; --text:#1A1A2E; --muted:#6B7280; --border:#E2E8F0; --radius:12px;
+  }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:2rem 1rem 4rem; }
+  .container { max-width:680px; margin:0 auto; }
+  .header { margin-bottom:2rem; }
+  .header h1 { font-family:'DM Serif Display',serif; font-size:1.9rem; color:var(--text); margin-bottom:0.3rem; }
+  .header p { font-size:0.875rem; color:var(--muted); }
+  .header-rule { height:3px; background:linear-gradient(90deg,var(--indigo),var(--rose),var(--amber),var(--green)); border-radius:2px; margin-top:0.85rem; }
+  .progress-wrap { margin-bottom:1.5rem; }
+  .progress-bar { height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .progress-fill { height:100%; background:var(--indigo); border-radius:3px; transition:width 0.3s ease; width:0%; }
+  .progress-label { font-size:0.78rem; color:var(--muted); margin-top:0.4rem; }
+  .card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,0.05); }
+  .card-header { padding:0.85rem 1.25rem; display:flex; align-items:center; gap:0.75rem; }
+  .card-num { width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:600; color:#fff; flex-shrink:0; }
+  .card-title { font-size:0.9rem; font-weight:600; color:#fff; letter-spacing:0.04em; text-transform:uppercase; }
+  .card-body { padding:1.25rem; }
+  .s0 .card-header { background:#444; }
+  .s1 .card-header { background:var(--indigo); }
+  .s2 .card-header { background:var(--teal); }
+  .s3 .card-header { background:var(--rose); }
+  .s4 .card-header { background:var(--amber); }
+  .s5 .card-header { background:var(--green); }
+  .field { margin-bottom:1.1rem; }
+  .field:last-child { margin-bottom:0; }
+  .field-label { font-size:0.875rem; font-weight:500; color:var(--text); margin-bottom:0.5rem; display:block; }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  input[type=text], input[type=date], select { width:100%; padding:0.55rem 0.75rem; border:1.5px solid var(--border); border-radius:8px; font-size:0.9rem; font-family:'DM Sans',sans-serif; color:var(--text); background:#FAFBFC; outline:none; transition:border-color 0.15s; }
+  input[type=text]:focus, input[type=date]:focus, select:focus { border-color:var(--indigo); }
+  .q-item { margin-bottom:1.25rem; }
+  .q-item:last-child { margin-bottom:0; }
+  .q-item.unanswered { background:#FFF8F0; border-radius:8px; padding:0.75rem; border:1px solid #F5C97A; }
+  .q-text { font-size:0.875rem; font-weight:500; color:var(--text); margin-bottom:0.6rem; line-height:1.4; }
+  .q-num { display:inline-block; font-size:0.7rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-right:0.4rem; }
+  .options { display:flex; flex-direction:column; gap:0.4rem; }
+  .opt-label { display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.75rem; border:1.5px solid var(--border); border-radius:8px; cursor:pointer; transition:all 0.12s; font-size:0.875rem; color:var(--muted); background:#FAFBFC; user-select:none; }
+  .opt-label:hover { border-color:#aaa; color:var(--text); }
+  .opt-label input[type=radio] { display:none; }
+  .opt-dot { width:16px; height:16px; border-radius:50%; border:2px solid var(--border); flex-shrink:0; transition:all 0.12s; }
+  .s1 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--indigo); background:var(--indigo); box-shadow:inset 0 0 0 3px #fff; }
+  .s1 .opt-label:has(input[type=radio]:checked) { border-color:var(--indigo); color:var(--text); background:var(--indigo-lt); font-weight:500; }
+  .s2 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--teal); background:var(--teal); box-shadow:inset 0 0 0 3px #fff; }
+  .s2 .opt-label:has(input[type=radio]:checked) { border-color:var(--teal); color:var(--text); background:var(--teal-lt); font-weight:500; }
+  .s3 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--rose); background:var(--rose); box-shadow:inset 0 0 0 3px #fff; }
+  .s3 .opt-label:has(input[type=radio]:checked) { border-color:var(--rose); color:var(--text); background:var(--rose-lt); font-weight:500; }
+  .s4 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--amber); background:var(--amber); box-shadow:inset 0 0 0 3px #fff; }
+  .s4 .opt-label:has(input[type=radio]:checked) { border-color:var(--amber); color:var(--text); background:var(--amber-lt); font-weight:500; }
+  .s5 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--green); background:var(--green); box-shadow:inset 0 0 0 3px #fff; }
+  .s5 .opt-label:has(input[type=radio]:checked) { border-color:var(--green); color:var(--text); background:var(--green-lt); font-weight:500; }
+  .submit-section { margin-top:1.5rem; }
+  .validation-msg { display:none; background:#FFF3CD; border:1px solid #F5C97A; border-radius:8px; padding:0.75rem 1rem; font-size:0.85rem; color:#856404; margin-bottom:1rem; }
+  .submit-btn { width:100%; padding:0.9rem; font-size:1rem; font-family:'DM Sans',sans-serif; font-weight:600; background:var(--indigo); color:#fff; border:none; border-radius:var(--radius); cursor:pointer; transition:background 0.15s; letter-spacing:0.02em; }
+  .submit-btn:hover { background:#2e2a6e; }
+  .submit-btn:disabled { background:#9B9BBF; cursor:not-allowed; }
+  .thankyou { display:none; text-align:center; padding:3rem 1.5rem; }
+  .thankyou.visible { display:block; }
+  .thankyou-icon { width:64px; height:64px; background:var(--indigo-lt); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; }
+  .thankyou-icon svg { width:32px; height:32px; stroke:var(--indigo); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .thankyou h2 { font-family:'DM Serif Display',serif; font-size:1.75rem; color:var(--text); margin-bottom:0.75rem; }
+  .thankyou p { font-size:0.95rem; color:var(--muted); line-height:1.7; max-width:420px; margin:0 auto; }
+  .form-area { transition:opacity 0.3s; }
+  .form-area.hidden { opacity:0; pointer-events:none; }
+  @media (max-width:520px) { .field-row { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Stress Assessment</h1>
+    <p>Health Span Mobility Index &nbsp;&middot;&nbsp; Please answer all questions honestly. There are no right or wrong answers.</p>
+    <div class="header-rule"></div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">0 of 25 questions answered</div>
+  </div>
+  <div class="form-area" id="formArea">
+
+    <!-- Member Info -->
+    <div class="card s0">
+      <div class="card-header"><div class="card-num">&#9679;</div><div class="card-title">Your Information</div></div>
+      <div class="card-body">
+        <div class="field-row">
+          <div class="field"><label class="field-label" for="member-id">Member ID or Name</label><input type="text" id="member-id" placeholder="As provided by your coach" autocomplete="off"></div>
+          <div class="field"><label class="field-label" for="intake-date">Today's Date</label><input type="date" id="intake-date"></div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Date of Birth</label>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1.5fr;gap:0.4rem;">
+              <select id="dob-month"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select>
+              <select id="dob-day"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select>
+              <select id="dob-year"><option value="">Year</option><option value="2010">2010</option><option value="2009">2009</option><option value="2008">2008</option><option value="2007">2007</option><option value="2006">2006</option><option value="2005">2005</option><option value="2004">2004</option><option value="2003">2003</option><option value="2002">2002</option><option value="2001">2001</option><option value="2000">2000</option><option value="1999">1999</option><option value="1998">1998</option><option value="1997">1997</option><option value="1996">1996</option><option value="1995">1995</option><option value="1994">1994</option><option value="1993">1993</option><option value="1992">1992</option><option value="1991">1991</option><option value="1990">1990</option><option value="1989">1989</option><option value="1988">1988</option><option value="1987">1987</option><option value="1986">1986</option><option value="1985">1985</option><option value="1984">1984</option><option value="1983">1983</option><option value="1982">1982</option><option value="1981">1981</option><option value="1980">1980</option><option value="1979">1979</option><option value="1978">1978</option><option value="1977">1977</option><option value="1976">1976</option><option value="1975">1975</option><option value="1974">1974</option><option value="1973">1973</option><option value="1972">1972</option><option value="1971">1971</option><option value="1970">1970</option><option value="1969">1969</option><option value="1968">1968</option><option value="1967">1967</option><option value="1966">1966</option><option value="1965">1965</option><option value="1964">1964</option><option value="1963">1963</option><option value="1962">1962</option><option value="1961">1961</option><option value="1960">1960</option><option value="1959">1959</option><option value="1958">1958</option><option value="1957">1957</option><option value="1956">1956</option><option value="1955">1955</option><option value="1954">1954</option><option value="1953">1953</option><option value="1952">1952</option><option value="1951">1951</option><option value="1950">1950</option><option value="1949">1949</option><option value="1948">1948</option><option value="1947">1947</option><option value="1946">1946</option><option value="1945">1945</option><option value="1944">1944</option><option value="1943">1943</option><option value="1942">1942</option><option value="1941">1941</option><option value="1940">1940</option><option value="1939">1939</option><option value="1938">1938</option><option value="1937">1937</option><option value="1936">1936</option><option value="1935">1935</option><option value="1934">1934</option><option value="1933">1933</option><option value="1932">1932</option><option value="1931">1931</option><option value="1930">1930</option></select>
+            </div>
+          </div>
+          <div class="field"><label class="field-label" for="member-sex">Biological Sex</label><select id="member-sex"><option value="">-- Select --</option><option value="male">Male</option><option value="female">Female</option><option value="prefer_not">Prefer not to say</option></select></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label class="field-label" for="assigned-coach">Your Health Coach</label><select id="assigned-coach"><option value="">-- Select your coach --</option><option value="Dr. Wolf">Dr. Wolf</option></select></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 1: Perceived Stress -->
+    <div class="card s1">
+      <div class="card-header"><div class="card-num">1</div><div class="card-title">Perceived Stress</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="1"><div class="q-text"><span class="q-num">Q1</span>In the past month, how often have you felt that things were out of your control?</div><div class="options"><label class="opt-label"><input type="radio" name="q1" value="a"><div class="opt-dot"></div>Never</label><label class="opt-label"><input type="radio" name="q1" value="b"><div class="opt-dot"></div>Almost never</label><label class="opt-label"><input type="radio" name="q1" value="c"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q1" value="d"><div class="opt-dot"></div>Fairly often</label><label class="opt-label"><input type="radio" name="q1" value="e"><div class="opt-dot"></div>Very often</label></div></div>
+        <div class="q-item" data-q="2"><div class="q-text"><span class="q-num">Q2</span>How often have you felt overwhelmed by the demands placed on you?</div><div class="options"><label class="opt-label"><input type="radio" name="q2" value="a"><div class="opt-dot"></div>Never</label><label class="opt-label"><input type="radio" name="q2" value="b"><div class="opt-dot"></div>Almost never</label><label class="opt-label"><input type="radio" name="q2" value="c"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q2" value="d"><div class="opt-dot"></div>Fairly often</label><label class="opt-label"><input type="radio" name="q2" value="e"><div class="opt-dot"></div>Very often</label></div></div>
+        <div class="q-item" data-q="3"><div class="q-text"><span class="q-num">Q3</span>How confident have you felt in your ability to handle your personal problems?</div><div class="options"><label class="opt-label"><input type="radio" name="q3" value="a"><div class="opt-dot"></div>Very confident</label><label class="opt-label"><input type="radio" name="q3" value="b"><div class="opt-dot"></div>Mostly confident</label><label class="opt-label"><input type="radio" name="q3" value="c"><div class="opt-dot"></div>Somewhat confident</label><label class="opt-label"><input type="radio" name="q3" value="d"><div class="opt-dot"></div>Not very confident</label><label class="opt-label"><input type="radio" name="q3" value="e"><div class="opt-dot"></div>Not confident at all</label></div></div>
+        <div class="q-item" data-q="4"><div class="q-text"><span class="q-num">Q4</span>How often have you felt nervous, anxious, or on edge?</div><div class="options"><label class="opt-label"><input type="radio" name="q4" value="a"><div class="opt-dot"></div>Never</label><label class="opt-label"><input type="radio" name="q4" value="b"><div class="opt-dot"></div>Almost never</label><label class="opt-label"><input type="radio" name="q4" value="c"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q4" value="d"><div class="opt-dot"></div>Fairly often</label><label class="opt-label"><input type="radio" name="q4" value="e"><div class="opt-dot"></div>Very often</label></div></div>
+        <div class="q-item" data-q="5"><div class="q-text"><span class="q-num">Q5</span>Overall, how would you rate your current stress level?</div><div class="options"><label class="opt-label"><input type="radio" name="q5" value="a"><div class="opt-dot"></div>1 -- Very low</label><label class="opt-label"><input type="radio" name="q5" value="b"><div class="opt-dot"></div>2 -- Low</label><label class="opt-label"><input type="radio" name="q5" value="c"><div class="opt-dot"></div>3 -- Moderate</label><label class="opt-label"><input type="radio" name="q5" value="d"><div class="opt-dot"></div>4 -- High</label><label class="opt-label"><input type="radio" name="q5" value="e"><div class="opt-dot"></div>5 -- Very high</label></div></div>
+      </div>
+    </div>
+
+    <!-- Section 2: Physical Symptoms -->
+    <div class="card s2">
+      <div class="card-header"><div class="card-num">2</div><div class="card-title">Physical Symptoms</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="6"><div class="q-text"><span class="q-num">Q6</span>How often do you experience headaches or migraines?</div><div class="options"><label class="opt-label"><input type="radio" name="q6" value="a"><div class="opt-dot"></div>Never or rarely</label><label class="opt-label"><input type="radio" name="q6" value="b"><div class="opt-dot"></div>Once or twice a month</label><label class="opt-label"><input type="radio" name="q6" value="c"><div class="opt-dot"></div>Once or twice a week</label><label class="opt-label"><input type="radio" name="q6" value="d"><div class="opt-dot"></div>Several times a week</label><label class="opt-label"><input type="radio" name="q6" value="e"><div class="opt-dot"></div>Daily or almost daily</label></div></div>
+        <div class="q-item" data-q="7"><div class="q-text"><span class="q-num">Q7</span>How often do you notice muscle tension, tightness, or pain (neck, shoulders, back)?</div><div class="options"><label class="opt-label"><input type="radio" name="q7" value="a"><div class="opt-dot"></div>Never or rarely</label><label class="opt-label"><input type="radio" name="q7" value="b"><div class="opt-dot"></div>Once or twice a month</label><label class="opt-label"><input type="radio" name="q7" value="c"><div class="opt-dot"></div>Once or twice a week</label><label class="opt-label"><input type="radio" name="q7" value="d"><div class="opt-dot"></div>Several times a week</label><label class="opt-label"><input type="radio" name="q7" value="e"><div class="opt-dot"></div>Daily or almost daily</label></div></div>
+        <div class="q-item" data-q="8"><div class="q-text"><span class="q-num">Q8</span>How often do you experience gastrointestinal symptoms (upset stomach, nausea, digestive issues) you attribute to stress?</div><div class="options"><label class="opt-label"><input type="radio" name="q8" value="a"><div class="opt-dot"></div>Never or rarely</label><label class="opt-label"><input type="radio" name="q8" value="b"><div class="opt-dot"></div>Once or twice a month</label><label class="opt-label"><input type="radio" name="q8" value="c"><div class="opt-dot"></div>Once or twice a week</label><label class="opt-label"><input type="radio" name="q8" value="d"><div class="opt-dot"></div>Several times a week</label><label class="opt-label"><input type="radio" name="q8" value="e"><div class="opt-dot"></div>Daily or almost daily</label></div></div>
+        <div class="q-item" data-q="9"><div class="q-text"><span class="q-num">Q9</span>How often does stress interfere with your sleep?</div><div class="options"><label class="opt-label"><input type="radio" name="q9" value="a"><div class="opt-dot"></div>Never or rarely</label><label class="opt-label"><input type="radio" name="q9" value="b"><div class="opt-dot"></div>Once or twice a month</label><label class="opt-label"><input type="radio" name="q9" value="c"><div class="opt-dot"></div>Once or twice a week</label><label class="opt-label"><input type="radio" name="q9" value="d"><div class="opt-dot"></div>Several times a week</label><label class="opt-label"><input type="radio" name="q9" value="e"><div class="opt-dot"></div>Almost every night</label></div></div>
+        <div class="q-item" data-q="10"><div class="q-text"><span class="q-num">Q10</span>How would you describe your overall energy level on a typical day?</div><div class="options"><label class="opt-label"><input type="radio" name="q10" value="a"><div class="opt-dot"></div>High -- I feel energized most of the day</label><label class="opt-label"><input type="radio" name="q10" value="b"><div class="opt-dot"></div>Moderate -- some dips but generally okay</label><label class="opt-label"><input type="radio" name="q10" value="c"><div class="opt-dot"></div>Low -- I often feel drained by midday</label><label class="opt-label"><input type="radio" name="q10" value="d"><div class="opt-dot"></div>Very low -- I feel exhausted most of the time</label></div></div>
+      </div>
+    </div>
+
+    <!-- Section 3: Emotional & Behavioral -->
+    <div class="card s3">
+      <div class="card-header"><div class="card-num">3</div><div class="card-title">Emotional &amp; Behavioral</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="11"><div class="q-text"><span class="q-num">Q11</span>How often do you feel irritable, short-tempered, or easily frustrated?</div><div class="options"><label class="opt-label"><input type="radio" name="q11" value="a"><div class="opt-dot"></div>Never or rarely</label><label class="opt-label"><input type="radio" name="q11" value="b"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q11" value="c"><div class="opt-dot"></div>Fairly often</label><label class="opt-label"><input type="radio" name="q11" value="d"><div class="opt-dot"></div>Very often</label></div></div>
+        <div class="q-item" data-q="12"><div class="q-text"><span class="q-num">Q12</span>How often do you feel emotionally withdrawn or disconnected from people around you?</div><div class="options"><label class="opt-label"><input type="radio" name="q12" value="a"><div class="opt-dot"></div>Never or rarely</label><label class="opt-label"><input type="radio" name="q12" value="b"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q12" value="c"><div class="opt-dot"></div>Fairly often</label><label class="opt-label"><input type="radio" name="q12" value="d"><div class="opt-dot"></div>Very often</label></div></div>
+        <div class="q-item" data-q="13"><div class="q-text"><span class="q-num">Q13</span>How often do you turn to food, alcohol, or other substances to cope with stress?</div><div class="options"><label class="opt-label"><input type="radio" name="q13" value="a"><div class="opt-dot"></div>Never</label><label class="opt-label"><input type="radio" name="q13" value="b"><div class="opt-dot"></div>Rarely</label><label class="opt-label"><input type="radio" name="q13" value="c"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q13" value="d"><div class="opt-dot"></div>Often</label></div></div>
+        <div class="q-item" data-q="14"><div class="q-text"><span class="q-num">Q14</span>How often does stress cause you to procrastinate or avoid tasks?</div><div class="options"><label class="opt-label"><input type="radio" name="q14" value="a"><div class="opt-dot"></div>Never or rarely</label><label class="opt-label"><input type="radio" name="q14" value="b"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q14" value="c"><div class="opt-dot"></div>Fairly often</label><label class="opt-label"><input type="radio" name="q14" value="d"><div class="opt-dot"></div>Very often</label></div></div>
+        <div class="q-item" data-q="15"><div class="q-text"><span class="q-num">Q15</span>How has your mood been in general over the past month?</div><div class="options"><label class="opt-label"><input type="radio" name="q15" value="a"><div class="opt-dot"></div>Mostly positive and stable</label><label class="opt-label"><input type="radio" name="q15" value="b"><div class="opt-dot"></div>Somewhat variable but generally okay</label><label class="opt-label"><input type="radio" name="q15" value="c"><div class="opt-dot"></div>Frequently low, flat, or anxious</label><label class="opt-label"><input type="radio" name="q15" value="d"><div class="opt-dot"></div>Persistently low -- noticeably affecting my life</label></div></div>
+      </div>
+    </div>
+
+    <!-- Section 4: Coping Strategies -->
+    <div class="card s4">
+      <div class="card-header"><div class="card-num">4</div><div class="card-title">Coping Strategies</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="16"><div class="q-text"><span class="q-num">Q16</span>How often do you engage in physical activity specifically to manage stress?</div><div class="options"><label class="opt-label"><input type="radio" name="q16" value="a"><div class="opt-dot"></div>Regularly -- it's a key part of how I cope</label><label class="opt-label"><input type="radio" name="q16" value="b"><div class="opt-dot"></div>Sometimes -- when I remember or have time</label><label class="opt-label"><input type="radio" name="q16" value="c"><div class="opt-dot"></div>Rarely</label><label class="opt-label"><input type="radio" name="q16" value="d"><div class="opt-dot"></div>Never</label></div></div>
+        <div class="q-item" data-q="17"><div class="q-text"><span class="q-num">Q17</span>Do you practice any relaxation or mindfulness techniques (meditation, deep breathing, yoga, etc.)?</div><div class="options"><label class="opt-label"><input type="radio" name="q17" value="a"><div class="opt-dot"></div>Yes -- daily or near-daily practice</label><label class="opt-label"><input type="radio" name="q17" value="b"><div class="opt-dot"></div>Occasionally -- a few times a week</label><label class="opt-label"><input type="radio" name="q17" value="c"><div class="opt-dot"></div>Rarely -- only when very stressed</label><label class="opt-label"><input type="radio" name="q17" value="d"><div class="opt-dot"></div>No -- I don't use these techniques</label></div></div>
+        <div class="q-item" data-q="18"><div class="q-text"><span class="q-num">Q18</span>How often do you talk to someone (friend, family, therapist) when you're stressed?</div><div class="options"><label class="opt-label"><input type="radio" name="q18" value="a"><div class="opt-dot"></div>Regularly -- I have strong social support</label><label class="opt-label"><input type="radio" name="q18" value="b"><div class="opt-dot"></div>Sometimes -- when it gets bad enough</label><label class="opt-label"><input type="radio" name="q18" value="c"><div class="opt-dot"></div>Rarely -- I tend to keep it to myself</label><label class="opt-label"><input type="radio" name="q18" value="d"><div class="opt-dot"></div>Never -- I prefer to handle it alone</label></div></div>
+        <div class="q-item" data-q="19"><div class="q-text"><span class="q-num">Q19</span>How effectively do you feel you currently manage your stress overall?</div><div class="options"><label class="opt-label"><input type="radio" name="q19" value="a"><div class="opt-dot"></div>Very effectively -- I have good tools and use them</label><label class="opt-label"><input type="radio" name="q19" value="b"><div class="opt-dot"></div>Somewhat effectively -- could do better</label><label class="opt-label"><input type="radio" name="q19" value="c"><div class="opt-dot"></div>Not very effectively -- stress often gets the better of me</label><label class="opt-label"><input type="radio" name="q19" value="d"><div class="opt-dot"></div>Not at all -- I feel like I have no control over it</label></div></div>
+        <div class="q-item" data-q="20"><div class="q-text"><span class="q-num">Q20</span>How much time do you spend on hobbies or activities you genuinely enjoy?</div><div class="options"><label class="opt-label"><input type="radio" name="q20" value="a"><div class="opt-dot"></div>Plenty -- it's a regular part of my week</label><label class="opt-label"><input type="radio" name="q20" value="b"><div class="opt-dot"></div>Some -- but not as much as I'd like</label><label class="opt-label"><input type="radio" name="q20" value="c"><div class="opt-dot"></div>Very little -- stress or obligations crowd it out</label><label class="opt-label"><input type="radio" name="q20" value="d"><div class="opt-dot"></div>None -- I rarely make time for myself</label></div></div>
+      </div>
+    </div>
+
+    <!-- Section 5: Work & Life Balance -->
+    <div class="card s5">
+      <div class="card-header"><div class="card-num">5</div><div class="card-title">Work &amp; Life Balance</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="21"><div class="q-text"><span class="q-num">Q21</span>How would you describe your current workload?</div><div class="options"><label class="opt-label"><input type="radio" name="q21" value="a"><div class="opt-dot"></div>Manageable -- I can handle it comfortably</label><label class="opt-label"><input type="radio" name="q21" value="b"><div class="opt-dot"></div>Busy but sustainable</label><label class="opt-label"><input type="radio" name="q21" value="c"><div class="opt-dot"></div>Heavy -- I often feel stretched thin</label><label class="opt-label"><input type="radio" name="q21" value="d"><div class="opt-dot"></div>Overwhelming -- I can't keep up</label></div></div>
+        <div class="q-item" data-q="22"><div class="q-text"><span class="q-num">Q22</span>How well are you able to disconnect from work or responsibilities during personal time?</div><div class="options"><label class="opt-label"><input type="radio" name="q22" value="a"><div class="opt-dot"></div>Very well -- I switch off easily</label><label class="opt-label"><input type="radio" name="q22" value="b"><div class="opt-dot"></div>Somewhat -- it takes effort but I manage</label><label class="opt-label"><input type="radio" name="q22" value="c"><div class="opt-dot"></div>Poorly -- work thoughts follow me home</label><label class="opt-label"><input type="radio" name="q22" value="d"><div class="opt-dot"></div>Not at all -- I'm always "on"</label></div></div>
+        <div class="q-item" data-q="23"><div class="q-text"><span class="q-num">Q23</span>How satisfied are you with the balance between your work/responsibilities and personal life?</div><div class="options"><label class="opt-label"><input type="radio" name="q23" value="a"><div class="opt-dot"></div>Very satisfied</label><label class="opt-label"><input type="radio" name="q23" value="b"><div class="opt-dot"></div>Mostly satisfied</label><label class="opt-label"><input type="radio" name="q23" value="c"><div class="opt-dot"></div>Somewhat dissatisfied</label><label class="opt-label"><input type="radio" name="q23" value="d"><div class="opt-dot"></div>Very dissatisfied</label></div></div>
+        <div class="q-item" data-q="24"><div class="q-text"><span class="q-num">Q24</span>How often do you feel you have enough time for recovery -- rest, sleep, and personal renewal?</div><div class="options"><label class="opt-label"><input type="radio" name="q24" value="a"><div class="opt-dot"></div>Almost always</label><label class="opt-label"><input type="radio" name="q24" value="b"><div class="opt-dot"></div>Often</label><label class="opt-label"><input type="radio" name="q24" value="c"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q24" value="d"><div class="opt-dot"></div>Rarely or never</label></div></div>
+        <div class="q-item" data-q="25"><div class="q-text"><span class="q-num">Q25</span>What is your primary stress concern right now?</div><div class="options"><label class="opt-label"><input type="radio" name="q25" value="a"><div class="opt-dot"></div>Work or career pressure</label><label class="opt-label"><input type="radio" name="q25" value="b"><div class="opt-dot"></div>Financial stress</label><label class="opt-label"><input type="radio" name="q25" value="c"><div class="opt-dot"></div>Relationship or family stress</label><label class="opt-label"><input type="radio" name="q25" value="d"><div class="opt-dot"></div>Health concerns (mine or others')</label><label class="opt-label"><input type="radio" name="q25" value="e"><div class="opt-dot"></div>General feeling of being overwhelmed</label><label class="opt-label"><input type="radio" name="q25" value="f"><div class="opt-dot"></div>No specific concern -- stress is generally manageable</label></div></div>
+      </div>
+    </div>
+
+    <div class="submit-section">
+      <div class="validation-msg" id="validationMsg">Please answer all highlighted questions before submitting.</div>
+      <button class="submit-btn" id="submitBtn" onclick="handleSubmit()">Submit Assessment</button>
+    </div>
+  </div>
+
+  <div class="thankyou" id="thankyou">
+    <div class="thankyou-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <h2>Thank you!</h2>
+    <p>Your stress assessment has been submitted. Your health coach will review your responses and discuss the results with you at your next session.</p>
+  </div>
+</div>
+
+<script>
+  const TOTAL_Q = 25;
+  document.getElementById('intake-date').value = new Date().toISOString().split('T')[0];
+
+  function updateProgress() {
+    let answered = 0;
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      if (document.querySelector('input[name="q' + i + '"]:checked')) answered++;
+    }
+    const pct = Math.round((answered / TOTAL_Q) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = answered + ' of ' + TOTAL_Q + ' questions answered';
+  }
+
+  document.querySelectorAll('input[type=radio]').forEach(function(r) {
+    r.addEventListener('change', function() {
+      const item = r.closest('.q-item');
+      if (item) item.classList.remove('unanswered');
+      updateProgress();
+    });
+  });
+
+  function collectAnswers() {
+    const answers = {};
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      const checked = document.querySelector('input[name="q' + i + '"]:checked');
+      answers['q' + i] = checked ? checked.value : null;
+    }
+    return answers;
+  }
+
+  async function handleSubmit() {
+    let allAnswered = true;
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      const item = document.querySelector('[data-q="' + i + '"]');
+      const checked = document.querySelector('input[name="q' + i + '"]:checked');
+      if (!checked) { item.classList.add('unanswered'); allAnswered = false; }
+      else item.classList.remove('unanswered');
+    }
+    if (!allAnswered) {
+      document.getElementById('validationMsg').style.display = 'block';
+      document.querySelector('.q-item.unanswered').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    document.getElementById('validationMsg').style.display = 'none';
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    const dobYear = document.getElementById('dob-year').value;
+    const dobMonth = document.getElementById('dob-month').value;
+    const dobDay = document.getElementById('dob-day').value;
+
+    const payload = {
+      member_id: document.getElementById('member-id').value.trim(),
+      dob: (dobYear && dobMonth && dobDay) ? dobYear + '-' + dobMonth + '-' + dobDay : '',
+      sex: document.getElementById('member-sex').value,
+      assigned_coach: document.getElementById('assigned-coach').value,
+      intake_date: document.getElementById('intake-date').value,
+      answers: collectAnswers(),
+      submitted_at: new Date().toISOString()
+    };
+
+    try {
+      await fetch('/.netlify/functions/stress-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch(err) { console.error('Submission error:', err); }
+
+    document.getElementById('formArea').classList.add('hidden');
+    setTimeout(function() {
+      document.getElementById('formArea').style.display = 'none';
+      document.getElementById('thankyou').classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 300);
+  }
+
+  updateProgress();
+</script>
+</body>
+</html>
