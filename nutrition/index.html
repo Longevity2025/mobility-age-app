@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nutrition Assessment — Health Span Mobility Index</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green:#2E6B4F; --green-lt:#D4EDE2;
+    --teal:#1A6B8A; --teal-lt:#D0E8F2;
+    --blue:#1A4F8A; --blue-lt:#D0DFF2;
+    --pink:#8A1A5A; --pink-lt:#F2D0E4;
+    --amber:#9E5B1A; --amber-lt:#F5E6D4;
+    --bg:#F4F6F9; --surface:#FFFFFF; --text:#1A1A2E; --muted:#6B7280; --border:#E2E8F0; --radius:12px;
+  }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding:2rem 1rem 4rem; }
+  .container { max-width:680px; margin:0 auto; }
+  .header { margin-bottom:2rem; }
+  .header h1 { font-family:'DM Serif Display',serif; font-size:1.9rem; color:var(--text); margin-bottom:0.3rem; }
+  .header p { font-size:0.875rem; color:var(--muted); }
+  .header-rule { height:3px; background:linear-gradient(90deg,var(--green),var(--teal),var(--blue),var(--pink),var(--amber)); border-radius:2px; margin-top:0.85rem; }
+  .progress-wrap { margin-bottom:1.5rem; }
+  .progress-bar { height:5px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .progress-fill { height:100%; background:var(--green); border-radius:3px; transition:width 0.3s ease; width:0%; }
+  .progress-label { font-size:0.78rem; color:var(--muted); margin-top:0.4rem; }
+  .card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; margin-bottom:1rem; box-shadow:0 1px 4px rgba(0,0,0,0.05); }
+  .card-header { padding:0.85rem 1.25rem; display:flex; align-items:center; gap:0.75rem; }
+  .card-num { width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,0.25); display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:600; color:#fff; flex-shrink:0; }
+  .card-title { font-size:0.9rem; font-weight:600; color:#fff; letter-spacing:0.04em; text-transform:uppercase; }
+  .card-sub { font-size:0.75rem; color:rgba(255,255,255,0.75); margin-left:auto; font-weight:300; }
+  .card-body { padding:1.25rem; }
+  .s0 .card-header { background:#444; }
+  .s1 .card-header { background:var(--green); }
+  .s2 .card-header { background:var(--teal); }
+  .s3 .card-header { background:var(--blue); }
+  .s4 .card-header { background:var(--pink); }
+  .s5 .card-header { background:var(--amber); }
+  .field { margin-bottom:1.1rem; }
+  .field:last-child { margin-bottom:0; }
+  .field-label { font-size:0.875rem; font-weight:500; color:var(--text); margin-bottom:0.5rem; display:block; }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  input[type=text], input[type=date], select { width:100%; padding:0.55rem 0.75rem; border:1.5px solid var(--border); border-radius:8px; font-size:0.9rem; font-family:'DM Sans',sans-serif; color:var(--text); background:#FAFBFC; outline:none; transition:border-color 0.15s; }
+  input[type=text]:focus, input[type=date]:focus, select:focus { border-color:var(--green); }
+  .q-item { margin-bottom:1.25rem; }
+  .q-item:last-child { margin-bottom:0; }
+  .q-item.unanswered { background:#FFF8F0; border-radius:8px; padding:0.75rem; border:1px solid #F5C97A; }
+  .q-text { font-size:0.875rem; font-weight:500; color:var(--text); margin-bottom:0.25rem; line-height:1.4; }
+  .q-note { font-size:0.78rem; color:var(--muted); margin-bottom:0.5rem; font-style:italic; }
+  .q-num { display:inline-block; font-size:0.7rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-right:0.4rem; }
+  .options { display:flex; flex-direction:column; gap:0.4rem; }
+  .opt-label { display:flex; align-items:center; gap:0.6rem; padding:0.5rem 0.75rem; border:1.5px solid var(--border); border-radius:8px; cursor:pointer; transition:all 0.12s; font-size:0.875rem; color:var(--muted); background:#FAFBFC; user-select:none; }
+  .opt-label:hover { border-color:#aaa; color:var(--text); }
+  .opt-label input[type=radio] { display:none; }
+  .opt-dot { width:16px; height:16px; border-radius:50%; border:2px solid var(--border); flex-shrink:0; transition:all 0.12s; }
+  .s1 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--green); background:var(--green); box-shadow:inset 0 0 0 3px #fff; }
+  .s1 .opt-label:has(input[type=radio]:checked) { border-color:var(--green); color:var(--text); background:var(--green-lt); font-weight:500; }
+  .s2 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--teal); background:var(--teal); box-shadow:inset 0 0 0 3px #fff; }
+  .s2 .opt-label:has(input[type=radio]:checked) { border-color:var(--teal); color:var(--text); background:var(--teal-lt); font-weight:500; }
+  .s3 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--blue); background:var(--blue); box-shadow:inset 0 0 0 3px #fff; }
+  .s3 .opt-label:has(input[type=radio]:checked) { border-color:var(--blue); color:var(--text); background:var(--blue-lt); font-weight:500; }
+  .s4 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--pink); background:var(--pink); box-shadow:inset 0 0 0 3px #fff; }
+  .s4 .opt-label:has(input[type=radio]:checked) { border-color:var(--pink); color:var(--text); background:var(--pink-lt); font-weight:500; }
+  .s5 .opt-label input[type=radio]:checked ~ .opt-dot { border-color:var(--amber); background:var(--amber); box-shadow:inset 0 0 0 3px #fff; }
+  .s5 .opt-label:has(input[type=radio]:checked) { border-color:var(--amber); color:var(--text); background:var(--amber-lt); font-weight:500; }
+  .submit-section { margin-top:1.5rem; }
+  .validation-msg { display:none; background:#FFF3CD; border:1px solid #F5C97A; border-radius:8px; padding:0.75rem 1rem; font-size:0.85rem; color:#856404; margin-bottom:1rem; }
+  .submit-btn { width:100%; padding:0.9rem; font-size:1rem; font-family:'DM Sans',sans-serif; font-weight:600; background:var(--green); color:#fff; border:none; border-radius:var(--radius); cursor:pointer; transition:background 0.15s; letter-spacing:0.02em; }
+  .submit-btn:hover { background:#225238; }
+  .submit-btn:disabled { background:#7FAF97; cursor:not-allowed; }
+  .thankyou { display:none; text-align:center; padding:3rem 1.5rem; }
+  .thankyou.visible { display:block; }
+  .thankyou-icon { width:64px; height:64px; background:var(--green-lt); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem; }
+  .thankyou-icon svg { width:32px; height:32px; stroke:var(--green); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .thankyou h2 { font-family:'DM Serif Display',serif; font-size:1.75rem; color:var(--text); margin-bottom:0.75rem; }
+  .thankyou p { font-size:0.95rem; color:var(--muted); line-height:1.7; max-width:420px; margin:0 auto; }
+  .form-area { transition:opacity 0.3s; }
+  .form-area.hidden { opacity:0; pointer-events:none; }
+  @media (max-width:520px) { .field-row { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Nutrition Assessment</h1>
+    <p>Health Span Mobility Index &nbsp;&middot;&nbsp; 38 questions &middot; 8-12 minutes &middot; Answer based on your typical habits over the past 30 days.</p>
+    <div class="header-rule"></div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-label" id="progressLabel">0 of 38 questions answered</div>
+  </div>
+  <div class="form-area" id="formArea">
+
+    <!-- Member Info -->
+    <div class="card s0">
+      <div class="card-header"><div class="card-num">&#9679;</div><div class="card-title">Your Information</div></div>
+      <div class="card-body">
+        <div class="field-row">
+          <div class="field"><label class="field-label" for="member-id">Member ID or Name</label><input type="text" id="member-id" placeholder="As provided by your coach" autocomplete="off"></div>
+          <div class="field"><label class="field-label" for="intake-date">Today's Date</label><input type="date" id="intake-date"></div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">Date of Birth</label>
+            <div style="display:grid;grid-template-columns:2fr 1fr 1.5fr;gap:0.4rem;">
+              <select id="dob-month"><option value="">Month</option><option value="01">January</option><option value="02">February</option><option value="03">March</option><option value="04">April</option><option value="05">May</option><option value="06">June</option><option value="07">July</option><option value="08">August</option><option value="09">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select>
+              <select id="dob-day"><option value="">Day</option><option value="01">1</option><option value="02">2</option><option value="03">3</option><option value="04">4</option><option value="05">5</option><option value="06">6</option><option value="07">7</option><option value="08">8</option><option value="09">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option></select>
+              <select id="dob-year"><option value="">Year</option><option value="2010">2010</option><option value="2009">2009</option><option value="2008">2008</option><option value="2007">2007</option><option value="2006">2006</option><option value="2005">2005</option><option value="2004">2004</option><option value="2003">2003</option><option value="2002">2002</option><option value="2001">2001</option><option value="2000">2000</option><option value="1999">1999</option><option value="1998">1998</option><option value="1997">1997</option><option value="1996">1996</option><option value="1995">1995</option><option value="1994">1994</option><option value="1993">1993</option><option value="1992">1992</option><option value="1991">1991</option><option value="1990">1990</option><option value="1989">1989</option><option value="1988">1988</option><option value="1987">1987</option><option value="1986">1986</option><option value="1985">1985</option><option value="1984">1984</option><option value="1983">1983</option><option value="1982">1982</option><option value="1981">1981</option><option value="1980">1980</option><option value="1979">1979</option><option value="1978">1978</option><option value="1977">1977</option><option value="1976">1976</option><option value="1975">1975</option><option value="1974">1974</option><option value="1973">1973</option><option value="1972">1972</option><option value="1971">1971</option><option value="1970">1970</option><option value="1969">1969</option><option value="1968">1968</option><option value="1967">1967</option><option value="1966">1966</option><option value="1965">1965</option><option value="1964">1964</option><option value="1963">1963</option><option value="1962">1962</option><option value="1961">1961</option><option value="1960">1960</option><option value="1959">1959</option><option value="1958">1958</option><option value="1957">1957</option><option value="1956">1956</option><option value="1955">1955</option><option value="1954">1954</option><option value="1953">1953</option><option value="1952">1952</option><option value="1951">1951</option><option value="1950">1950</option><option value="1949">1949</option><option value="1948">1948</option><option value="1947">1947</option><option value="1946">1946</option><option value="1945">1945</option><option value="1944">1944</option><option value="1943">1943</option><option value="1942">1942</option><option value="1941">1941</option><option value="1940">1940</option><option value="1939">1939</option><option value="1938">1938</option><option value="1937">1937</option><option value="1936">1936</option><option value="1935">1935</option><option value="1934">1934</option><option value="1933">1933</option><option value="1932">1932</option><option value="1931">1931</option><option value="1930">1930</option></select>
+            </div>
+          </div>
+          <div class="field"><label class="field-label" for="member-sex">Biological Sex</label><select id="member-sex"><option value="">-- Select --</option><option value="male">Male</option><option value="female">Female</option><option value="prefer_not">Prefer not to say</option></select></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label class="field-label" for="assigned-coach">Your Health Coach</label><select id="assigned-coach"><option value="">-- Select your coach --</option><option value="Dr. Wolf">Dr. Wolf</option><option value="Liz Masik">Liz Masik</option></select></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 1: Dietary Quality -->
+    <div class="card s1">
+      <div class="card-header"><div class="card-num">1</div><div class="card-title">Dietary Quality</div><div class="card-sub">Q1 - Q8</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="1"><div class="q-text"><span class="q-num">Q1</span>How many servings of vegetables do you typically eat per day?</div><div class="q-note">1 serving = 1/2 cup cooked or 1 cup raw</div><div class="options"><label class="opt-label"><input type="radio" name="q1" value="a"><div class="opt-dot"></div>5 or more</label><label class="opt-label"><input type="radio" name="q1" value="b"><div class="opt-dot"></div>3-4</label><label class="opt-label"><input type="radio" name="q1" value="c"><div class="opt-dot"></div>1-2</label><label class="opt-label"><input type="radio" name="q1" value="d"><div class="opt-dot"></div>Less than 1</label></div></div>
+        <div class="q-item" data-q="2"><div class="q-text"><span class="q-num">Q2</span>How many servings of fruit do you typically eat per day?</div><div class="q-note">1 serving = 1 medium piece or 1/2 cup</div><div class="options"><label class="opt-label"><input type="radio" name="q2" value="a"><div class="opt-dot"></div>2 or more</label><label class="opt-label"><input type="radio" name="q2" value="b"><div class="opt-dot"></div>1</label><label class="opt-label"><input type="radio" name="q2" value="c"><div class="opt-dot"></div>Less than 1</label></div></div>
+        <div class="q-item" data-q="3"><div class="q-text"><span class="q-num">Q3</span>How often do you choose whole grains over refined grains (white bread, white rice, regular pasta)?</div><div class="options"><label class="opt-label"><input type="radio" name="q3" value="a"><div class="opt-dot"></div>Almost always</label><label class="opt-label"><input type="radio" name="q3" value="b"><div class="opt-dot"></div>More often than not</label><label class="opt-label"><input type="radio" name="q3" value="c"><div class="opt-dot"></div>About half the time</label><label class="opt-label"><input type="radio" name="q3" value="d"><div class="opt-dot"></div>Rarely or never</label></div></div>
+        <div class="q-item" data-q="4"><div class="q-text"><span class="q-num">Q4</span>Which best describes your main protein sources most days?</div><div class="options"><label class="opt-label"><input type="radio" name="q4" value="a"><div class="opt-dot"></div>Mostly plant-based (legumes, tofu, tempeh) and/or fish</label><label class="opt-label"><input type="radio" name="q4" value="b"><div class="opt-dot"></div>Mix of poultry, fish, eggs, and some plant-based</label><label class="opt-label"><input type="radio" name="q4" value="c"><div class="opt-dot"></div>Mostly poultry and eggs</label><label class="opt-label"><input type="radio" name="q4" value="d"><div class="opt-dot"></div>Mostly red or processed meat</label></div></div>
+        <div class="q-item" data-q="5"><div class="q-text"><span class="q-num">Q5</span>How often do you eat fatty fish (salmon, sardines, mackerel, trout)?</div><div class="options"><label class="opt-label"><input type="radio" name="q5" value="a"><div class="opt-dot"></div>2 or more times per week</label><label class="opt-label"><input type="radio" name="q5" value="b"><div class="opt-dot"></div>Once per week</label><label class="opt-label"><input type="radio" name="q5" value="c"><div class="opt-dot"></div>1-3 times per month</label><label class="opt-label"><input type="radio" name="q5" value="d"><div class="opt-dot"></div>Rarely or never</label></div></div>
+        <div class="q-item" data-q="6"><div class="q-text"><span class="q-num">Q6</span>Which fats or oils do you most commonly cook with or add to food?</div><div class="options"><label class="opt-label"><input type="radio" name="q6" value="a"><div class="opt-dot"></div>Olive oil, avocado oil, or similar</label><label class="opt-label"><input type="radio" name="q6" value="b"><div class="opt-dot"></div>Mostly plant oils (canola, sunflower)</label><label class="opt-label"><input type="radio" name="q6" value="c"><div class="opt-dot"></div>Mix of plant oils and butter</label><label class="opt-label"><input type="radio" name="q6" value="d"><div class="opt-dot"></div>Mostly butter, lard, or coconut oil</label></div></div>
+        <div class="q-item" data-q="7"><div class="q-text"><span class="q-num">Q7</span>How often do you eat legumes (beans, lentils, chickpeas, peas)?</div><div class="options"><label class="opt-label"><input type="radio" name="q7" value="a"><div class="opt-dot"></div>4 or more times per week</label><label class="opt-label"><input type="radio" name="q7" value="b"><div class="opt-dot"></div>2-3 times per week</label><label class="opt-label"><input type="radio" name="q7" value="c"><div class="opt-dot"></div>Once per week</label><label class="opt-label"><input type="radio" name="q7" value="d"><div class="opt-dot"></div>Rarely or never</label></div></div>
+        <div class="q-item" data-q="8"><div class="q-text"><span class="q-num">Q8</span>How often do you eat nuts or seeds?</div><div class="options"><label class="opt-label"><input type="radio" name="q8" value="a"><div class="opt-dot"></div>Daily or almost daily</label><label class="opt-label"><input type="radio" name="q8" value="b"><div class="opt-dot"></div>A few times a week</label><label class="opt-label"><input type="radio" name="q8" value="c"><div class="opt-dot"></div>Rarely or never</label></div></div>
+      </div>
+    </div>
+
+    <!-- Section 2: Eating Patterns -->
+    <div class="card s2">
+      <div class="card-header"><div class="card-num">2</div><div class="card-title">Eating Patterns</div><div class="card-sub">Q9 - Q16</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="9"><div class="q-text"><span class="q-num">Q9</span>How regularly do you eat meals at consistent times each day?</div><div class="options"><label class="opt-label"><input type="radio" name="q9" value="a"><div class="opt-dot"></div>Very consistently -- meals at roughly the same times daily</label><label class="opt-label"><input type="radio" name="q9" value="b"><div class="opt-dot"></div>Mostly consistent with occasional variation</label><label class="opt-label"><input type="radio" name="q9" value="c"><div class="opt-dot"></div>Inconsistent -- meal times vary a lot day to day</label><label class="opt-label"><input type="radio" name="q9" value="d"><div class="opt-dot"></div>No regular meal pattern</label></div></div>
+        <div class="q-item" data-q="10"><div class="q-text"><span class="q-num">Q10</span>How often do you eat breakfast within 2 hours of waking?</div><div class="options"><label class="opt-label"><input type="radio" name="q10" value="a"><div class="opt-dot"></div>Daily or almost daily</label><label class="opt-label"><input type="radio" name="q10" value="b"><div class="opt-dot"></div>Most days (4-5 per week)</label><label class="opt-label"><input type="radio" name="q10" value="c"><div class="opt-dot"></div>Some days (2-3 per week)</label><label class="opt-label"><input type="radio" name="q10" value="d"><div class="opt-dot"></div>Rarely or never</label></div></div>
+        <div class="q-item" data-q="11"><div class="q-text"><span class="q-num">Q11</span>How often do you skip a meal unintentionally?</div><div class="q-note">This refers to unplanned skipping, not deliberate intermittent fasting.</div><div class="options"><label class="opt-label"><input type="radio" name="q11" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q11" value="b"><div class="opt-dot"></div>Once or twice a week</label><label class="opt-label"><input type="radio" name="q11" value="c"><div class="opt-dot"></div>Most days</label></div></div>
+        <div class="q-item" data-q="12"><div class="q-text"><span class="q-num">Q12</span>How often do you eat within 2 hours of going to bed?</div><div class="options"><label class="opt-label"><input type="radio" name="q12" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q12" value="b"><div class="opt-dot"></div>1-2 times per week</label><label class="opt-label"><input type="radio" name="q12" value="c"><div class="opt-dot"></div>Most nights</label></div></div>
+        <div class="q-item" data-q="13"><div class="q-text"><span class="q-num">Q13</span>How often do you eat in front of a screen (TV, phone, computer) as your primary activity during the meal?</div><div class="options"><label class="opt-label"><input type="radio" name="q13" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q13" value="b"><div class="opt-dot"></div>Occasionally (a few times a week)</label><label class="opt-label"><input type="radio" name="q13" value="c"><div class="opt-dot"></div>Most meals</label></div></div>
+        <div class="q-item" data-q="14"><div class="q-text"><span class="q-num">Q14</span>How would you describe your typical eating pace?</div><div class="options"><label class="opt-label"><input type="radio" name="q14" value="a"><div class="opt-dot"></div>Slow -- I take time and pause between bites</label><label class="opt-label"><input type="radio" name="q14" value="b"><div class="opt-dot"></div>Moderate</label><label class="opt-label"><input type="radio" name="q14" value="c"><div class="opt-dot"></div>Fast -- I tend to finish quickly</label></div></div>
+        <div class="q-item" data-q="15"><div class="q-text"><span class="q-num">Q15</span>How often do you or a partner cook or prepare meals at home?</div><div class="options"><label class="opt-label"><input type="radio" name="q15" value="a"><div class="opt-dot"></div>5 or more times per week</label><label class="opt-label"><input type="radio" name="q15" value="b"><div class="opt-dot"></div>3-4 times per week</label><label class="opt-label"><input type="radio" name="q15" value="c"><div class="opt-dot"></div>1-2 times per week</label><label class="opt-label"><input type="radio" name="q15" value="d"><div class="opt-dot"></div>Rarely -- most meals are restaurant, takeout, or delivery</label></div></div>
+        <div class="q-item" data-q="16"><div class="q-text"><span class="q-num">Q16</span>On days you eat out or order in, how often do you make a deliberate effort to choose healthier options?</div><div class="options"><label class="opt-label"><input type="radio" name="q16" value="a"><div class="opt-dot"></div>Almost always</label><label class="opt-label"><input type="radio" name="q16" value="b"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q16" value="c"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q16" value="d"><div class="opt-dot"></div>I rarely eat out</label></div></div>
+      </div>
+    </div>
+
+    <!-- Section 3: Hydration -->
+    <div class="card s3">
+      <div class="card-header"><div class="card-num">3</div><div class="card-title">Hydration</div><div class="card-sub">Q17 - Q22</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="17"><div class="q-text"><span class="q-num">Q17</span>How many cups of plain water do you drink per day?</div><div class="q-note">1 cup = 8 oz / 240 ml</div><div class="options"><label class="opt-label"><input type="radio" name="q17" value="a"><div class="opt-dot"></div>8 or more cups</label><label class="opt-label"><input type="radio" name="q17" value="b"><div class="opt-dot"></div>5-7 cups</label><label class="opt-label"><input type="radio" name="q17" value="c"><div class="opt-dot"></div>3-4 cups</label><label class="opt-label"><input type="radio" name="q17" value="d"><div class="opt-dot"></div>Fewer than 3 cups</label></div></div>
+        <div class="q-item" data-q="18"><div class="q-text"><span class="q-num">Q18</span>How often do you drink sugar-sweetened beverages (soda, sweet tea, energy drinks, juice drinks)?</div><div class="options"><label class="opt-label"><input type="radio" name="q18" value="a"><div class="opt-dot"></div>Never or almost never</label><label class="opt-label"><input type="radio" name="q18" value="b"><div class="opt-dot"></div>A few times per week</label><label class="opt-label"><input type="radio" name="q18" value="c"><div class="opt-dot"></div>Once daily</label><label class="opt-label"><input type="radio" name="q18" value="d"><div class="opt-dot"></div>Multiple times per day</label></div></div>
+        <div class="q-item" data-q="19"><div class="q-text"><span class="q-num">Q19</span>How many caffeinated beverages (coffee, tea, energy drinks) do you have per day on average?</div><div class="options"><label class="opt-label"><input type="radio" name="q19" value="a"><div class="opt-dot"></div>None</label><label class="opt-label"><input type="radio" name="q19" value="b"><div class="opt-dot"></div>1-2</label><label class="opt-label"><input type="radio" name="q19" value="c"><div class="opt-dot"></div>3-4</label><label class="opt-label"><input type="radio" name="q19" value="d"><div class="opt-dot"></div>5 or more</label></div></div>
+        <div class="q-item" data-q="20"><div class="q-text"><span class="q-num">Q20</span>How many alcoholic drinks do you have in a typical week?</div><div class="q-note">Guidelines: up to 1/day for women, up to 2/day for men (USDA Dietary Guidelines).</div><div class="options"><label class="opt-label"><input type="radio" name="q20" value="a"><div class="opt-dot"></div>None</label><label class="opt-label"><input type="radio" name="q20" value="b"><div class="opt-dot"></div>Within guidelines</label><label class="opt-label"><input type="radio" name="q20" value="c"><div class="opt-dot"></div>Moderately above guidelines</label><label class="opt-label"><input type="radio" name="q20" value="d"><div class="opt-dot"></div>Well above guidelines</label></div></div>
+        <div class="q-item" data-q="21"><div class="q-text"><span class="q-num">Q21</span>How often do you notice signs of dehydration during the day?</div><div class="q-note">Dark urine, headache, fatigue, dry mouth.</div><div class="options"><label class="opt-label"><input type="radio" name="q21" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q21" value="b"><div class="opt-dot"></div>Occasionally</label><label class="opt-label"><input type="radio" name="q21" value="c"><div class="opt-dot"></div>Often or most days</label></div></div>
+        <div class="q-item" data-q="22"><div class="q-text"><span class="q-num">Q22</span>Do you increase your fluid intake on days with physical activity or significant heat exposure?</div><div class="options"><label class="opt-label"><input type="radio" name="q22" value="a"><div class="opt-dot"></div>Yes, consistently</label><label class="opt-label"><input type="radio" name="q22" value="b"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q22" value="c"><div class="opt-dot"></div>No -- my intake stays about the same regardless</label></div></div>
+      </div>
+    </div>
+
+    <!-- Section 4: Behavioral & Mindful Eating -->
+    <div class="card s4">
+      <div class="card-header"><div class="card-num">4</div><div class="card-title">Behavioral &amp; Mindful Eating</div><div class="card-sub">Q23 - Q30</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="23"><div class="q-text"><span class="q-num">Q23</span>How often do you eat in response to stress, anxiety, or difficult emotions rather than physical hunger?</div><div class="options"><label class="opt-label"><input type="radio" name="q23" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q23" value="b"><div class="opt-dot"></div>Occasionally (once or twice a month)</label><label class="opt-label"><input type="radio" name="q23" value="c"><div class="opt-dot"></div>Weekly</label><label class="opt-label"><input type="radio" name="q23" value="d"><div class="opt-dot"></div>Most days</label></div></div>
+        <div class="q-item" data-q="24"><div class="q-text"><span class="q-num">Q24</span>How well can you recognize the difference between physical hunger and a craving or emotional urge to eat?</div><div class="options"><label class="opt-label"><input type="radio" name="q24" value="a"><div class="opt-dot"></div>Very well -- I can reliably tell the difference</label><label class="opt-label"><input type="radio" name="q24" value="b"><div class="opt-dot"></div>Usually -- I can tell most of the time</label><label class="opt-label"><input type="radio" name="q24" value="c"><div class="opt-dot"></div>Sometimes -- it is often unclear</label><label class="opt-label"><input type="radio" name="q24" value="d"><div class="opt-dot"></div>Rarely -- I struggle to distinguish them</label></div></div>
+        <div class="q-item" data-q="25"><div class="q-text"><span class="q-num">Q25</span>How often do you eat past the point of comfortable fullness?</div><div class="options"><label class="opt-label"><input type="radio" name="q25" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q25" value="b"><div class="opt-dot"></div>Occasionally</label><label class="opt-label"><input type="radio" name="q25" value="c"><div class="opt-dot"></div>Most meals</label></div></div>
+        <div class="q-item" data-q="26"><div class="q-text"><span class="q-num">Q26</span>How often do you eat out of boredom rather than hunger?</div><div class="options"><label class="opt-label"><input type="radio" name="q26" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q26" value="b"><div class="opt-dot"></div>Occasionally</label><label class="opt-label"><input type="radio" name="q26" value="c"><div class="opt-dot"></div>Often or most days</label></div></div>
+        <div class="q-item" data-q="27"><div class="q-text"><span class="q-num">Q27</span>How often do you feel guilt or shame after eating certain foods?</div><div class="options"><label class="opt-label"><input type="radio" name="q27" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q27" value="b"><div class="opt-dot"></div>Occasionally</label><label class="opt-label"><input type="radio" name="q27" value="c"><div class="opt-dot"></div>Often or most days</label></div></div>
+        <div class="q-item" data-q="28"><div class="q-text"><span class="q-num">Q28</span>Do you ever restrict food significantly and then overeat later as a result?</div><div class="q-note">Skip meals or very low intake followed by overeating.</div><div class="options"><label class="opt-label"><input type="radio" name="q28" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q28" value="b"><div class="opt-dot"></div>Occasionally</label><label class="opt-label"><input type="radio" name="q28" value="c"><div class="opt-dot"></div>Weekly or more</label></div></div>
+        <div class="q-item" data-q="29"><div class="q-text"><span class="q-num">Q29</span>When you sit down to eat, how often do you focus primarily on the meal rather than multi-tasking?</div><div class="options"><label class="opt-label"><input type="radio" name="q29" value="a"><div class="opt-dot"></div>Most meals</label><label class="opt-label"><input type="radio" name="q29" value="b"><div class="opt-dot"></div>About half the time</label><label class="opt-label"><input type="radio" name="q29" value="c"><div class="opt-dot"></div>Rarely</label></div></div>
+        <div class="q-item" data-q="30"><div class="q-text"><span class="q-num">Q30</span>Overall, how would you describe your relationship with food?</div><div class="options"><label class="opt-label"><input type="radio" name="q30" value="a"><div class="opt-dot"></div>Positive -- food is enjoyable and I feel in control</label><label class="opt-label"><input type="radio" name="q30" value="b"><div class="opt-dot"></div>Neutral -- I do not think about it much</label><label class="opt-label"><input type="radio" name="q30" value="c"><div class="opt-dot"></div>Complicated -- I have ongoing struggles or ambivalence</label></div></div>
+      </div>
+    </div>
+
+    <!-- Section 5: Dietary Variety & Limits -->
+    <div class="card s5">
+      <div class="card-header"><div class="card-num">5</div><div class="card-title">Dietary Variety &amp; Limits</div><div class="card-sub">Q31 - Q38</div></div>
+      <div class="card-body">
+        <div class="q-item" data-q="31"><div class="q-text"><span class="q-num">Q31</span>How often do you eat ultra-processed foods?</div><div class="q-note">Fast food, packaged snacks, frozen meals, deli meats.</div><div class="options"><label class="opt-label"><input type="radio" name="q31" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q31" value="b"><div class="opt-dot"></div>A few times per week</label><label class="opt-label"><input type="radio" name="q31" value="c"><div class="opt-dot"></div>Once daily</label><label class="opt-label"><input type="radio" name="q31" value="d"><div class="opt-dot"></div>Multiple times per day</label></div></div>
+        <div class="q-item" data-q="32"><div class="q-text"><span class="q-num">Q32</span>How often do you consume added sugar?</div><div class="q-note">Added to drinks, pastries, candy, sweetened yogurt, etc.</div><div class="options"><label class="opt-label"><input type="radio" name="q32" value="a"><div class="opt-dot"></div>Rarely or never</label><label class="opt-label"><input type="radio" name="q32" value="b"><div class="opt-dot"></div>A few times per week</label><label class="opt-label"><input type="radio" name="q32" value="c"><div class="opt-dot"></div>Once daily</label><label class="opt-label"><input type="radio" name="q32" value="d"><div class="opt-dot"></div>Multiple times per day</label></div></div>
+        <div class="q-item" data-q="33"><div class="q-text"><span class="q-num">Q33</span>How often do you check nutrition labels when buying packaged food?</div><div class="options"><label class="opt-label"><input type="radio" name="q33" value="a"><div class="opt-dot"></div>Almost always</label><label class="opt-label"><input type="radio" name="q33" value="b"><div class="opt-dot"></div>Sometimes</label><label class="opt-label"><input type="radio" name="q33" value="c"><div class="opt-dot"></div>Rarely or never</label></div></div>
+        <div class="q-item" data-q="34"><div class="q-text"><span class="q-num">Q34</span>How would you describe your typical sodium intake?</div><div class="options"><label class="opt-label"><input type="radio" name="q34" value="a"><div class="opt-dot"></div>Low -- I actively avoid salty/processed foods and rarely add salt</label><label class="opt-label"><input type="radio" name="q34" value="b"><div class="opt-dot"></div>Moderate -- I am aware of it and limit where I can</label><label class="opt-label"><input type="radio" name="q34" value="c"><div class="opt-dot"></div>High -- I eat a lot of salty, processed, or restaurant food</label><label class="opt-label"><input type="radio" name="q34" value="d"><div class="opt-dot"></div>I am not sure</label></div></div>
+        <div class="q-item" data-q="35"><div class="q-text"><span class="q-num">Q35</span>How varied is your diet week to week?</div><div class="options"><label class="opt-label"><input type="radio" name="q35" value="a"><div class="opt-dot"></div>Very varied -- I regularly eat a wide range of different foods</label><label class="opt-label"><input type="radio" name="q35" value="b"><div class="opt-dot"></div>Moderately varied</label><label class="opt-label"><input type="radio" name="q35" value="c"><div class="opt-dot"></div>Fairly repetitive -- I eat mostly the same foods</label><label class="opt-label"><input type="radio" name="q35" value="d"><div class="opt-dot"></div>Very limited -- I have a narrow range of foods I eat</label></div></div>
+        <div class="q-item" data-q="36"><div class="q-text"><span class="q-num">Q36</span>How often do you eat dairy or calcium-rich alternatives?</div><div class="q-note">Fortified plant milks, tofu, leafy greens.</div><div class="options"><label class="opt-label"><input type="radio" name="q36" value="a"><div class="opt-dot"></div>Daily or almost daily</label><label class="opt-label"><input type="radio" name="q36" value="b"><div class="opt-dot"></div>A few times per week</label><label class="opt-label"><input type="radio" name="q36" value="c"><div class="opt-dot"></div>Rarely or never</label></div></div>
+        <div class="q-item" data-q="37"><div class="q-text"><span class="q-num">Q37</span>How often do you eat fermented foods?</div><div class="q-note">Yogurt, kefir, kimchi, sauerkraut, miso.</div><div class="options"><label class="opt-label"><input type="radio" name="q37" value="a"><div class="opt-dot"></div>Daily or almost daily</label><label class="opt-label"><input type="radio" name="q37" value="b"><div class="opt-dot"></div>A few times per week</label><label class="opt-label"><input type="radio" name="q37" value="c"><div class="opt-dot"></div>Rarely or never</label></div></div>
+        <div class="q-item" data-q="38"><div class="q-text"><span class="q-num">Q38</span>Overall, how intentional are you about your diet?</div><div class="options"><label class="opt-label"><input type="radio" name="q38" value="a"><div class="opt-dot"></div>Very intentional -- I plan and think about nutrition regularly</label><label class="opt-label"><input type="radio" name="q38" value="b"><div class="opt-dot"></div>Somewhat -- I try to make good choices but do not plan much</label><label class="opt-label"><input type="radio" name="q38" value="c"><div class="opt-dot"></div>Not very -- I eat whatever is convenient or available</label></div></div>
+      </div>
+    </div>
+
+    <div class="submit-section">
+      <div class="validation-msg" id="validationMsg">Please answer all highlighted questions before submitting.</div>
+      <button class="submit-btn" id="submitBtn" onclick="handleSubmit()">Submit Assessment</button>
+    </div>
+  </div>
+
+  <div class="thankyou" id="thankyou">
+    <div class="thankyou-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <h2>Thank you!</h2>
+    <p>Your nutrition assessment has been submitted. Your health coach will review your responses and discuss the results with you at your next session.</p>
+  </div>
+</div>
+
+<script>
+  const TOTAL_Q = 38;
+  document.getElementById('intake-date').value = new Date().toISOString().split('T')[0];
+
+  function updateProgress() {
+    let answered = 0;
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      if (document.querySelector('input[name="q' + i + '"]:checked')) answered++;
+    }
+    const pct = Math.round((answered / TOTAL_Q) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = answered + ' of ' + TOTAL_Q + ' questions answered';
+  }
+
+  document.querySelectorAll('input[type=radio]').forEach(function(r) {
+    r.addEventListener('change', function() {
+      const item = r.closest('.q-item');
+      if (item) item.classList.remove('unanswered');
+      updateProgress();
+    });
+  });
+
+  function collectAnswers() {
+    const answers = {};
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      const checked = document.querySelector('input[name="q' + i + '"]:checked');
+      answers['q' + i] = checked ? checked.value : null;
+    }
+    return answers;
+  }
+
+  async function handleSubmit() {
+    let allAnswered = true;
+    for (let i = 1; i <= TOTAL_Q; i++) {
+      const item = document.querySelector('[data-q="' + i + '"]');
+      const checked = document.querySelector('input[name="q' + i + '"]:checked');
+      if (!checked) { item.classList.add('unanswered'); allAnswered = false; }
+      else item.classList.remove('unanswered');
+    }
+    if (!allAnswered) {
+      document.getElementById('validationMsg').style.display = 'block';
+      document.querySelector('.q-item.unanswered').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    document.getElementById('validationMsg').style.display = 'none';
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    const dobYear = document.getElementById('dob-year').value;
+    const dobMonth = document.getElementById('dob-month').value;
+    const dobDay = document.getElementById('dob-day').value;
+
+    const payload = {
+      member_id: document.getElementById('member-id').value.trim(),
+      dob: (dobYear && dobMonth && dobDay) ? dobYear + '-' + dobMonth + '-' + dobDay : '',
+      sex: document.getElementById('member-sex').value,
+      assigned_coach: document.getElementById('assigned-coach').value,
+      intake_date: document.getElementById('intake-date').value,
+      answers: collectAnswers(),
+      submitted_at: new Date().toISOString()
+    };
+
+    try {
+      await fetch('/.netlify/functions/nutrition-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch(err) { console.error('Submission error:', err); }
+
+    document.getElementById('formArea').classList.add('hidden');
+    setTimeout(function() {
+      document.getElementById('formArea').style.display = 'none';
+      document.getElementById('thankyou').classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 300);
+  }
+
+  updateProgress();
+</script>
+</body>
+</html>
