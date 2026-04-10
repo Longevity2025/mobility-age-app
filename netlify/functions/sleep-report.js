@@ -1,3 +1,28 @@
+const https = require('https');
+
+function httpsPost(url, headers, body) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname,
+      method: 'POST',
+      headers: { ...headers, 'Content-Length': Buffer.byteLength(body) }
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch { resolve(data); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -13,26 +38,26 @@ exports.handler = async function (event) {
   const { member_id, dob, sex, intake_date, answers } = payload;
 
   const answerMap = {
-    q1:  { a: 'Before 9:00 PM', b: '9:00–10:30 PM', c: '10:30 PM–12:00 AM', d: 'After 12:00 AM' },
-    q2:  { a: 'Before 5:30 AM', b: '5:30–7:00 AM', c: '7:00–8:30 AM', d: 'After 8:30 AM' },
-    q3:  { a: 'Less than 5 hours', b: '5–6 hours', c: '6–7 hours', d: '7–8 hours', e: 'More than 8 hours' },
-    q4:  { a: 'Same schedule as weekdays', b: 'Up to 1 hour later', c: '1–2 hours later', d: 'More than 2 hours later' },
-    q5:  { a: 'Never', b: 'Rarely (once a week or less)', c: 'Sometimes (2–3x per week)', d: 'Most days' },
-    q6:  { a: 'Under 20 minutes', b: '20–45 minutes', c: '45–90 minutes', d: 'Over 90 minutes', e: "I don't nap" },
+    q1:  { a: 'Before 9:00 PM', b: '9:00-10:30 PM', c: '10:30 PM-12:00 AM', d: 'After 12:00 AM' },
+    q2:  { a: 'Before 5:30 AM', b: '5:30-7:00 AM', c: '7:00-8:30 AM', d: 'After 8:30 AM' },
+    q3:  { a: 'Less than 5 hours', b: '5-6 hours', c: '6-7 hours', d: '7-8 hours', e: 'More than 8 hours' },
+    q4:  { a: 'Same schedule as weekdays', b: 'Up to 1 hour later', c: '1-2 hours later', d: 'More than 2 hours later' },
+    q5:  { a: 'Never', b: 'Rarely (once a week or less)', c: 'Sometimes (2-3x per week)', d: 'Most days' },
+    q6:  { a: 'Under 20 minutes', b: '20-45 minutes', c: '45-90 minutes', d: 'Over 90 minutes', e: "I don't nap" },
     q7:  { a: 'Yes, I feel well-rested', b: 'Mostly, but could use more', c: 'No, I rarely feel rested', d: "I'm not sure" },
-    q8:  { a: 'Under 10 minutes', b: '10–20 minutes', c: '20–45 minutes', d: 'Over 45 minutes' },
+    q8:  { a: 'Under 10 minutes', b: '10-20 minutes', c: '20-45 minutes', d: 'Over 45 minutes' },
     q9:  { a: 'Rarely or never', b: 'Once, fall back easily', c: 'Multiple times, fall back easily', d: 'Multiple times, struggle to return' },
-    q10: { a: '1 — Very poor', b: '2 — Poor', c: '3 — Fair', d: '4 — Good', e: '5 — Excellent' },
+    q10: { a: '1 - Very poor', b: '2 - Poor', c: '3 - Fair', d: '4 - Good', e: '5 - Excellent' },
     q11: { a: 'Very restless, lots of tossing/turning', b: 'Somewhat restless', c: 'Mostly still', d: 'Very still and deep' },
-    q12: { a: "Yes — told I snore loudly or stop breathing", b: 'Mild snoring only', c: 'Not that I know of', d: 'Sleep alone, unsure' },
-    q13: { a: 'Refreshed and alert', b: 'Groggy but okay within 30 min', c: 'Fatigued — takes over an hour', d: 'Exhausted regardless of sleep amount' },
+    q12: { a: "Yes - told I snore loudly or stop breathing", b: 'Mild snoring only', c: 'Not that I know of', d: 'Sleep alone, unsure' },
+    q13: { a: 'Refreshed and alert', b: 'Groggy but okay within 30 min', c: 'Fatigued - takes over an hour', d: 'Exhausted regardless of sleep amount' },
     q14: { a: 'Steady energy all day', b: 'Mild afternoon dip', c: 'Significant afternoon crash', d: 'Fatigued most of the day' },
     q15: { a: 'Sharp and focused', b: 'Occasional brain fog', c: 'Frequent difficulty concentrating', d: 'Significant impairment most days' },
     q16: { a: 'Stable and positive', b: 'Somewhat irritable or flat', c: 'Noticeably moody or anxious', d: 'Significantly affected most days' },
     q17: { a: 'None', b: 'Morning only (before noon)', c: 'Afternoon (before 3 PM)', d: 'Evening or unpredictable' },
-    q18: { a: 'Never', b: 'Rarely', c: '1–2x per week near bedtime', d: 'Most nights' },
+    q18: { a: 'Never', b: 'Rarely', c: '1-2x per week near bedtime', d: 'Most nights' },
     q19: { a: 'No screens within 1 hour of bed', b: 'Screens until 30 min before bed', c: 'Screens right up until sleep', d: 'Screens in bed until falling asleep' },
-    q20: { a: 'No regular exercise', b: '1–2x per week', c: '3–4x per week', d: '5+ times per week' },
+    q20: { a: 'No regular exercise', b: '1-2x per week', c: '3-4x per week', d: '5+ times per week' },
     q21: { a: 'Morning (before noon)', b: 'Afternoon', c: 'Evening (after 7 PM)', d: "I don't exercise regularly" },
     q22: { a: 'Cool, dark, and quiet', b: 'Mostly good, minor issues', c: 'Too warm, bright, or noisy', d: 'Significant environmental issues' },
     q23: { a: 'Consistent wind-down routine', b: 'Sometimes wind down, sometimes not', c: 'Usually stimulated until bed', d: 'No real routine' },
@@ -91,23 +116,26 @@ HABITS & ENVIRONMENT:
 PRIMARY CONCERN: ${readable('q25')}`;
 
   // Step 1: Generate report via Anthropic
-  let report;
+  let report = 'Report generation failed.';
   try {
-    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
+    const aiResult = await httpsPost(
+      'https://api.anthropic.com/v1/messages',
+      {
         'Content-Type': 'application/json',
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify({
+      JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1200,
         messages: [{ role: 'user', content: prompt }]
       })
-    });
-    const aiResult = await aiResponse.json();
-    report = aiResult.content?.map(b => b.text || '').join('') || 'Report generation failed.';
+    );
+    if (aiResult.content && aiResult.content.length > 0) {
+      report = aiResult.content.map(b => b.text || '').join('');
+    } else if (aiResult.error) {
+      report = `API error: ${aiResult.error.message}`;
+    }
   } catch (err) {
     report = `Report generation error: ${err.message}`;
   }
@@ -168,19 +196,19 @@ PRIMARY CONCERN: ${readable('q25')}`;
 
   // Step 3: Send email via Resend
   try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
+    await httpsPost(
+      'https://api.resend.com/emails',
+      {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
       },
-      body: JSON.stringify({
+      JSON.stringify({
         from: 'HSMI Sleep Assessment <onboarding@resend.dev>',
         to: ['mdwolf@ccphp.net'],
-        subject: `Sleep Assessment Report — ${member_id || 'Member'} — ${intake_date || submittedAt}`,
+        subject: `Sleep Assessment Report - ${member_id || 'Member'} - ${intake_date || submittedAt}`,
         html: emailHtml
       })
-    });
+    );
   } catch (err) {
     console.error('Email send error:', err.message);
   }
@@ -188,16 +216,11 @@ PRIMARY CONCERN: ${readable('q25')}`;
   // DATABASE PLACEHOLDER
   // When your internal DB is ready, replace this comment block with your insert call.
   //
-  // const record = {
-  //   member_id, dob, sex, intake_date,
-  //   answers, report,
-  //   submitted_at: new Date().toISOString()
-  // };
-  // await fetch('https://your-internal-api.com/sleep-records', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.DB_API_KEY}` },
-  //   body: JSON.stringify(record)
-  // });
+  // const record = { member_id, dob, sex, intake_date, answers, report, submitted_at: new Date().toISOString() };
+  // await httpsPost('https://your-internal-api.com/sleep-records',
+  //   { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.DB_API_KEY}` },
+  //   JSON.stringify(record)
+  // );
 
   return {
     statusCode: 200,
