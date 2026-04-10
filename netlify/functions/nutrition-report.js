@@ -33,7 +33,7 @@ exports.handler = async function(event) {
     q1:  { a: '5 or more servings/day', b: '3-4 servings/day', c: '1-2 servings/day', d: 'Less than 1 serving/day' },
     q2:  { a: '2 or more servings/day', b: '1 serving/day', c: 'Less than 1 serving/day' },
     q3:  { a: 'Almost always whole grains', b: 'More often than not', c: 'About half the time', d: 'Rarely or never' },
-    q4:  { a: 'Mostly plant-based and/or fish', b: 'Mix of poultry, fish, eggs, plant-based', c: 'Mostly poultry and eggs', d: 'Mostly red or processed meat' },
+    q4:  { a: 'Mostly plant-based and/or fish', b: 'Mix of poultry, fish, eggs, red meat, and some plant-based', c: 'Mostly poultry and eggs', d: 'Mostly red or processed meat' },
     q5:  { a: '2+ times per week', b: 'Once per week', c: '1-3 times per month', d: 'Rarely or never' },
     q6:  { a: 'Olive oil or avocado oil', b: 'Mostly plant oils', c: 'Mix of plant oils and butter', d: 'Mostly butter, lard, or coconut oil' },
     q7:  { a: '4+ times per week', b: '2-3 times per week', c: 'Once per week', d: 'Rarely or never' },

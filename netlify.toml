@@ -1,0 +1,11 @@
+[functions]
+  node_bundler = "zisi"
+
+[functions."nutrition-report"]
+  timeout = 30
+
+[functions."sleep-report"]
+  timeout = 30
+
+[functions."stress-report"]
+  timeout = 30
