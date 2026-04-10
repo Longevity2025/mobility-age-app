@@ -71,7 +71,7 @@ Structure your response as:
 3. Prioritized Recommendations - specific, actionable steps ranked by impact
 4. A brief encouraging close
 
-Be specific - reference their actual answers. Avoid generic advice. Tone: warm, supportive, coach-like, not clinical.
+Be specific - reference their actual answers. Avoid generic advice. Tone: warm, supportive, coach-like, not clinical. Write at a 7th grade reading level. Use short sentences. Choose simple, everyday words over clinical or technical language. Use contractions. Avoid jargon.
 
 MEMBER: ${member_id || 'not provided'} | DOB: ${dob || 'not provided'} | Sex: ${sex || 'not provided'} | Coach: ${assigned_coach || 'not provided'} | Date: ${intake_date || 'not provided'}
 
