@@ -168,7 +168,7 @@ WORK & LIFE BALANCE:
       { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY },
       JSON.stringify({
         from: 'HSMI Stress Assessment <onboarding@resend.dev>',
-        to: ['mdwolf@ccphp.net'],
+        to: ['mdwolf@ccphp.net', 'lizmasik@ccphp.net'],
         subject: 'Stress Assessment Report - ' + (member_id || 'Member') + ' - Coach: ' + (assigned_coach || 'Unassigned') + ' - ' + (intake_date || submittedAt),
         html: emailHtml
       })
