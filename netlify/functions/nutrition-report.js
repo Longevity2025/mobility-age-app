@@ -198,7 +198,7 @@ DOMAIN 5 - DIETARY VARIETY & LIMITS:
   // Step 3: Send via Resend
   console.log('Sending email via Resend...');
   try {
-    await httpsPost(
+    const resendResult = await httpsPost(
       'https://api.resend.com/emails',
       { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY },
       JSON.stringify({
@@ -208,6 +208,7 @@ DOMAIN 5 - DIETARY VARIETY & LIMITS:
         html: emailHtml
       })
     );
+    console.log('Resend result:', JSON.stringify(resendResult));
   } catch(err) { console.log('Resend error:', err.message); }
 
   // DATABASE PLACEHOLDER
