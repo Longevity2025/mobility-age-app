@@ -139,17 +139,25 @@ DOMAIN 5 - DIETARY VARIETY & LIMITS:
   // Step 1: Generate report
   let report = 'Report generation failed.';
   try {
+    console.log('Calling Anthropic API...');
     const aiResult = await httpsPost(
       'https://api.anthropic.com/v1/messages',
       { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
       JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1500, messages: [{ role: 'user', content: prompt }] })
     );
+    console.log('Anthropic response type:', typeof aiResult);
+    console.log('Anthropic content length:', aiResult.content ? aiResult.content.length : 'none');
+    if (aiResult.error) console.log('Anthropic error:', JSON.stringify(aiResult.error));
     if (aiResult.content && aiResult.content.length > 0) {
       report = aiResult.content.map(b => b.text || '').join('');
+      console.log('Report generated, length:', report.length);
     } else if (aiResult.error) {
       report = 'API error: ' + aiResult.error.message;
     }
-  } catch(err) { report = 'Report generation error: ' + err.message; }
+  } catch(err) { 
+    console.log('Anthropic catch error:', err.message);
+    report = 'Report generation error: ' + err.message; 
+  }
 
   // Step 2: Format email
   const reportHtml = report.split('\n').map(line => {
@@ -188,6 +196,7 @@ DOMAIN 5 - DIETARY VARIETY & LIMITS:
 </body></html>`;
 
   // Step 3: Send via Resend
+  console.log('Sending email via Resend...');
   try {
     await httpsPost(
       'https://api.resend.com/emails',
@@ -199,7 +208,7 @@ DOMAIN 5 - DIETARY VARIETY & LIMITS:
         html: emailHtml
       })
     );
-  } catch(err) { console.error('Email error:', err.message); }
+  } catch(err) { console.log('Resend error:', err.message); }
 
   // DATABASE PLACEHOLDER
   // const record = { member_id, dob, sex, assigned_coach, intake_date, answers, report, submitted_at: new Date().toISOString() };
