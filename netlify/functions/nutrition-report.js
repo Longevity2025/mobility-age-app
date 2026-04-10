@@ -203,7 +203,7 @@ DOMAIN 5 - DIETARY VARIETY & LIMITS:
       { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.RESEND_API_KEY },
       JSON.stringify({
         from: 'HSMI Nutrition Assessment <onboarding@resend.dev>',
-        to: ['mdwolf@ccphp.net', 'lizmasik@ccphp.net'],
+        to: ['mdwolf@ccphp.net'],
         subject: 'Nutrition Assessment Report - ' + (member_id || 'Member') + ' - Coach: ' + (assigned_coach || 'Unassigned') + ' - ' + (intake_date || submittedAt),
         html: emailHtml
       })
