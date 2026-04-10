@@ -152,6 +152,15 @@
             </select>
           </div>
         </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label" for="assigned-coach">Your Health Coach</label>
+            <select id="assigned-coach">
+              <option value="">— Select your coach —</option>
+              <option value="Dr. Wolf">Dr. Wolf</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -548,6 +557,7 @@
       member_id: document.getElementById('member-id').value.trim(),
       dob: document.getElementById('member-dob').value,
       sex: document.getElementById('member-sex').value,
+      assigned_coach: document.getElementById('assigned-coach').value,
       intake_date: document.getElementById('intake-date').value,
       answers: collectAnswers(),
       submitted_at: new Date().toISOString()

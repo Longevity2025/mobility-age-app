@@ -35,7 +35,7 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: 'Invalid JSON' };
   }
 
-  const { member_id, dob, sex, intake_date, answers } = payload;
+  const { member_id, dob, sex, assigned_coach, intake_date, answers } = payload;
 
   const answerMap = {
     q1:  { a: 'Before 9:00 PM', b: '9:00-10:30 PM', c: '10:30 PM-12:00 AM', d: 'After 12:00 AM' },
@@ -81,7 +81,7 @@ Structure your response as:
 
 Be specific - reference their actual answers. Avoid generic advice. Tone: warm, coach-like, not clinical.
 
-MEMBER: ${member_id || 'not provided'} | DOB: ${dob || 'not provided'} | Sex: ${sex || 'not provided'} | Date: ${intake_date || 'not provided'}
+MEMBER: ${member_id || 'not provided'} | DOB: ${dob || 'not provided'} | Sex: ${sex || 'not provided'} | Coach: ${assigned_coach || 'not provided'} | Date: ${intake_date || 'not provided'}
 
 SLEEP SCHEDULE & DURATION:
 - Bedtime: ${readable('q1')}
@@ -178,6 +178,10 @@ PRIMARY CONCERN: ${readable('q25')}`;
         <td style="padding:0.4rem 0.75rem;color:#6B7280;">Biological Sex</td>
         <td style="padding:0.4rem 0.75rem;">${sex || '&mdash;'}</td>
       </tr>
+      <tr style="background:#F7FBFD;">
+        <td style="padding:0.4rem 0.75rem;color:#6B7280;">Assigned Coach</td>
+        <td style="padding:0.4rem 0.75rem;font-weight:500;">${assigned_coach || '&mdash;'}</td>
+      </tr>
       <tr>
         <td style="padding:0.4rem 0.75rem;color:#6B7280;">Assessment Date</td>
         <td style="padding:0.4rem 0.75rem;">${intake_date || '&mdash;'}</td>
@@ -205,7 +209,7 @@ PRIMARY CONCERN: ${readable('q25')}`;
       JSON.stringify({
         from: 'HSMI Sleep Assessment <onboarding@resend.dev>',
         to: ['mdwolf@ccphp.net'],
-        subject: `Sleep Assessment Report - ${member_id || 'Member'} - ${intake_date || submittedAt}`,
+        subject: `Sleep Assessment Report - ${member_id || 'Member'} - Coach: ${assigned_coach || 'Unassigned'} - ${intake_date || submittedAt}`,
         html: emailHtml
       })
     );
