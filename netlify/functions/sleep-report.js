@@ -49,12 +49,12 @@ exports.handler = async function (event) {
   const prompt = `You are an expert sleep health coach reviewing a completed sleep assessment. Write a personalized coaching report for the coach to use in their session with this member.
 
 Structure your response as:
-1. Sleep Profile Summary (2–3 sentences)
-2. Key Findings — 2–4 specific issues from their responses
-3. Prioritized Recommendations — specific, actionable steps ranked by impact
+1. Sleep Profile Summary (2-3 sentences)
+2. Key Findings - 2-4 specific issues from their responses
+3. Prioritized Recommendations - specific, actionable steps ranked by impact
 4. A brief encouraging close
 
-Be specific — reference their actual answers. Avoid generic advice. Tone: warm, coach-like, not clinical.
+Be specific - reference their actual answers. Avoid generic advice. Tone: warm, coach-like, not clinical.
 
 MEMBER: ${member_id || 'not provided'} | DOB: ${dob || 'not provided'} | Sex: ${sex || 'not provided'} | Date: ${intake_date || 'not provided'}
 
@@ -90,8 +90,10 @@ HABITS & ENVIRONMENT:
 
 PRIMARY CONCERN: ${readable('q25')}`;
 
+  // Step 1: Generate report via Anthropic
+  let report;
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -104,41 +106,102 @@ PRIMARY CONCERN: ${readable('q25')}`;
         messages: [{ role: 'user', content: prompt }]
       })
     });
-
-    const result = await response.json();
-    const report = result.content?.map(b => b.text || '').join('') || 'No response received.';
-
-    // ── DATABASE PLACEHOLDER ────────────────────────────────────────────────
-    // When your internal DB is ready, insert the record here.
-    // Replace the comment block below with your actual DB call.
-    //
-    // const record = {
-    //   member_id, dob, sex, intake_date,
-    //   answers, report,
-    //   submitted_at: new Date().toISOString()
-    // };
-    //
-    // await fetch('https://your-internal-api.com/sleep-records', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${process.env.DB_API_KEY}`
-    //   },
-    //   body: JSON.stringify(record)
-    // });
-    // ── END PLACEHOLDER ─────────────────────────────────────────────────────
-
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: true, report })
-    };
-
+    const aiResult = await aiResponse.json();
+    report = aiResult.content?.map(b => b.text || '').join('') || 'Report generation failed.';
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ success: false, error: err.message })
-    };
+    report = `Report generation error: ${err.message}`;
   }
+
+  // Step 2: Format report as HTML email
+  const reportHtml = report
+    .split('\n')
+    .map(line => {
+      if (!line.trim()) return '<br>';
+      if (line.match(/^#+\s/)) return `<h3 style="color:#1A6B8A;margin:1rem 0 0.4rem;">${line.replace(/^#+\s/, '')}</h3>`;
+      if (line.match(/^\d+\.\s/)) return `<p style="margin:0.4rem 0;"><strong>${line}</strong></p>`;
+      return `<p style="margin:0.3rem 0;line-height:1.6;">${line}</p>`;
+    })
+    .join('');
+
+  const submittedAt = new Date().toLocaleString('en-US', { dateStyle: 'full', timeStyle: 'short' });
+
+  const emailHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:0;background:#F4F6F9;">
+  <div style="background:#1A6B8A;padding:1.5rem 2rem;border-radius:8px 8px 0 0;">
+    <h1 style="color:#fff;margin:0;font-size:1.4rem;font-weight:600;">Sleep Assessment Report</h1>
+    <p style="color:#C8E6F0;margin:0.3rem 0 0;font-size:0.85rem;">Health Span Mobility Index &nbsp;&middot;&nbsp; Submitted ${submittedAt}</p>
+  </div>
+  <div style="background:#fff;padding:1.5rem 2rem;border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0;">
+    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:1.5rem;">
+      <tr style="background:#D0E8F2;">
+        <td colspan="2" style="padding:0.5rem 0.75rem;font-weight:600;color:#1A6B8A;">Member Information</td>
+      </tr>
+      <tr style="background:#F7FBFD;">
+        <td style="padding:0.4rem 0.75rem;color:#6B7280;width:40%;">Member ID / Name</td>
+        <td style="padding:0.4rem 0.75rem;font-weight:500;">${member_id || '&mdash;'}</td>
+      </tr>
+      <tr>
+        <td style="padding:0.4rem 0.75rem;color:#6B7280;">Date of Birth</td>
+        <td style="padding:0.4rem 0.75rem;">${dob || '&mdash;'}</td>
+      </tr>
+      <tr style="background:#F7FBFD;">
+        <td style="padding:0.4rem 0.75rem;color:#6B7280;">Biological Sex</td>
+        <td style="padding:0.4rem 0.75rem;">${sex || '&mdash;'}</td>
+      </tr>
+      <tr>
+        <td style="padding:0.4rem 0.75rem;color:#6B7280;">Assessment Date</td>
+        <td style="padding:0.4rem 0.75rem;">${intake_date || '&mdash;'}</td>
+      </tr>
+    </table>
+    <div style="border-top:2px solid #1A6B8A;padding-top:1.25rem;">
+      <h2 style="color:#1A6B8A;font-size:1.1rem;margin:0 0 1rem;">Coaching Report</h2>
+      ${reportHtml}
+    </div>
+  </div>
+  <div style="background:#F4F6F9;padding:1rem 2rem;border-radius:0 0 8px 8px;border:1px solid #E2E8F0;border-top:none;">
+    <p style="font-size:0.75rem;color:#9CA3AF;margin:0;">Generated by the HSMI Sleep Assessment Module &nbsp;&middot;&nbsp; For coach use only &mdash; not for distribution to members.</p>
+  </div>
+</body>
+</html>`;
+
+  // Step 3: Send email via Resend
+  try {
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
+      },
+      body: JSON.stringify({
+        from: 'HSMI Sleep Assessment <onboarding@resend.dev>',
+        to: ['mdwolf@ccphp.net'],
+        subject: `Sleep Assessment Report — ${member_id || 'Member'} — ${intake_date || submittedAt}`,
+        html: emailHtml
+      })
+    });
+  } catch (err) {
+    console.error('Email send error:', err.message);
+  }
+
+  // DATABASE PLACEHOLDER
+  // When your internal DB is ready, replace this comment block with your insert call.
+  //
+  // const record = {
+  //   member_id, dob, sex, intake_date,
+  //   answers, report,
+  //   submitted_at: new Date().toISOString()
+  // };
+  // await fetch('https://your-internal-api.com/sleep-records', {
+  //   method: 'POST',
+  //   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.DB_API_KEY}` },
+  //   body: JSON.stringify(record)
+  // });
+
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ success: true })
+  };
 };
