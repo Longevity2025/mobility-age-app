@@ -1868,7 +1868,6 @@ Drop this whole block just before
   <div id="hsmi-recs-loading" style="display:none; text-align:center; padding:2rem; color:#555; font-size:1rem;">Generating recommendations…</div>
   <div id="hsmi-recs-error" style="display:none; background:#fee2e2; border:1px solid #fecaca; color:#7f1d1d; padding:10px 14px; border-radius:10px; margin-bottom:1rem;"></div>
   <div id="hsmi-recs-cards"></div>
-  <button id="btnPrintRecs" style="display:none; margin-top:1rem; width:100%; background:#fff; color:#0052cc; border:2px solid #0052cc; border-radius:999px; padding:.9rem 1.2rem; font-weight:900; font-size:1.05em; cursor:pointer;" onclick="window.print()">Print Report with Recommendations</button>
 </div>
 
 <style>
@@ -1885,7 +1884,6 @@ Drop this whole block just before
 @media print {
   #hsmi-recs-btn-wrap { display:none !important; }
   #hsmi-recs { display:block !important; }
-  #btnPrintRecs { display:none !important; }
   #hsmi-recs-loading, #hsmi-recs-error { display:none !important; }
   #hsmi-recs h2 { font-size:12pt !important; color:#004080 !important; margin:0 0 6px !important; }
   #hsmi-recs .rec-card { border:1px solid #cbd5e1 !important; margin-bottom:6pt !important; padding:8pt 10pt !important; }
@@ -1971,13 +1969,11 @@ Drop this whole block just before
 
     var loading  = document.getElementById('hsmi-recs-loading');
     var cards    = document.getElementById('hsmi-recs-cards');
-    var printBtn = document.getElementById('btnPrintRecs');
 
     section.style.display = 'block';
     loading.style.display = 'block';
     cards.innerHTML = '';
     errEl.style.display = 'none';
-    printBtn.style.display = 'none';
     btn.disabled = true;
     btn.textContent = 'Generating…';
     section.scrollIntoView({ behavior: 'smooth' });
@@ -2029,7 +2025,6 @@ Drop this whole block just before
         cards.appendChild(card);
       });
 
-      printBtn.style.display = 'block';
     })
     .catch(function() {
       loading.style.display = 'none';
@@ -3424,21 +3419,7 @@ function hideLegacyPrintButtons(){
     overrideStyle.textContent = '#report-inputs{break-before:auto !important;page-break-before:auto !important;}';
     doc2.head.appendChild(overrideStyle);
 
-    // --- Step 6: Append AI recommendations if generated ---
-    var recsCards2 = document.getElementById('hsmi-recs-cards');
-    var recsSection2 = document.getElementById('hsmi-recs');
-    if (recsCards2 && recsCards2.innerHTML.trim() && recsSection2 && recsSection2.style.display !== 'none') {
-      var recsNotice2 = document.querySelector('#hsmi-recs > div:first-of-type');
-      var recsDiv = doc2.createElement('div');
-      recsDiv.style.cssText = 'margin-top:14mm; border-top:2px solid #004080; padding-top:8px;';
-      recsDiv.innerHTML =
-        '<h2 style="font-size:12pt;font-weight:800;color:#004080;margin:0 0 6px;">AI Recommendations</h2>' +
-        (recsNotice2 ? '<p style="font-size:8pt;color:#6b7280;margin:0 0 8px;line-height:1.4;">' + recsNotice2.textContent.trim() + '</p>' : '') +
-        recsCards2.innerHTML;
-      doc2.body.appendChild(recsDiv);
-    }
-
-    // --- Step 7: Serialise back to an HTML string ---
+    // --- Step 6: Serialise back to an HTML string ---
     return '<!doctype html>' + doc2.documentElement.outerHTML;
   }
 
