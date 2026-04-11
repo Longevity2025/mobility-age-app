@@ -1856,7 +1856,7 @@ Drop this whole block just before
   <button id="btnExportDB" class="btn">Export to Database</button>
 </section>
 
-<div id="hsmi-recs-btn-wrap" style="margin-top:0.75rem;">
+<div id="hsmi-recs-btn-wrap" style="margin-top:0.75rem; max-width:980px; margin-left:auto; margin-right:auto; padding:0 1rem;">
   <button id="btnGenRecs" style="width:100%; background:#0052cc; color:#fff; border:2px solid #0052cc; border-radius:999px; padding:.9rem 1.2rem; font-weight:900; font-size:1.05em; cursor:pointer;">Generate AI Recommendations</button>
 </div>
 
@@ -3298,20 +3298,8 @@ function syncControlValues(clone){
         '</div>';
     }
 
-    return '<!doctype html><html><head><meta charset="utf-8">'+css+
-      '<style>' +
-      '.rec-card{border:1px solid #cbd5e1;border-radius:10px;padding:8pt 10pt;margin-bottom:6pt;background:#fff;page-break-inside:avoid;}' +
-      '.rec-card-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:4pt;}' +
-      '.rec-card-title{font-size:10.5pt;font-weight:700;margin:0 0 1px;color:#0b141a;}' +
-      '.rec-card-score{font-size:8.5pt;color:#4a5f6e;margin:0;}' +
-      '.rec-card-body{font-size:9.5pt;color:#2b3a44;line-height:1.45;margin:0;}' +
-      '.rec-priority-badge{display:inline-block;font-size:7.5pt;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:5px;vertical-align:middle;}' +
-      '.rec-badge-priority{background:#fee2e2;color:#7f1d1d;}' +
-      '.rec-badge-monitor{background:#fef9c3;color:#713f12;}' +
-      '.rec-badge-ontrack{background:#dcfce7;color:#166534;}' +
-      '.rec-badge-est{background:#e0f2fe;color:#075985;}' +
-      '</style>' +
-      '</head><body>'+header+frag.innerHTML+recsHTML+'</body></html>';
+    var recsCss = '<style>.rec-card{border:1px solid #cbd5e1;border-radius:10px;padding:8pt 10pt;margin-bottom:6pt;background:#fff;page-break-inside:avoid;}.rec-card-header{display:flex;align-items:flex-start;gap:8px;margin-bottom:4pt;}.rec-card-title{font-size:10.5pt;font-weight:700;margin:0 0 1px;color:#0b141a;}.rec-card-score{font-size:8.5pt;color:#4a5f6e;margin:0;}.rec-card-body{font-size:9.5pt;color:#2b3a44;line-height:1.45;margin:0;}.rec-priority-badge{display:inline-block;font-size:7.5pt;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:5px;vertical-align:middle;}.rec-badge-priority{background:#fee2e2;color:#7f1d1d;}.rec-badge-monitor{background:#fef9c3;color:#713f12;}.rec-badge-ontrack{background:#dcfce7;color:#166534;}.rec-badge-est{background:#e0f2fe;color:#075985;}</style>';
+    return '<!doctype html><html><head><meta charset="utf-8">'+css+recsCss+'</head><body>'+header+frag.innerHTML+recsHTML+'</body></html>';
   }
 
   // ---- Print via hidden iframe (single, robust) ----
