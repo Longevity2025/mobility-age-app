@@ -1856,13 +1856,12 @@ Drop this whole block just before
   <button id="btnExportDB" class="btn">Export to Database</button>
 </section>
 
-<div id="hsmi-recs-btn-wrap" style="margin-top:0.75rem;" class="no-print">
+<div id="hsmi-recs-btn-wrap" style="margin-top:0.75rem;">
   <button id="btnGenRecs" style="width:100%; background:#0052cc; color:#fff; border:2px solid #0052cc; border-radius:999px; padding:.9rem 1.2rem; font-weight:900; font-size:1.05em; cursor:pointer;">Generate AI Recommendations</button>
 </div>
 
-<!-- AI Recommendations Section -->
-<section id="hsmi-recs" class="hsmi-recs-hidden" style="margin-top:1.5rem;">
-  <h2 style="margin:0 0 1rem; font-size:1.2rem; font-weight:900;">AI Recommendations</h2>
+<div id="hsmi-recs" style="display:none; margin-top:1.5rem;">
+  <h2 style="font-size:1.2rem; font-weight:900; margin:0 0 1rem;">AI Recommendations</h2>
   <div style="font-size:13px; color:#555; background:#f0f4f8; border-radius:10px; padding:10px 14px; margin-bottom:1rem; line-height:1.5;">
     Grip Strength, Postural Sway, and Mid-Thigh Pull scores use vendor-supplied norms. VO₂ Max, TUG, and Sit &amp; Reach percentiles are estimated from Z-scores using internal normative data.
   </div>
@@ -1870,15 +1869,14 @@ Drop this whole block just before
   <div id="hsmi-recs-error" style="display:none; background:#fee2e2; border:1px solid #fecaca; color:#7f1d1d; padding:10px 14px; border-radius:10px; margin-bottom:1rem;"></div>
   <div id="hsmi-recs-cards"></div>
   <button id="btnPrintRecs" style="display:none; margin-top:1rem; width:100%; background:#fff; color:#0052cc; border:2px solid #0052cc; border-radius:999px; padding:.9rem 1.2rem; font-weight:900; font-size:1.05em; cursor:pointer;" onclick="window.print()">Print Report with Recommendations</button>
-</section>
+</div>
 
 <style>
-@media screen { .hsmi-recs-hidden { display:none; } }
 .rec-card { border:2px solid #cbd5e1; border-radius:16px; padding:1.1rem 1.25rem; margin-bottom:0.9rem; background:#fff; page-break-inside:avoid; }
 .rec-card-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:0.6rem; }
 .rec-card-title { font-size:11pt; font-weight:900; margin:0 0 2px; color:#0b141a; }
 .rec-card-score { font-size:9pt; color:#4a5f6e; margin:0; }
-.rec-card-body { font-size:10pt; color:#2b3a44; line-height:1.5; margin:0; }
+.rec-card-body { font-size:10pt; color:#2b3a44; line-height:1.55; margin:0; }
 .rec-priority-badge { display:inline-block; font-size:8pt; font-weight:700; padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle; }
 .rec-badge-priority { background:#fee2e2; color:#7f1d1d; border:1px solid #fecaca; }
 .rec-badge-monitor  { background:#fef9c3; color:#713f12; border:1px solid #fde68a; }
@@ -1889,13 +1887,11 @@ Drop this whole block just before
   #hsmi-recs { display:block !important; }
   #btnPrintRecs { display:none !important; }
   #hsmi-recs-loading, #hsmi-recs-error { display:none !important; }
-  .hsmi-recs-hidden { display:none !important; }
   #hsmi-recs h2 { font-size:12pt !important; color:#004080 !important; margin:0 0 6px !important; }
   #hsmi-recs .rec-card { border:1px solid #cbd5e1 !important; margin-bottom:6pt !important; padding:8pt 10pt !important; }
   #hsmi-recs .rec-card-title { font-size:10.5pt !important; }
   #hsmi-recs .rec-card-score { font-size:9pt !important; }
   #hsmi-recs .rec-card-body  { font-size:9.5pt !important; line-height:1.45 !important; }
-  #hsmi-recs > div:first-of-type { font-size:8.5pt !important; }
 }
 </style>
 
@@ -1947,7 +1943,6 @@ Drop this whole block just before
     var gripPct = Math.round((gripRPct + gripLPct) / 2);
     var swayPct = Math.round((swayRPct + swayLPct) / 2);
 
-    // Read Z-scores from the rendered results table
     var rows = document.querySelectorAll('#rows tr');
     var zMap = {};
     var zLabels = ['sit','tug','mtp','sway','grip','vo2'];
@@ -1963,13 +1958,13 @@ Drop this whole block just before
     var tugPct = zMap['tug'] !== undefined ? zToPct(zMap['tug']) : 50;
     var sitPct = zMap['sit'] !== undefined ? zToPct(zMap['sit']) : 50;
 
-    var errEl   = document.getElementById('hsmi-recs-error');
-    var section = document.getElementById('hsmi-recs');
+    var section  = document.getElementById('hsmi-recs');
+    var errEl    = document.getElementById('hsmi-recs-error');
 
     if (!age || !sex) {
+      section.style.display = 'block';
       errEl.textContent = 'Please fill in all required fields and calculate scores first.';
       errEl.style.display = 'block';
-      section.classList.remove('hsmi-recs-hidden');
       section.scrollIntoView({ behavior: 'smooth' });
       return;
     }
@@ -1978,7 +1973,7 @@ Drop this whole block just before
     var cards    = document.getElementById('hsmi-recs-cards');
     var printBtn = document.getElementById('btnPrintRecs');
 
-    section.classList.remove('hsmi-recs-hidden');
+    section.style.display = 'block';
     loading.style.display = 'block';
     cards.innerHTML = '';
     errEl.style.display = 'none';
@@ -2034,8 +2029,6 @@ Drop this whole block just before
         cards.appendChild(card);
       });
 
-      // Remove inline display:none so the section clones correctly into the print path
-      section.style.removeProperty('display');
       printBtn.style.display = 'block';
     })
     .catch(function() {
