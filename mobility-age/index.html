@@ -1854,71 +1854,39 @@ Drop this whole block just before
 <section id="hsmi-export-controls" class="export-controls" style="margin-top:1.5rem; display:grid; gap:0.5rem; grid-template-columns: repeat(auto-fit,minmax(200px,1fr));">
   <button id="btnExportCSV" class="btn">Download CSV</button>
   <button id="btnExportDB" class="btn">Export to Database</button>
-  <button id="btnGenRecs" class="btn" style="background:#0052cc;color:#fff;border-color:#0052cc;">Generate AI Recommendations</button>
 </section>
+
+<div id="hsmi-recs-btn-wrap" style="margin-top:0.75rem;" class="no-print">
+  <button id="btnGenRecs" style="width:100%; background:#0052cc; color:#fff; border:2px solid #0052cc; border-radius:999px; padding:.9rem 1.2rem; font-weight:900; font-size:1.05em; cursor:pointer;">Generate AI Recommendations</button>
+</div>
 
 <!-- AI Recommendations Section -->
 <section id="hsmi-recs" style="display:none; margin-top:1.5rem;">
   <h2 style="margin:0 0 1rem; font-size:1.2rem; font-weight:900;">AI Recommendations</h2>
   <div id="hsmi-recs-notice" style="font-size:13px; color:#555; background:#f0f4f8; border-radius:10px; padding:10px 14px; margin-bottom:1rem; line-height:1.5;">
-    Scores for Grip Strength, Postural Sway, and Mid-Thigh Pull are based on vendor-supplied norms. VO₂ Max, TUG, and Sit &amp; Reach percentiles are estimated from Z-scores using internal normative data.
+    Grip Strength, Postural Sway, and Mid-Thigh Pull scores use vendor-supplied norms. VO₂ Max, TUG, and Sit &amp; Reach percentiles are estimated from Z-scores using internal normative data.
   </div>
-  <div id="hsmi-recs-loading" style="display:none; text-align:center; padding:2rem; color:#555; font-size:1rem;">
-    Generating recommendations…
-  </div>
+  <div id="hsmi-recs-loading" style="display:none; text-align:center; padding:2rem; color:#555; font-size:1rem;">Generating recommendations…</div>
   <div id="hsmi-recs-error" style="display:none; background:#fee2e2; border:1px solid #fecaca; color:#7f1d1d; padding:10px 14px; border-radius:10px; margin-bottom:1rem;"></div>
   <div id="hsmi-recs-cards"></div>
   <button id="btnPrintRecs" style="display:none; margin-top:1rem; width:100%; background:#fff; color:#0052cc; border:2px solid #0052cc; border-radius:999px; padding:.9rem 1.2rem; font-weight:900; font-size:1.05em; cursor:pointer;" onclick="window.print()">Print Report with Recommendations</button>
 </section>
 
 <style>
-.rec-card {
-  border: 2px solid #cbd5e1;
-  border-radius: 16px;
-  padding: 1.1rem 1.25rem;
-  margin-bottom: 0.9rem;
-  background: #fff;
-  page-break-inside: avoid;
-}
-.rec-card-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 0.6rem;
-}
-.rec-card-title {
-  font-size: 1rem;
-  font-weight: 900;
-  margin: 0 0 2px;
-  color: #0b141a;
-}
-.rec-card-score {
-  font-size: 0.85rem;
-  color: #4a5f6e;
-  margin: 0;
-}
-.rec-card-body {
-  font-size: 0.9rem;
-  color: #2b3a44;
-  line-height: 1.65;
-  margin: 0;
-}
-.rec-priority-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-left: 6px;
-  vertical-align: middle;
-}
+.rec-card { border:2px solid #cbd5e1; border-radius:16px; padding:1.1rem 1.25rem; margin-bottom:0.9rem; background:#fff; page-break-inside:avoid; }
+.rec-card-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:0.6rem; }
+.rec-card-title { font-size:1rem; font-weight:900; margin:0 0 2px; color:#0b141a; }
+.rec-card-score { font-size:0.85rem; color:#4a5f6e; margin:0; }
+.rec-card-body { font-size:0.9rem; color:#2b3a44; line-height:1.65; margin:0; }
+.rec-priority-badge { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; margin-left:6px; vertical-align:middle; }
 .rec-badge-priority { background:#fee2e2; color:#7f1d1d; border:1px solid #fecaca; }
 .rec-badge-monitor  { background:#fef9c3; color:#713f12; border:1px solid #fde68a; }
 .rec-badge-ontrack  { background:#dcfce7; color:#166534; border:1px solid #86efac; }
 .rec-badge-est      { background:#e0f2fe; color:#075985; border:1px solid #7dd3fc; }
 @media print {
+  #hsmi-recs-btn-wrap { display:none !important; }
   #hsmi-recs { display:block !important; }
-  #btnGenRecs, #btnPrintRecs { display:none !important; }
+  #btnPrintRecs { display:none !important; }
   #hsmi-recs-loading, #hsmi-recs-error { display:none !important; }
 }
 </style>
@@ -1928,9 +1896,7 @@ Drop this whole block just before
   var btn = document.getElementById('btnGenRecs');
   if (!btn) return;
 
-  // Helper: convert Z-score to approximate percentile (integer)
   function zToPct(z) {
-    // Abramowitz & Stegun approximation
     var t = 1 / (1 + 0.2316419 * Math.abs(z));
     var d = 0.3989423 * Math.exp(-z * z / 2);
     var p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.7814779 + t * (-1.8212560 + t * 1.3302744))));
@@ -1940,7 +1906,7 @@ Drop this whole block just before
 
   function ordinal(n) {
     var s = ['th','st','nd','rd'], v = n % 100;
-    return n + (s[(v-20)%10] || s[v] || s[0]);
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
   }
 
   function priorityLabel(pct) {
@@ -1956,29 +1922,23 @@ Drop this whole block just before
   }
 
   btn.addEventListener('click', function() {
-    // Collect data from the live render context
-    var age   = Number((document.getElementById('age')  ||{}).value) || 0;
-    var sex   = ((document.getElementById('sex')        ||{}).value) || '';
-    var name  = ((document.getElementById('memberName') ||{}).value) || 'the member';
-    var vo2   = Number((document.getElementById('vo2')  ||{}).value) || 0;
-    var tug   = Number((document.getElementById('tug')  ||{}).value) || 0;
-    var sit   = Number((document.getElementById('sit')  ||{}).value) || 0;
-    var mtpPct   = Number((document.getElementById('mtp')    ||{}).value) || 0;
-    var gripRPct = Number((document.getElementById('grip_r') ||{}).value) || 0;
-    var gripLPct = Number((document.getElementById('grip_l') ||{}).value) || 0;
-    var swayRPct = Number((document.getElementById('sway_r') ||{}).value) || 0;
-    var swayLPct = Number((document.getElementById('sway_l') ||{}).value) || 0;
-    var mobAge   = parseFloat((document.getElementById('final')||{}).textContent) || 0;
+    var age     = Number((document.getElementById('age')            ||{}).value) || 0;
+    var sex     = ((document.getElementById('sex')                  ||{}).value) || '';
+    var name    = ((document.getElementById('memberName')           ||{}).value) || 'the member';
+    var vo2     = Number((document.getElementById('vo2')            ||{}).value) || 0;
+    var tug     = Number((document.getElementById('tug')            ||{}).value) || 0;
+    var sit     = Number((document.getElementById('sit')            ||{}).value) || 0;
+    var mtpPct  = Number((document.getElementById('mtp')            ||{}).value) || 0;
+    var gripRPct= Number((document.getElementById('grip_r')         ||{}).value) || 0;
+    var gripLPct= Number((document.getElementById('grip_l')         ||{}).value) || 0;
+    var swayRPct= Number((document.getElementById('sway_r')         ||{}).value) || 0;
+    var swayLPct= Number((document.getElementById('sway_l')         ||{}).value) || 0;
+    var mobAge  = parseFloat((document.getElementById('final')      ||{}).textContent) || 0;
 
-    // Get Z-scores from window scope (set by main render())
-    var ctx = window.__LAST_TRAJ_CTX__;
-    var z_vo2  = ctx ? (ctx.current && ctx.current.compositeZ !== undefined ? 0 : 0) : 0;
-    // Re-derive pcts from stored Z scores via the result table rows
-    // (simpler: just use what we have — vendor pcts directly, Z-derived for the other 3)
     var gripPct = Math.round((gripRPct + gripLPct) / 2);
     var swayPct = Math.round((swayRPct + swayLPct) / 2);
-    // For VO2, TUG, SR: derive approximate pct from the MAE table badge classes
-    // We read Z-scores from the rendered table as a proxy
+
+    // Read Z-scores from the rendered results table
     var rows = document.querySelectorAll('#rows tr');
     var zMap = {};
     var labels = ['sit','tug','mtp','sway','grip','vo2'];
@@ -1986,26 +1946,27 @@ Drop this whole block just before
       var tds = tr.querySelectorAll('td');
       if (tds.length >= 2) {
         var z = parseFloat(tds[1].textContent);
-        if (!isNaN(z)) zMap[labels[i]] = z;
+        if (!isNaN(z) && labels[i]) zMap[labels[i]] = z;
       }
     });
 
-    var vo2Pct  = zMap['vo2']  !== undefined ? zToPct(zMap['vo2']) : 50;
-    var tugPct  = zMap['tug']  !== undefined ? zToPct(zMap['tug']) : 50; // already inverted in table
-    var sitPct  = zMap['sit']  !== undefined ? zToPct(zMap['sit']) : 50;
+    var vo2Pct = zMap['vo2'] !== undefined ? zToPct(zMap['vo2']) : 50;
+    var tugPct = zMap['tug'] !== undefined ? zToPct(zMap['tug']) : 50;
+    var sitPct = zMap['sit'] !== undefined ? zToPct(zMap['sit']) : 50;
+
+    var errEl   = document.getElementById('hsmi-recs-error');
+    var section = document.getElementById('hsmi-recs');
 
     if (!age || !sex) {
-      var errEl = document.getElementById('hsmi-recs-error');
       errEl.textContent = 'Please fill in all required fields and calculate scores first.';
       errEl.style.display = 'block';
-      document.getElementById('hsmi-recs').style.display = 'block';
+      section.style.display = 'block';
+      section.scrollIntoView({ behavior: 'smooth' });
       return;
     }
 
-    var section = document.getElementById('hsmi-recs');
-    var loading = document.getElementById('hsmi-recs-loading');
-    var cards   = document.getElementById('hsmi-recs-cards');
-    var errEl   = document.getElementById('hsmi-recs-error');
+    var loading  = document.getElementById('hsmi-recs-loading');
+    var cards    = document.getElementById('hsmi-recs-cards');
     var printBtn = document.getElementById('btnPrintRecs');
 
     section.style.display = 'block';
@@ -2019,11 +1980,10 @@ Drop this whole block just before
 
     var prompt = [
       'You are a health and fitness coach writing personalized recommendations for a client.',
-      'Write at a Flesch-Kincaid 6th to 8th grade reading level. Use short sentences and plain words.',
-      'Do not use jargon. Be warm and encouraging but honest.',
+      'Write at a Flesch-Kincaid 6th to 8th grade reading level. Use short sentences and plain words. Do not use jargon. Be warm and encouraging but honest.',
       '',
       'Client: ' + name + ', Age ' + age + ', ' + sex,
-      'Mobility Age: ' + (mobAge ? mobAge.toFixed(1) : 'N/A'),
+      'Mobility Age Equivalent: ' + (mobAge ? mobAge.toFixed(1) : 'N/A'),
       '',
       'Test results:',
       '- VO2 Max: ' + vo2 + ' ml/kg/min, approx ' + ordinal(vo2Pct) + ' percentile (Z-score estimate)',
@@ -2033,10 +1993,10 @@ Drop this whole block just before
       '- Postural Sway: ' + ordinal(swayPct) + ' percentile (vendor-normed)',
       '- Mid-Thigh Pull: ' + ordinal(mtpPct) + ' percentile (vendor-normed)',
       '',
-      'Write exactly 6 recommendation sections, one for each test, in this order:',
-      '1. VO2 Max, 2. TUG, 3. Sit & Reach, 4. Grip Strength, 5. Postural Sway, 6. Mid-Thigh Pull.',
+      'Write exactly 6 recommendation sections, one per test, in this order:',
+      '1. VO2 Max  2. TUG  3. Sit & Reach  4. Grip Strength  5. Postural Sway  6. Mid-Thigh Pull',
       '',
-      'For each section, respond with valid JSON in this exact format (no markdown, no extra text):',
+      'Return ONLY a valid JSON array with no markdown fences, no extra text, in this exact shape:',
       '[',
       '  {"test":"VO2 Max","score":"' + vo2 + ' ml/kg/min","pct":' + vo2Pct + ',"est":true,"rec":"2-4 sentences of plain-language recommendations."},',
       '  {"test":"TUG","score":"' + tug + ' seconds","pct":' + tugPct + ',"est":true,"rec":"..."},',
@@ -2044,9 +2004,7 @@ Drop this whole block just before
       '  {"test":"Grip Strength","score":"' + ordinal(gripPct) + ' percentile","pct":' + gripPct + ',"est":false,"rec":"..."},',
       '  {"test":"Postural Sway","score":"' + ordinal(swayPct) + ' percentile","pct":' + swayPct + ',"est":false,"rec":"..."},',
       '  {"test":"Mid-Thigh Pull","score":"' + ordinal(mtpPct) + ' percentile","pct":' + mtpPct + ',"est":false,"rec":"..."}',
-      ']',
-      '',
-      'Return ONLY the JSON array. No explanation, no markdown fences.'
+      ']'
     ].join('\n');
 
     fetch('https://api.anthropic.com/v1/messages', {
@@ -2058,7 +2016,7 @@ Drop this whole block just before
         messages: [{ role: 'user', content: prompt }]
       })
     })
-    .then(function(r){ return r.json(); })
+    .then(function(r) { return r.json(); })
     .then(function(data) {
       loading.style.display = 'none';
       btn.disabled = false;
@@ -2066,9 +2024,8 @@ Drop this whole block just before
 
       var text = '';
       if (data.content && data.content.length) {
-        data.content.forEach(function(block){ if (block.type === 'text') text += block.text; });
+        data.content.forEach(function(block) { if (block.type === 'text') text += block.text; });
       }
-      // Strip markdown fences if present
       text = text.replace(/```json|```/g, '').trim();
 
       var recs;
@@ -2104,7 +2061,7 @@ Drop this whole block just before
 
       printBtn.style.display = 'block';
     })
-    .catch(function(e) {
+    .catch(function() {
       loading.style.display = 'none';
       btn.disabled = false;
       btn.textContent = 'Generate AI Recommendations';
