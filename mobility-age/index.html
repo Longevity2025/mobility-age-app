@@ -1861,7 +1861,7 @@ Drop this whole block just before
 </div>
 
 <!-- AI Recommendations Section -->
-<section id="hsmi-recs" style="display:none; margin-top:1.5rem;">
+<section id="hsmi-recs" class="hsmi-recs-hidden" style="margin-top:1.5rem;">
   <h2 style="margin:0 0 1rem; font-size:1.2rem; font-weight:900;">AI Recommendations</h2>
   <div style="font-size:13px; color:#555; background:#f0f4f8; border-radius:10px; padding:10px 14px; margin-bottom:1rem; line-height:1.5;">
     Grip Strength, Postural Sway, and Mid-Thigh Pull scores use vendor-supplied norms. VO₂ Max, TUG, and Sit &amp; Reach percentiles are estimated from Z-scores using internal normative data.
@@ -1873,6 +1873,7 @@ Drop this whole block just before
 </section>
 
 <style>
+@media screen { .hsmi-recs-hidden { display:none; } }
 .rec-card { border:2px solid #cbd5e1; border-radius:16px; padding:1.1rem 1.25rem; margin-bottom:0.9rem; background:#fff; page-break-inside:avoid; }
 .rec-card-header { display:flex; align-items:flex-start; gap:10px; margin-bottom:0.6rem; }
 .rec-card-title { font-size:1rem; font-weight:900; margin:0 0 2px; color:#0b141a; }
@@ -1888,6 +1889,7 @@ Drop this whole block just before
   #hsmi-recs { display:block !important; }
   #btnPrintRecs { display:none !important; }
   #hsmi-recs-loading, #hsmi-recs-error { display:none !important; }
+  .hsmi-recs-hidden { display:none !important; }
 }
 </style>
 
@@ -1961,7 +1963,7 @@ Drop this whole block just before
     if (!age || !sex) {
       errEl.textContent = 'Please fill in all required fields and calculate scores first.';
       errEl.style.display = 'block';
-      section.style.display = 'block';
+      section.classList.remove('hsmi-recs-hidden');
       section.scrollIntoView({ behavior: 'smooth' });
       return;
     }
@@ -1970,7 +1972,7 @@ Drop this whole block just before
     var cards    = document.getElementById('hsmi-recs-cards');
     var printBtn = document.getElementById('btnPrintRecs');
 
-    section.style.display = 'block';
+    section.classList.remove('hsmi-recs-hidden');
     loading.style.display = 'block';
     cards.innerHTML = '';
     errEl.style.display = 'none';
@@ -2026,6 +2028,8 @@ Drop this whole block just before
         cards.appendChild(card);
       });
 
+      // Remove inline display:none so the section clones correctly into the print path
+      section.style.removeProperty('display');
       printBtn.style.display = 'block';
     })
     .catch(function() {
