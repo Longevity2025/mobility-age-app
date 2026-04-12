@@ -141,13 +141,19 @@ PRIMARY CONCERN: ${readable('q25')}`;
   }
 
   // Step 2: Format report as HTML email
+  function mdToHtml(text) {
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+  }
+
   const reportHtml = report
     .split('\n')
     .map(line => {
       if (!line.trim()) return '<br>';
-      if (line.match(/^#+\s/)) return `<h3 style="color:#1A6B8A;margin:1rem 0 0.4rem;">${line.replace(/^#+\s/, '')}</h3>`;
-      if (line.match(/^\d+\.\s/)) return `<p style="margin:0.4rem 0;"><strong>${line}</strong></p>`;
-      return `<p style="margin:0.3rem 0;line-height:1.6;">${line}</p>`;
+      if (line.match(/^#+\s/)) return `<h3 style="color:#1A6B8A;margin:1rem 0 0.4rem;">${mdToHtml(line.replace(/^#+\s/, ''))}</h3>`;
+      if (line.match(/^\d+\.\s/)) return `<p style="margin:0.4rem 0;"><strong>${mdToHtml(line)}</strong></p>`;
+      return `<p style="margin:0.3rem 0;line-height:1.6;">${mdToHtml(line)}</p>`;
     })
     .join('');
 
