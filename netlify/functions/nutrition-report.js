@@ -205,7 +205,7 @@ DIETARY VARIETY & LIMITS:
 <body style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:0;background:#F4F6F9;">
   <div style="background:#2E6B4F;padding:1.5rem 2rem;border-radius:8px 8px 0 0;">
     <h1 style="color:#fff;margin:0;font-size:1.4rem;font-weight:600;">Nutrition Assessment Report</h1>
-    <p style="color:#C8E6D6;margin:0.3rem 0 0;font-size:0.85rem;">Health Span Mobility Index &nbsp;&middot;&nbsp; Submitted ${submittedAt}</p>
+    <p style="color:#C8E6D6;margin:0.3rem 0 0;font-size:0.85rem;">Ovation Personalized Longevity Plan &nbsp;&middot;&nbsp; Submitted ${submittedAt}</p>
   </div>
   <div style="background:#fff;padding:1.5rem 2rem;border-left:1px solid #E2E8F0;border-right:1px solid #E2E8F0;">
     <table style="width:100%;border-collapse:collapse;font-size:0.85rem;margin-bottom:1.5rem;">
