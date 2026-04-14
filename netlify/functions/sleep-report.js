@@ -213,7 +213,7 @@ PRIMARY CONCERN: ${readable('q25')}`;
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
       },
       JSON.stringify({
-        from: 'HSMI Sleep Assessment <onboarding@resend.dev>',
+        from: 'Ovation PLP Sleep Assessment <onboarding@resend.dev>',
         to: ['mdwolf@ccphp.net'],
         subject: `Sleep Assessment Report - ${member_id || 'Member'} - Coach: ${assigned_coach || 'Unassigned'} - ${intake_date || submittedAt}`,
         html: emailHtml
