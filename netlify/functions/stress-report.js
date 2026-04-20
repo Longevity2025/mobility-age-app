@@ -157,6 +157,27 @@ WORK & LIFE BALANCE:
       <tr><td style="padding:0.4rem 0.75rem;color:#6B7280;">Assigned Coach</td><td style="padding:0.4rem 0.75rem;font-weight:500;">${assigned_coach || '&mdash;'}</td></tr>
       <tr style="background:#F7F7FD;"><td style="padding:0.4rem 0.75rem;color:#6B7280;">Assessment Date</td><td style="padding:0.4rem 0.75rem;">${intake_date || '&mdash;'}</td></tr>
     </table>
+    <div style="margin-bottom:1.5rem;">
+      <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+        <tr style="background:#E0DFFA;"><td colspan="3" style="padding:0.5rem 0.75rem;font-weight:600;color:#3D3A8A;">Raw Assessment Answers</td></tr>
+        <tr style="background:#F7F7FD;">
+          <th style="padding:0.4rem 0.75rem;text-align:left;color:#6B7280;width:10%;">Q</th>
+          <th style="padding:0.4rem 0.75rem;text-align:left;color:#6B7280;width:15%;">Code</th>
+          <th style="padding:0.4rem 0.75rem;text-align:left;color:#6B7280;">Answer</th>
+        </tr>
+        ${Array.from({length: 25}, (_, i) => {
+          const qKey = `q${i + 1}`;
+          const code = answers?.[qKey] || '—';
+          const label = readable(qKey);
+          const bg = i % 2 === 0 ? '#fff' : '#F7F7FD';
+          return `<tr style="background:${bg};">
+            <td style="padding:0.35rem 0.75rem;color:#6B7280;">Q${i + 1}</td>
+            <td style="padding:0.35rem 0.75rem;font-weight:500;">${code}</td>
+            <td style="padding:0.35rem 0.75rem;">${label}</td>
+          </tr>`;
+        }).join('')}
+      </table>
+    </div>
     <div style="border-top:2px solid #3D3A8A;padding-top:1.25rem;">
       <h2 style="color:#3D3A8A;font-size:1.1rem;margin:0 0 1rem;">Coaching Report</h2>
       ${reportHtml}
