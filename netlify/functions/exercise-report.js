@@ -1,12 +1,33 @@
 // netlify/functions/exercise-report.js
-// Ovation Personalized Longevity Plan — Exercise Assessment 
-// Receives form payload, generates AI report via Claude, sends via Resend.
+// Ovation Personalized Longevity Plan — Exercise Assessment
+// Uses native Node.js https — no npm dependencies required.
 
-const Anthropic = require('@anthropic-ai/sdk');
-const { Resend } = require('resend');
+const https = require('https');
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const resend = new Resend(process.env.RESEND_API_KEY);
+// ── Native https helpers ──────────────────────────────────────────────────────
+
+function httpsPost(url, headers, body) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname,
+      method: 'POST',
+      headers: { ...headers, 'Content-Length': Buffer.byteLength(body) }
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch { resolve(data); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 // ── Question & answer label maps ─────────────────────────────────────────────
 
@@ -58,12 +79,7 @@ const ANSWER_LABELS = {
   q6:  { a:'150+ minutes', b:'90–149 minutes', c:'30–89 minutes', d:'Less than 30 minutes' },
   q7:  { a:'Very consistent — rarely misses', b:'Fairly consistent — misses occasionally', c:'Inconsistent — good weeks and bad weeks', d:'Very inconsistent or no routine' },
   q8:  { a:'Regularly (most weeks)', b:'Sometimes (a few times a month)', c:'Rarely', d:'Always exercises at the same pace' },
-  q9:  {
-    walking_hiking:'Walking or hiking', running_jogging:'Running or jogging', cycling:'Cycling (outdoor or stationary)',
-    swimming:'Swimming or water aerobics', group_fitness:'Group fitness classes', racquet_sports:'Racquet sports',
-    rowing_kayaking:'Rowing or kayaking', dance:'Dance', team_sports:'Team or field sports',
-    cardio_machines:'Elliptical/stair climber/cardio machines', yoga_pilates:'Yoga or Pilates (cardio/flow)', none:'None'
-  },
+  q9:  { walking_hiking:'Walking or hiking', running_jogging:'Running or jogging', cycling:'Cycling (outdoor or stationary)', swimming:'Swimming or water aerobics', group_fitness:'Group fitness classes', racquet_sports:'Racquet sports', rowing_kayaking:'Rowing or kayaking', dance:'Dance', team_sports:'Team or field sports', cardio_machines:'Elliptical/stair climber/cardio machines', yoga_pilates:'Yoga or Pilates (cardio/flow)', none:'None' },
   q10: { a:'Yes — checks regularly, influences training', b:'Yes — rarely looks at data', c:'Has one but inconsistent use', d:'No tracking device or app' },
   q11: { a:'3+ days/week', b:'2 days/week', c:'1 day/week', d:'Rarely or never' },
   q12: { a:'2+ years', b:'6 months to 2 years', c:'Less than 6 months', d:'Little or no experience' },
@@ -93,7 +109,6 @@ const ANSWER_LABELS = {
   q36: { a:'Very satisfied — strong, capable, and active', b:'Somewhat satisfied — okay but could do more', c:'Not very satisfied — below where they want to be', d:'Very unsatisfied — feels out of shape or limited' },
 };
 
-// Multi-select questions
 const MULTI_SELECT_QS = ['q9', 'q34'];
 
 // ── Format answers for AI prompt ─────────────────────────────────────────────
@@ -102,7 +117,6 @@ function formatAnswers(answers) {
   return Object.entries(QUESTIONS).map(([qKey, qText]) => {
     const raw = answers[qKey];
     let label = 'Not answered';
-
     if (raw !== null && raw !== undefined) {
       if (MULTI_SELECT_QS.includes(qKey)) {
         const vals = Array.isArray(raw) ? raw : [raw];
@@ -113,16 +127,14 @@ function formatAnswers(answers) {
         label = ANSWER_LABELS[qKey]?.[raw] || raw;
       }
     }
-
     return `${qKey.toUpperCase()} — ${qText}\nResponse: ${label}`;
   }).join('\n\n');
 }
 
-// ── AI report generation ─────────────────────────────────────────────────────
+// ── AI report generation via native https ────────────────────────────────────
 
 async function generateReport(payload) {
   const { member_id, dob, sex, assigned_coach, intake_date, answers } = payload;
-
   const formattedAnswers = formatAnswers(answers);
 
   const prompt = `You are an expert exercise physiologist and health coach preparing a structured clinical assessment report for a longevity medicine practice.
@@ -171,19 +183,30 @@ Any additional observations, cautions, or conversation starters the coach should
 
 Be direct and specific. Avoid generic advice. Tailor every observation to this member's actual responses.`;
 
-  const response = await anthropic.messages.create({
+  const requestBody = JSON.stringify({
     model: 'claude-opus-4-5',
     max_tokens: 2000,
     messages: [{ role: 'user', content: prompt }]
   });
 
+  const response = await httpsPost(
+    'https://api.anthropic.com/v1/messages',
+    {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    requestBody
+  );
+
   return response.content[0].text;
 }
 
-// ── Email formatting ──────────────────────────────────────────────────────────
+// ── Send email via Resend native https ───────────────────────────────────────
 
-function buildEmailHtml(report, payload) {
+async function sendEmail(report, payload) {
   const { member_id, dob, sex, assigned_coach, intake_date } = payload;
+
   const escaped = report
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -191,7 +214,7 @@ function buildEmailHtml(report, payload) {
     .replace(/\n\n/g, '</p><p>')
     .replace(/\n/g, '<br>');
 
-  return `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"></head>
 <body style="font-family:'Helvetica Neue',Arial,sans-serif;background:#F4F6F9;margin:0;padding:2rem 1rem;">
@@ -229,6 +252,25 @@ function buildEmailHtml(report, payload) {
   </div>
 </body>
 </html>`;
+
+  const memberName = member_id || 'a member';
+  const coachName  = assigned_coach || 'Your Coach';
+
+  const emailBody = JSON.stringify({
+    from:    process.env.RESEND_FROM_EMAIL,
+    to:      [process.env.RESEND_TO_EMAIL],
+    subject: `Exercise Assessment — ${memberName} (Coach: ${coachName})`,
+    html,
+  });
+
+  await httpsPost(
+    'https://api.resend.com/emails',
+    {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.RESEND_API_KEY}`
+    },
+    emailBody
+  );
 }
 
 // ── Netlify handler ───────────────────────────────────────────────────────────
@@ -247,18 +289,7 @@ exports.handler = async function(event) {
 
   try {
     const report = await generateReport(payload);
-    const html   = buildEmailHtml(report, payload);
-
-    const coachName = payload.assigned_coach || 'Your Coach';
-    const memberName = payload.member_id || 'a member';
-
-    await resend.emails.send({
-      from:    process.env.RESEND_FROM_EMAIL,
-      to:      [process.env.RESEND_TO_EMAIL],
-      subject: `Exercise Assessment — ${memberName} (Coach: ${coachName})`,
-      html,
-    });
-
+    await sendEmail(report, payload);
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true }),
