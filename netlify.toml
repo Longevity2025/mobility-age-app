@@ -9,3 +9,6 @@
 
 [functions."stress-report"]
   timeout = 30
+
+[functions."exercise-report"]
+  timeout = 30
