@@ -82,7 +82,7 @@ const ANSWER_LABELS = {
   q9:  { walking_hiking:'Walking or hiking', running_jogging:'Running or jogging', cycling:'Cycling (outdoor or stationary)', swimming:'Swimming or water aerobics', group_fitness:'Group fitness classes', racquet_sports:'Racquet sports', rowing_kayaking:'Rowing or kayaking', dance:'Dance', team_sports:'Team or field sports', cardio_machines:'Elliptical/stair climber/cardio machines', yoga_pilates:'Yoga or Pilates (cardio/flow)', none:'None' },
   q10: { a:'Yes - checks regularly, influences training', b:'Yes - rarely looks at data', c:'Has one but inconsistent use', d:'No tracking device or app' },
   q11: { a:'3+ days/week', b:'2 days/week', c:'1 day/week', d:'Rarely or never' },
-  q12: { a:'2+ years', b:'6 months to 2 years', c:'Less than 6 months', d:'Little or no experience' },
+  q12: { a:'2+ years', b:'6 months to 2 years', c:'Less than 6 months', d:'Little or no experience', e:'Not currently strength training' },
   q13: { a:'Full body - upper, lower, and core', b:'Mostly one or two areas, neglects others', c:'Mostly core or toning', d:'Does not do strength training' },
   q14: { a:'Most sessions', b:'About half the time', c:'Rarely - keeps it light', d:'Does not do strength training' },
   q15: { a:'Structured program with progressive overload', b:'Loose plan, adjusts often', c:'No plan - does whatever feels right', d:'Does not do strength training' },
@@ -138,7 +138,7 @@ function formatAnswers(answers) {
 async function generateReport(member_id, dob, sex, assigned_coach, intake_date, answers) {
   var formattedAnswers = formatAnswers(answers);
 
-  var prompt = 'You are an exercise physiologist writing a concise clinical intake report for a longevity health coach. Be direct and specific. No generic advice. Write at a Flesch-Kincaid grade 6-8 reading level — clear, plain language that is easy to read quickly.\n\n' + +
+  var prompt = 'You are an exercise physiologist writing a concise clinical intake report for a longevity health coach. Be direct and specific. No generic advice.\n\n' +
     'MEMBER: ' + member_id + ' | DOB: ' + (dob || 'N/A') + ' | Sex: ' + (sex || 'N/A') + ' | Coach: ' + assigned_coach + ' | Date: ' + intake_date + '\n\n' +
     'RESPONSES:\n' + formattedAnswers + '\n\n' +
     'Write a report with these sections (2-3 sentences each):\n' +
@@ -179,13 +179,41 @@ async function generateReport(member_id, dob, sex, assigned_coach, intake_date, 
 
 // ── Send email via Resend ─────────────────────────────────────────────────────
 
-async function sendEmail(report, member_id, dob, sex, assigned_coach, intake_date) {
+async function sendEmail(report, member_id, dob, sex, assigned_coach, intake_date, answers) {
   var escaped = report
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\n\n/g, '</p><p>')
     .replace(/\n/g, '<br>');
+
+  // Build answers table rows
+  var answerRows = Object.entries(QUESTIONS).map(function(entry) {
+    var qKey = entry[0];
+    var qText = entry[1];
+    var raw = answers[qKey];
+    var code = Array.isArray(raw) ? raw.join(', ') : (raw || '--');
+    var label = '--';
+    if (raw !== null && raw !== undefined) {
+      if (MULTI_SELECT_QS.indexOf(qKey) !== -1) {
+        var vals = Array.isArray(raw) ? raw : [raw];
+        label = vals.map(function(v) { return (ANSWER_LABELS[qKey] && ANSWER_LABELS[qKey][v]) ? ANSWER_LABELS[qKey][v] : v; }).join('; ');
+      } else {
+        label = (ANSWER_LABELS[qKey] && ANSWER_LABELS[qKey][raw]) ? ANSWER_LABELS[qKey][raw] : raw;
+      }
+    }
+    return '<tr><td style="padding:0.25rem 0.75rem;border:1px solid #E2E8F0;font-weight:600;color:#6B7280;">' + qKey.toUpperCase() + '</td>' +
+      '<td style="padding:0.25rem 0.75rem;border:1px solid #E2E8F0;color:#6B7280;">' + code + '</td>' +
+      '<td style="padding:0.25rem 0.75rem;border:1px solid #E2E8F0;color:#1A1A2E;">' + label + '</td></tr>';
+  }).join('');
+
+  var answersTable = '<div style="padding:1.5rem 2rem;border-top:1px solid #E2E8F0;">' +
+    '<div style="font-size:0.75rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#1A6B8A;background:#D0E8F2;padding:0.5rem 0.75rem;margin-bottom:0;">Raw Assessment Answers</div>' +
+    '<table style="width:100%;font-size:0.8rem;border-collapse:collapse;">' +
+    '<tr style="background:#F4F6F9;"><th style="padding:0.35rem 0.75rem;border:1px solid #E2E8F0;text-align:left;color:#374151;">Q</th>' +
+    '<th style="padding:0.35rem 0.75rem;border:1px solid #E2E8F0;text-align:left;color:#374151;">Code</th>' +
+    '<th style="padding:0.35rem 0.75rem;border:1px solid #E2E8F0;text-align:left;color:#374151;">Answer</th></tr>' +
+    answerRows + '</table></div>';
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>' +
     '<body style="font-family:\'Helvetica Neue\',Arial,sans-serif;background:#F4F6F9;margin:0;padding:2rem 1rem;">' +
@@ -203,12 +231,13 @@ async function sendEmail(report, member_id, dob, sex, assigned_coach, intake_dat
     '<tr><td style="padding:0.3rem 1rem 0.3rem 0;font-weight:600;color:#6B7280;">Date</td><td style="padding:0.3rem 0;" colspan="3">' + (intake_date || '--') + '</td></tr>' +
     '</table></div>' +
     '<div style="padding:2rem;font-size:0.9rem;line-height:1.75;color:#1A1A2E;"><p>' + escaped + '</p></div>' +
+    answersTable +
     '<div style="padding:1rem 2rem;background:#F8FAFB;border-top:1px solid #E2E8F0;font-size:0.75rem;color:#9CA3AF;text-align:center;">Generated by Ovation AI &nbsp;&middot;&nbsp; Confidential -- For coaching use only</div>' +
     '</div></body></html>';
 
   var emailBody = JSON.stringify({
-    from: 'Ovation PLP Exercise Assessment <onboarding@resend.dev>',
-    to: ['mdwolf@ccphp.net'],
+    from: process.env.RESEND_FROM_EMAIL,
+    to: [process.env.RESEND_TO_EMAIL],
     subject: 'Exercise Assessment -- ' + (member_id || 'Member') + ' (Coach: ' + (assigned_coach || 'N/A') + ')',
     html: html
   });
@@ -270,7 +299,7 @@ exports.handler = async function(event) {
     console.log('Report generated, length:', report.length);
 
     console.log('Sending email via Resend...');
-    await sendEmail(report, member_id, dob, sex, assigned_coach, intake_date);
+    await sendEmail(report, member_id, dob, sex, assigned_coach, intake_date, answers);
     console.log('Email sent.');
 
     return {
