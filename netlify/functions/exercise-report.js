@@ -138,7 +138,7 @@ function formatAnswers(answers) {
 async function generateReport(member_id, dob, sex, assigned_coach, intake_date, answers) {
   var formattedAnswers = formatAnswers(answers);
 
-  var prompt = 'You are an exercise physiologist writing a concise clinical intake report for a longevity health coach. Be direct and specific. No generic advice.\n\n' +
+  var prompt = 'You are an exercise physiologist writing a concise clinical intake report for a longevity health coach. Be direct and specific. No generic advice. Write at a Flesch-Kincaid grade 6-8 reading level — clear, plain language that is easy to read quickly.\n\n' + +
     'MEMBER: ' + member_id + ' | DOB: ' + (dob || 'N/A') + ' | Sex: ' + (sex || 'N/A') + ' | Coach: ' + assigned_coach + ' | Date: ' + intake_date + '\n\n' +
     'RESPONSES:\n' + formattedAnswers + '\n\n' +
     'Write a report with these sections (2-3 sentences each):\n' +
