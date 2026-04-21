@@ -208,7 +208,7 @@ async function sendEmail(report, member_id, dob, sex, assigned_coach, intake_dat
 
   var emailBody = JSON.stringify({
     from: process.env.RESEND_FROM_EMAIL,
-    to: [process.env.RESEND_TO_EMAIL],
+    to: process.env.RESEND_TO_EMAIL,
     subject: 'Exercise Assessment -- ' + (member_id || 'Member') + ' (Coach: ' + (assigned_coach || 'N/A') + ')',
     html: html
   });
