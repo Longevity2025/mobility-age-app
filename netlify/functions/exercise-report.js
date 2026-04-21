@@ -253,21 +253,19 @@ exports.handler = async function(event) {
   }
 
   let payload;
-  try {
-    payload = JSON.parse(event.body);
-  } catch (err) {
-    return { statusCode: 400, body: 'Invalid JSON' };
-  }
-
-  try {
+try {
+    console.log('Generating report...');
     const report = await generateReport(payload);
+    console.log('Report generated, length:', report.length);
     await sendEmail(report, payload);
+    console.log('Email sent successfully');
     return {
       statusCode: 200,
       body: JSON.stringify({ success: true }),
     };
   } catch (err) {
     console.error('exercise-report error:', err);
+    console.error('Error stack:', err.stack);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
