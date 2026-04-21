@@ -207,8 +207,8 @@ async function sendEmail(report, member_id, dob, sex, assigned_coach, intake_dat
     '</div></body></html>';
 
   var emailBody = JSON.stringify({
-    from: process.env.RESEND_FROM_EMAIL,
-    to: process.env.RESEND_TO_EMAIL,
+    from: 'Ovation PLP Exercise Assessment <onboarding@resend.dev>',
+    to: ['mdwolf@ccphp.net'],
     subject: 'Exercise Assessment -- ' + (member_id || 'Member') + ' (Coach: ' + (assigned_coach || 'N/A') + ')',
     html: html
   });
