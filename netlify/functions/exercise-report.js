@@ -137,55 +137,27 @@ async function generateReport(payload) {
   const { member_id, dob, sex, assigned_coach, intake_date, answers } = payload;
   const formattedAnswers = formatAnswers(answers);
 
-  const prompt = `You are an expert exercise physiologist and health coach preparing a structured clinical assessment report for a longevity medicine practice.
+  const prompt = `You are an exercise physiologist writing a concise clinical intake report for a longevity health coach. Be direct and specific — 2-3 sentences per section maximum. No generic advice.
 
-MEMBER INFORMATION
-- Name / ID: ${member_id}
-- Date of Birth: ${dob || 'Not provided'}
-- Biological Sex: ${sex || 'Not provided'}
-- Assigned Coach: ${assigned_coach}
-- Assessment Date: ${intake_date}
+MEMBER: ${member_id} | DOB: ${dob || 'N/A'} | Sex: ${sex || 'N/A'} | Coach: ${assigned_coach} | Date: ${intake_date}
 
-EXERCISE ASSESSMENT RESPONSES
+RESPONSES:
 ${formattedAnswers}
 
-REPORT INSTRUCTIONS
-Write a thorough, clinically grounded exercise assessment report for the assigned coach. The report should read like it was written by a senior exercise physiologist reviewing a new client intake. Use plain but professional language — no jargon for jargon's sake.
-
-Structure the report with the following sections:
-
-1. OVERVIEW
-A 3–5 sentence summary of this member's exercise profile: their history, current activity patterns, and overall fitness picture. Flag the most important clinical signals upfront.
-
-2. AEROBIC FITNESS
-Analyze aerobic frequency, duration, intensity, consistency, and weekly volume against established guidelines (e.g., 150 min/week moderate or 75 min vigorous). Comment on activity variety and whether the member is meeting, exceeding, or falling short of targets. Note the activity types they selected and how these inform coaching.
-
-3. STRENGTH TRAINING
-Assess strength training frequency, experience level, program structure, muscle group coverage, lower body inclusion, training intensity, and form confidence. Comment on gaps, imbalances, and readiness for progression.
-
-4. FLEXIBILITY, MOBILITY & BALANCE
-Review stretching habits, self-reported flexibility, intentional balance training, incidental balance challenge through sport/recreation, daily stability, joint discomfort frequency, and warm-up/cool-down habits. Flag any balance or mobility concerns appropriate for their age range.
-
-5. DAILY MOVEMENT & SEDENTARY BEHAVIOR
-Assess sitting time, movement break habits, step count, incidental activity, and stair/elevator behavior. Note whether sedentary patterns are offsetting formal exercise gains.
-
-6. INJURY HISTORY & PHYSICAL LIMITATIONS
-Summarize recent injury/surgery/chronic condition history and current exercise restrictions. Note any areas requiring modification and flag if physician clearance or specialist referral may be warranted.
-
-7. MINDSET, MOTIVATION & RECOVERY
-Assess the member's relationship with exercise, barriers, recovery quality, and overall fitness satisfaction. Note motivational levers and potential friction points for the coaching relationship.
-
-8. PRIORITY COACHING RECOMMENDATIONS
-List 4–6 specific, actionable recommendations ranked by impact. Each should be concrete enough for the coach to discuss or implement at the first session. Tie each recommendation to the assessment data.
-
-9. COACH NOTES
-Any additional observations, cautions, or conversation starters the coach should be aware of heading into the first session.
-
-Be direct and specific. Avoid generic advice. Tailor every observation to this member's actual responses.`;
+Write a brief report with these sections (2-3 sentences each):
+1. OVERVIEW — fitness history and overall picture
+2. AEROBIC FITNESS — vs. 150 min/week guideline, activity types
+3. STRENGTH TRAINING — frequency, structure, gaps
+4. FLEXIBILITY, MOBILITY & BALANCE — stretching, balance training, joint issues
+5. DAILY MOVEMENT — sitting time, steps, incidental activity
+6. INJURY & LIMITATIONS — history and current restrictions
+7. MINDSET & RECOVERY — motivation, barriers, recovery quality
+8. TOP RECOMMENDATIONS — 4 specific actions tied to their data
+9. COACH NOTES — key conversation starters`;
 
   const requestBody = JSON.stringify({
     model: 'claude-opus-4-5',
-    max_tokens: 2000,
+    max_tokens: 1200,
     messages: [{ role: 'user', content: prompt }]
   });
 
