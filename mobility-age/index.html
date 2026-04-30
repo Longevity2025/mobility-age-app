@@ -1882,6 +1882,7 @@ Drop this whole block just before
     'mtp_kg','mtp_pct',
     'sway_r_cms','sway_r_pct','sway_l_cms','sway_l_pct',
     'grip_r_kg','grip_r_pct','grip_l_kg','grip_l_pct',
+    'mae_sitreach','mae_tug','mae_mtp','mae_sway','mae_grip','mae_vo2',
     'mobility_age'
   ];
   const MAP_KEYS_ORDER = ['age','sex','tester','location','vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','sitreach_in'];
@@ -1923,6 +1924,23 @@ Drop this whole block just before
   function buildRef(el){ if(!el) return null; if(el.id) return {type:'id',value:el.id}; const cls=(el.className||'').split(/\s+/).filter(Boolean).slice(0,2).join('.'); if(cls){ const sel=`${el.tagName.toLowerCase()}.${cls}`; try{ const found=document.querySelector(sel); if(found===el) return {type:'selector',value:sel}; }catch(e){} } const parts=[]; let n=el; while(n && n.nodeType===1 && n!==document.documentElement){ const tag=n.nodeName.toLowerCase(); const sibs=[...n.parentNode?.children||[]].filter(x=>x.nodeName===n.nodeName); const idx=sibs.indexOf(n)+1; parts.unshift(`${tag}[${idx}]`); if(tag==='table') break; n=n.parentNode; } return {type:'xpath', value:'/'+parts.join('/')}; }
 
   const getMobilityAge=()=>{ const v=numFrom(document.querySelector('#final')); return v!==''? v:''; };
+
+  // Read the 6 individual MAE values from the results table (#rows).
+  // Row order matches render order: sit, tug, mtp, sway, grip, vo2.
+  // Each row's 3rd cell contains text like "Younger 34.56" — we extract the number.
+  const getMaes=()=>{
+    const keys=['mae_sitreach','mae_tug','mae_mtp','mae_sway','mae_grip','mae_vo2'];
+    const out={}; keys.forEach(k=>{ out[k]=''; });
+    const rows=[...document.querySelectorAll('#rows tr')];
+    rows.forEach(function(tr,i){
+      if(i>=keys.length) return;
+      const cells=[...tr.querySelectorAll('td')];
+      if(cells.length<3) return;
+      const v=numFirst(cells[2].textContent);
+      out[keys[i]] = v!=='' ? v : '';
+    });
+    return out;
+  };
 
   const LABEL_MAP=[
     {key:'vo2_mlkgmin', re:/vo\s*2|v[\.\u0307]?o\s*2|oxygen|ml\s*\/\s*kg\s*\/\s*min/i},
@@ -1967,6 +1985,7 @@ Drop this whole block just before
       grip_r_pct: getValFromMap('grip_r_pct') || labels.grip_r_pct || '',
       grip_l_kg:  (document.getElementById('grip_l_raw')||{}).value || '',
       grip_l_pct: getValFromMap('grip_l_pct') || labels.grip_l_pct || '',
+      ...getMaes(),
       mobility_age: getMobilityAge()
     };
 
