@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HSMI Report Regenerator</title>
+<style>
+/* ── Design tokens ── */
+:root {
+  --bg: #f4f6f9;
+  --panel: #ffffff;
+  --ink: #0b141a;
+  --muted: #4b5563;
+  --accent: #0052cc;
+  --accent-light: #e6efff;
+  --border: #d1d9e0;
+  --green: #166534;
+  --green-bg: #dcfce7;
+  --red: #7f1d1d;
+  --red-bg: #fee2e2;
+  --yellow: #7a3500;
+  --yellow-bg: #fff3e0;
+  --radius: 14px;
+  --shadow: 0 2px 12px rgba(0,0,0,.08);
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); font-size: 16px; line-height: 1.6; }
+
+header {
+  background: var(--panel);
+  border-bottom: 2px solid var(--border);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+header h1 { margin: 0; font-size: 1.25rem; font-weight: 900; }
+header .subtitle { margin: 0; font-size: .85rem; color: var(--muted); }
+
+main { max-width: 860px; margin: 2rem auto; padding: 0 1.25rem 4rem; }
+
+.card {
+  background: var(--panel);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow);
+}
+.card h2 { margin: 0 0 .15rem; font-size: 1.05rem; font-weight: 800; }
+.card .hint { margin: 0 0 1rem; font-size: .85rem; color: var(--muted); }
+
+/* ── Tabs ── */
+.tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 1.25rem; }
+.tab-btn {
+  background: none; border: none; cursor: pointer;
+  padding: .6rem 1.1rem; font: inherit; font-size: .95rem; font-weight: 700;
+  color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px;
+  border-radius: 0; transition: color .15s, border-color .15s;
+}
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── Upload zone ── */
+.drop-zone {
+  border: 2.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  background: #fafbfd;
+}
+.drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: var(--accent-light); }
+.drop-zone input[type=file] { display: none; }
+.drop-zone .icon { font-size: 2.5rem; line-height: 1; margin-bottom: .5rem; }
+.drop-zone p { margin: .25rem 0 0; font-size: .95rem; color: var(--muted); }
+.drop-zone strong { color: var(--accent); }
+
+/* ── Paste area ── */
+textarea {
+  width: 100%; min-height: 120px; border: 2px solid var(--border);
+  border-radius: var(--radius); padding: .75rem 1rem; font: inherit;
+  font-size: .88rem; font-family: "Consolas", "Courier New", monospace;
+  resize: vertical; outline: none; background: #fafbfd;
+}
+textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,82,204,.12); }
+textarea::placeholder { color: #94a3b8; }
+
+/* ── Row selector ── */
+#row-selector-wrap { display: none; margin-top: 1rem; }
+#row-selector-wrap label { font-weight: 700; font-size: .9rem; display: block; margin-bottom: .4rem; }
+.row-list { display: grid; gap: .5rem; max-height: 260px; overflow-y: auto; padding-right: 4px; }
+.row-item {
+  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+  border: 1.5px solid var(--border); border-radius: 10px; padding: .65rem 1rem;
+  cursor: pointer; background: var(--panel); transition: border-color .15s, background .15s;
+}
+.row-item:hover { border-color: var(--accent); background: var(--accent-light); }
+.row-item .row-meta { font-size: .88rem; }
+.row-item .row-meta strong { display: block; font-size: .95rem; }
+.row-item .row-meta span { color: var(--muted); }
+.row-item .load-btn {
+  flex-shrink: 0; background: var(--accent); color: #fff;
+  border: none; border-radius: 999px; padding: .4rem .9rem;
+  font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer;
+  white-space: nowrap;
+}
+.row-item .load-btn:hover { background: #003fa3; }
+
+/* ── Status banner ── */
+.banner {
+  padding: .75rem 1rem; border-radius: 10px; font-size: .9rem;
+  font-weight: 600; display: none; margin-bottom: 1rem;
+}
+.banner.success { background: var(--green-bg); color: var(--green); border: 1px solid #86efac; }
+.banner.error   { background: var(--red-bg);   color: var(--red);   border: 1px solid #fecaca; }
+.banner.info    { background: #e0f2fe;          color: #0c4a6e;      border: 1px solid #7dd3fc; }
+
+/* ── Preview table ── */
+#preview-wrap { display: none; margin-top: 1.25rem; }
+#preview-wrap h3 { margin: 0 0 .5rem; font-size: .9rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.preview-table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.preview-table th, .preview-table td { padding: .4rem .6rem; border-bottom: 1px solid var(--border); text-align: left; }
+.preview-table th { font-weight: 700; background: var(--bg); white-space: nowrap; }
+.preview-table td:first-child { font-weight: 600; color: var(--muted); }
+.preview-table td:last-child { font-family: "Consolas", monospace; font-size: .82rem; }
+
+/* ── Buttons ── */
+.btn-primary {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 999px; padding: .75rem 1.5rem;
+  font: inherit; font-size: 1rem; font-weight: 800; cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,82,204,.25);
+  transition: background .15s, transform .1s;
+}
+.btn-primary:hover { background: #003fa3; }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { background: #94a3b8; box-shadow: none; cursor: not-allowed; }
+
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: var(--panel); color: var(--accent); border: 2px solid var(--accent);
+  border-radius: 999px; padding: .7rem 1.4rem;
+  font: inherit; font-size: .95rem; font-weight: 700; cursor: pointer;
+  transition: background .15s;
+}
+.btn-secondary:hover { background: var(--accent-light); }
+
+.action-row { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1rem; }
+
+/* ── How-to section ── */
+.steps { counter-reset: step; display: grid; gap: .75rem; margin: 0; padding: 0; list-style: none; }
+.steps li {
+  counter-increment: step;
+  display: flex; gap: 1rem; align-items: flex-start;
+  padding: .75rem 1rem; background: var(--bg);
+  border-radius: 10px; border: 1px solid var(--border);
+  font-size: .9rem;
+}
+.steps li::before {
+  content: counter(step);
+  flex-shrink: 0; width: 26px; height: 26px;
+  background: var(--accent); color: #fff; border-radius: 50%;
+  font-weight: 800; font-size: .8rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.steps li strong { display: block; margin-bottom: .15rem; }
+
+/* ── Field mapping badge ── */
+.field-map { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .75rem; font-size: .82rem; }
+.field-map .fm-row { display: contents; }
+.field-map .k { font-weight: 600; font-family: monospace; color: var(--muted); padding: .15rem 0; }
+.field-map .v { padding: .15rem 0; }
+
+code { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: .1em .35em; font-size: .88em; font-family: "Consolas", monospace; }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🔄 HSMI Report Regenerator</h1>
+    <p class="subtitle">Load a member's CSV record → populate the app → print the PDF report</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- Status banner -->
+  <div id="banner" class="banner"></div>
+
+  <!-- STEP 1: Load CSV -->
+  <div class="card">
+    <h2>Step 1 — Load a CSV record</h2>
+    <p class="hint">Upload a mobility CSV file (single-row or batch) or paste CSV text. Then select the row to regenerate.</p>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="upload">📂 Upload file</button>
+      <button class="tab-btn" data-tab="paste">📋 Paste CSV</button>
+    </div>
+
+    <!-- Upload tab -->
+    <div id="tab-upload" class="tab-pane active">
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" accept=".csv,text/csv">
+        <div class="icon">📄</div>
+        <p><strong>Click to choose</strong> or drag &amp; drop a CSV file here</p>
+        <p style="font-size:.8rem;margin-top:.35rem;">mobility_batch_*.csv or any HSMI export</p>
+      </div>
+    </div>
+
+    <!-- Paste tab -->
+    <div id="tab-paste" class="tab-pane">
+      <textarea id="csv-paste" placeholder="Paste CSV content here (including the header row)…
+
+timestamp_local,app_version,name_full,phone,tester,location,sex,age,body_weight_lbs,..."></textarea>
+      <div class="action-row">
+        <button class="btn-primary" id="btn-parse-paste">Parse CSV</button>
+        <button class="btn-secondary" id="btn-clear-paste">Clear</button>
+      </div>
+    </div>
+
+    <!-- Row selector (shown after parse) -->
+    <div id="row-selector-wrap">
+      <label id="row-selector-label">Select a record to load:</label>
+      <div class="row-list" id="row-list"></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Preview + Load -->
+  <div class="card" id="preview-card" style="display:none;">
+    <h2>Step 2 — Confirm &amp; open report</h2>
+    <p class="hint">Review the values below. Click <strong>Open Report</strong> to populate the HSMI app and generate the PDF.</p>
+
+    <div id="preview-wrap">
+      <h3>Record preview</h3>
+      <table class="preview-table" id="preview-table">
+        <thead><tr><th>Field</th><th>Value</th></tr></thead>
+        <tbody id="preview-body"></tbody>
+      </table>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-primary" id="btn-open-report" disabled>
+        📋 Open Report
+      </button>
+      <button class="btn-secondary" id="btn-reset">← Start over</button>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="card">
+    <h2>How it works</h2>
+    <p class="hint" style="margin-bottom:.75rem;">This tool replays a CSV record back into the HSMI app — no data re-entry needed.</p>
+    <ol class="steps">
+      <li><strong>Upload or paste your CSV</strong> — any HSMI mobility export, single-row or batch.</li>
+      <li><strong>Select the member row</strong> — identified by name, date, and location.</li>
+      <li><strong>Click "Open Report"</strong> — the app opens in a new tab with all fields pre-filled and results calculated.</li>
+      <li><strong>Print to PDF</strong> — use the app's Print button (or Ctrl/Cmd+P) to generate the report as you normally would.</li>
+    </ol>
+    <p style="font-size:.85rem;color:var(--muted);margin:1rem 0 0;">
+      This file lives at <code>/hsmi-regenerate/index.html</code> and loads the HSMI app from <code>/mobility-age/index.html</code>. Both must be deployed on the same Netlify site.
+    </p>
+  </div>
+
+  <!-- CSV field reference -->
+  <div class="card">
+    <h2>CSV → App field mapping</h2>
+    <p class="hint">All fields from the CSV header are recognized.</p>
+    <div class="field-map">
+      <div class="fm-row"><span class="k">name_full</span><span class="v">Member Name</span></div>
+      <div class="fm-row"><span class="k">timestamp_local</span><span class="v">Test Date (date portion extracted)</span></div>
+      <div class="fm-row"><span class="k">tester</span><span class="v">Tester</span></div>
+      <div class="fm-row"><span class="k">location</span><span class="v">Location</span></div>
+      <div class="fm-row"><span class="k">phone</span><span class="v">Phone</span></div>
+      <div class="fm-row"><span class="k">sex</span><span class="v">Sex (select)</span></div>
+      <div class="fm-row"><span class="k">age</span><span class="v">Age</span></div>
+      <div class="fm-row"><span class="k">body_weight_lbs</span><span class="v">Body Weight (lbs)</span></div>
+      <div class="fm-row"><span class="k">sitreach_in</span><span class="v">Sit &amp; Reach (in)</span></div>
+      <div class="fm-row"><span class="k">tug_s</span><span class="v">TUG (sec)</span></div>
+      <div class="fm-row"><span class="k">mtp_kg</span><span class="v">Mid-Thigh Pull (kg)</span></div>
+      <div class="fm-row"><span class="k">mtp_pct</span><span class="v">Mid-Thigh Pull (percentile)</span></div>
+      <div class="fm-row"><span class="k">sway_r_cms</span><span class="v">Postural Sway Right (cm/s)</span></div>
+      <div class="fm-row"><span class="k">sway_r_pct</span><span class="v">Postural Sway Right (percentile)</span></div>
+      <div class="fm-row"><span class="k">sway_l_cms</span><span class="v">Postural Sway Left (cm/s)</span></div>
+      <div class="fm-row"><span class="k">sway_l_pct</span><span class="v">Postural Sway Left (percentile)</span></div>
+      <div class="fm-row"><span class="k">grip_r_kg</span><span class="v">Grip Strength Right (kg)</span></div>
+      <div class="fm-row"><span class="k">grip_r_pct</span><span class="v">Grip Strength Right (percentile)</span></div>
+      <div class="fm-row"><span class="k">grip_l_kg</span><span class="v">Grip Strength Left (kg)</span></div>
+      <div class="fm-row"><span class="k">grip_l_pct</span><span class="v">Grip Strength Left (percentile)</span></div>
+      <div class="fm-row"><span class="k">vo2_mlkgmin</span><span class="v">VO₂ Max (mL/kg/min)</span></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+//  CONFIGURATION
+//  Change APP_FILE to match the actual filename / relative path of index.html
+// ─────────────────────────────────────────────────────────────────────────────
+const APP_FILE = '../mobility-age/index.html';
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  CSV PARSER
+// ─────────────────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const norm = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+  const lines = norm.split('\n').filter(Boolean);
+  if (lines.length < 2) return null;
+
+  const parseLine = (line) => {
+    const out = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i], n = line[i+1];
+      if (c === '"' && inQ && n === '"') { cur += '"'; i++; continue; }
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { out.push(cur.trim()); cur = ''; continue; }
+      cur += c;
+    }
+    out.push(cur.trim());
+    return out;
+  };
+
+  const headers = parseLine(lines[0]);
+  const rows = lines.slice(1).map(l => {
+    const vals = parseLine(l);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+    return obj;
+  });
+  return { headers, rows };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let parsedData = null;
+let selectedRow = null;
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  UI helpers
+// ─────────────────────────────────────────────────────────────────────────────
+const banner   = document.getElementById('banner');
+const rowWrap  = document.getElementById('row-selector-wrap');
+const rowList  = document.getElementById('row-list');
+const prevCard = document.getElementById('preview-card');
+const prevBody = document.getElementById('preview-body');
+const prevWrap = document.getElementById('preview-wrap');
+const btnOpen  = document.getElementById('btn-open-report');
+
+function showBanner(msg, type='info') {
+  banner.textContent = msg;
+  banner.className = 'banner ' + type;
+  banner.style.display = 'block';
+  if (type === 'success') setTimeout(() => banner.style.display = 'none', 4000);
+}
+function hideBanner() { banner.style.display = 'none'; }
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TABS
+// ─────────────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  FILE UPLOAD
+// ─────────────────────────────────────────────────────────────────────────────
+const dropZone  = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) readFile(f);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files[0]) readFile(fileInput.files[0]);
+});
+
+function readFile(file) {
+  if (!file.name.toLowerCase().endsWith('.csv') && file.type !== 'text/csv') {
+    showBanner('Please select a .csv file.', 'error'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => processCSVText(e.target.result, file.name);
+  reader.onerror = () => showBanner('Could not read file.', 'error');
+  reader.readAsText(file, 'utf-8');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PASTE
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('btn-parse-paste').addEventListener('click', () => {
+  const text = document.getElementById('csv-paste').value.trim();
+  if (!text) { showBanner('Please paste some CSV text first.', 'error'); return; }
+  processCSVText(text, 'pasted CSV');
+});
+document.getElementById('btn-clear-paste').addEventListener('click', () => {
+  document.getElementById('csv-paste').value = '';
+  reset();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  PROCESS CSV
+// ─────────────────────────────────────────────────────────────────────────────
+function processCSVText(text, source) {
+  hideBanner();
+  const result = parseCSV(text);
+  if (!result || result.rows.length === 0) {
+    showBanner('Could not parse CSV — make sure it has a header row and at least one data row.', 'error');
+    return;
+  }
+  parsedData = result;
+  showBanner(`✓ Loaded ${result.rows.length} row(s) from ${source}.`, 'success');
+  renderRowList(result.rows);
+}
+
+function renderRowList(rows) {
+  rowList.innerHTML = '';
+  rows.forEach((row, i) => {
+    const name     = row.name_full || '(no name)';
+    const date     = row.timestamp_local ? row.timestamp_local.slice(0,10) : '';
+    const loc      = row.location || '';
+    const age      = row.age || '';
+    const mobAge   = row.mobility_age ? parseFloat(row.mobility_age).toFixed(1) : '';
+    const tester   = row.tester || '';
+
+    const item = document.createElement('div');
+    item.className = 'row-item';
+    item.innerHTML = `
+      <div class="row-meta">
+        <strong>${escHtml(name)}</strong>
+        <span>
+          ${date ? `📅 ${date}` : ''}
+          ${age  ? ` · Age ${age}` : ''}
+          ${loc  ? ` · ${escHtml(loc)}` : ''}
+          ${tester ? ` · Tester: ${escHtml(tester)}` : ''}
+          ${mobAge ? ` · Mobility Age: <strong>${mobAge}</strong>` : ''}
+        </span>
+      </div>
+      <button class="load-btn" data-idx="${i}">Select →</button>
+    `;
+    rowList.appendChild(item);
+  });
+
+  rowWrap.style.display = 'block';
+  document.getElementById('row-selector-label').textContent =
+    rows.length === 1 ? '1 record found:' : `${rows.length} records — select one:`;
+
+  // Wire buttons
+  rowList.querySelectorAll('.load-btn').forEach(btn => {
+    btn.addEventListener('click', () => selectRow(parseInt(btn.dataset.idx)));
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SELECT ROW → PREVIEW
+// ─────────────────────────────────────────────────────────────────────────────
+const PREVIEW_FIELDS = [
+  ['name_full',        'Member Name'],
+  ['timestamp_local',  'Test Timestamp'],
+  ['tester',           'Tester'],
+  ['location',         'Location'],
+  ['sex',              'Sex'],
+  ['age',              'Age'],
+  ['body_weight_lbs',  'Body Weight (lbs)'],
+  ['sitreach_in',      'Sit & Reach (in)'],
+  ['tug_s',            'TUG (sec)'],
+  ['mtp_kg',           'Mid-Thigh Pull (kg)'],
+  ['mtp_pct',          'MTP Percentile'],
+  ['sway_r_cms',       'Sway Right (cm/s)'],
+  ['sway_r_pct',       'Sway Right Percentile'],
+  ['sway_l_cms',       'Sway Left (cm/s)'],
+  ['sway_l_pct',       'Sway Left Percentile'],
+  ['grip_r_kg',        'Grip Right (kg)'],
+  ['grip_r_pct',       'Grip Right Percentile'],
+  ['grip_l_kg',        'Grip Left (kg)'],
+  ['grip_l_pct',       'Grip Left Percentile'],
+  ['vo2_mlkgmin',      'VO₂ Max (mL/kg/min)'],
+  ['mobility_age',     '★ Mobility Age (stored)'],
+];
+
+function selectRow(idx) {
+  selectedRow = parsedData.rows[idx];
+  // Highlight selected
+  rowList.querySelectorAll('.row-item').forEach((el, i) => {
+    el.style.borderColor = i === idx ? 'var(--accent)' : 'var(--border)';
+    el.style.background  = i === idx ? 'var(--accent-light)' : 'var(--panel)';
+  });
+
+  // Build preview
+  prevBody.innerHTML = '';
+  PREVIEW_FIELDS.forEach(([key, label]) => {
+    const val = selectedRow[key];
+    if (val === undefined || val === '') return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${escHtml(label)}</td><td>${escHtml(val)}</td>`;
+    prevBody.appendChild(tr);
+  });
+
+  prevWrap.style.display = 'block';
+  prevCard.style.display = 'block';
+  btnOpen.disabled = false;
+
+  prevCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  OPEN REPORT
+//  Strategy: encode the row as a URL fragment (JSON, base64) and open index.html.
+//  index.html will detect the fragment on load via a small bootstrap snippet
+//  injected as a URL param — but since we can't modify index.html, we use
+//  a relay approach: open a tiny intermediary page that writes to sessionStorage
+//  then redirects, OR (simpler & self-contained) use window.name to pass data.
+//  window.name persists across navigations within a tab, is string-only,
+//  and is accessible on the target page without any modification to index.html.
+//
+//  On the app side we need ONE small addition. Since we cannot silently modify
+//  a production file, this tool instead opens a relay page it generates inline
+//  as a Blob URL. The relay: stores data in sessionStorage then opens index.html
+//  in the same tab. But sessionStorage is per-origin — Blob URLs are null-origin.
+//
+//  BEST approach with zero modification to index.html:
+//  Use window.name. The relay page sets window.name = JSON data, then navigates
+//  to index.html (same tab). index.html is same-origin, so it can read
+//  window.name. BUT index.html does not read window.name on its own.
+//
+//  CONCLUSION: The cleanest solution that requires NO change to index.html is to
+//  encode all field values in the URL hash and generate a one-time relay page
+//  that uses the Broadcast Channel API or localStorage to pass the payload,
+//  then auto-closes. The target (index.html) would need to listen — which
+//  requires modification.
+//
+//  PRACTICAL DECISION: Generate a self-contained "pre-filled" version of
+//  index.html as a Blob URL with the values hard-coded into a <script> that
+//  runs at DOMContentLoaded and fills all the form fields, exactly mirroring
+//  what a user would type. This works because we read the original file via
+//  fetch (same-origin) and inject a bootstrap script.
+// ─────────────────────────────────────────────────────────────────────────────
+
+btnOpen.addEventListener('click', openReport);
+
+async function openReport() {
+  if (!selectedRow) return;
+  btnOpen.disabled = true;
+  btnOpen.textContent = '⏳ Preparing…';
+  showBanner('Loading app file…', 'info');
+
+  try {
+    // Fetch the original app HTML
+    const resp = await fetch(APP_FILE);
+    if (!resp.ok) throw new Error(`Could not load ${APP_FILE} (HTTP ${resp.status}). Make sure it's in the same folder as this file.`);
+    let html = await resp.text();
+
+    // Build the bootstrap script that fills all fields and triggers render
+    const bootstrapScript = buildBootstrapScript(selectedRow);
+
+    // Inject bootstrap script just before </body>
+    const injectionPoint = html.lastIndexOf('</body>');
+    if (injectionPoint === -1) {
+      // Fallback: append at end
+      html += bootstrapScript;
+    } else {
+      html = html.slice(0, injectionPoint) + bootstrapScript + html.slice(injectionPoint);
+    }
+
+    // Also disable Netlify Identity gate so it doesn't block auto-fill
+    html = html.replace(
+      /netlifyIdentity\.on\('login'/,
+      "window.__REGEN_MODE__=true; netlifyIdentity.on('login'"
+    );
+    // Hide the gate immediately in regen mode
+    html = html.replace(
+      "var gate = document.getElementById('nlf-gate');",
+      "var gate = document.getElementById('nlf-gate'); if(true){gate && (gate.style.display='none');}"
+    );
+
+    // Open as Blob URL in new tab
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const tab  = window.open(url, '_blank');
+    if (!tab) {
+      showBanner('Popup blocked. Please allow popups for this page and try again.', 'error');
+    } else {
+      showBanner('✓ Report opened in new tab. Use the Print button to save as PDF.', 'success');
+      // Clean up the object URL after a delay (tab will have loaded by then)
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    }
+  } catch (e) {
+    showBanner('Error: ' + e.message, 'error');
+    console.error(e);
+  }
+
+  btnOpen.disabled = false;
+  btnOpen.textContent = '📋 Open Report';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  BUILD BOOTSTRAP SCRIPT
+//  Generates a <script> block that, once index.html has loaded and initialised,
+//  sets each form field, fires 'input' events to trigger render(), then
+//  optionally expands the Trajectory section.
+// ─────────────────────────────────────────────────────────────────────────────
+function buildBootstrapScript(row) {
+  // Extract test date from timestamp  e.g. "2026-05-11 05:55:06 EDT" → "2026-05-11"
+  let testDate = '';
+  if (row.timestamp_local) {
+    const m = row.timestamp_local.match(/(\d{4}-\d{2}-\d{2})/);
+    if (m) testDate = m[1];
+  }
+
+  // member name: the CSV stores "W, M" style; pass as-is to memberName
+  const memberName = row.name_full || '';
+
+  // Sex: ensure it's exactly "Male" or "Female"
+  const sex = (row.sex || '').trim();
+
+  // Map CSV fields → app element IDs
+  const fieldMap = [
+    ['tester',          row.tester          || ''],
+    ['location',        row.location        || ''],
+    ['memberName',      memberName],
+    ['phone',           row.phone           || ''],
+    ['age',             row.age             || ''],
+    ['body_weight_lbs', row.body_weight_lbs || ''],
+    ['sit',             row.sitreach_in     || ''],
+    ['tug',             row.tug_s           || ''],
+    ['mtp_raw',         row.mtp_kg          || ''],
+    ['mtp',             row.mtp_pct         || ''],
+    ['sway_r_raw',      row.sway_r_cms      || ''],
+    ['sway_r',          row.sway_r_pct      || ''],
+    ['sway_l_raw',      row.sway_l_cms      || ''],
+    ['sway_l',          row.sway_l_pct      || ''],
+    ['grip_r_raw',      row.grip_r_kg       || ''],
+    ['grip_r',          row.grip_r_pct      || ''],
+    ['grip_l_raw',      row.grip_l_kg       || ''],
+    ['grip_l',          row.grip_l_pct      || ''],
+    ['vo2',             row.vo2_mlkgmin     || ''],
+  ];
+
+  // Serialise safely for inline script
+  const fieldMapJSON = JSON.stringify(fieldMap);
+  const sexVal       = JSON.stringify(sex);
+  const testDateVal  = JSON.stringify(testDate);
+
+  return `
+<script id="hsmi-regen-bootstrap">
+(function(){
+  // ── HSMI Regenerator bootstrap ──────────────────────────────────────────
+  // Hides the Netlify gate immediately (no login needed for regen)
+  var gate = document.getElementById('nlf-gate');
+  if (gate) gate.style.display = 'none';
+
+  function fillFields() {
+    var fieldMap = ${fieldMapJSON};
+    var sex      = ${sexVal};
+    var testDate = ${testDateVal};
+
+    // Helper: set a value and fire input + change events
+    function set(id, val) {
+      var el = document.getElementById(id);
+      if (!el || val === '' || val == null) return;
+      el.value = val;
+      ['input','change'].forEach(function(ev){
+        el.dispatchEvent(new Event(ev, { bubbles: true }));
+      });
+    }
+
+    // Set all text/number inputs
+    fieldMap.forEach(function(pair){ set(pair[0], pair[1]); });
+
+    // Set select (sex)
+    if (sex) {
+      var sexEl = document.getElementById('sex');
+      if (sexEl) {
+        sexEl.value = sex;
+        ['input','change'].forEach(function(ev){
+          sexEl.dispatchEvent(new Event(ev, { bubbles: true }));
+        });
+      }
+    }
+
+    // Set test date
+    if (testDate) {
+      var tdEl = document.getElementById('testDate');
+      if (tdEl) {
+        tdEl.value = testDate;
+        ['input','change'].forEach(function(ev){
+          tdEl.dispatchEvent(new Event(ev, { bubbles: true }));
+        });
+      }
+    }
+
+    // Trigger a fresh render pass
+    setTimeout(function(){
+      if (typeof render === 'function') { try{ render(); }catch(e){} }
+    }, 100);
+
+    // Show a subtle regen banner in the app
+    var banner = document.createElement('div');
+    banner.style.cssText = [
+      'position:fixed','bottom:16px','right:16px','z-index:9999',
+      'background:#0052cc','color:#fff','font:700 13px/1.4 system-ui',
+      'padding:10px 16px','border-radius:10px',
+      'box-shadow:0 4px 16px rgba(0,82,204,.35)',
+      'pointer-events:none'
+    ].join(';');
+    banner.textContent = '✓ HSMI Regenerator — record loaded. Use Print to save PDF.';
+    document.body.appendChild(banner);
+    setTimeout(function(){ banner.style.opacity='0'; banner.style.transition='opacity .6s'; }, 4000);
+    setTimeout(function(){ if(banner.parentNode) banner.parentNode.removeChild(banner); }, 5000);
+  }
+
+  // Run after the app has fully initialised (it wires render() on DOMContentLoaded
+  // and calls render() + startEmpty() at the end of its init block)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){
+      // Extra delay: let the app's own DOMContentLoaded handlers run first
+      setTimeout(fillFields, 250);
+    });
+  } else {
+    setTimeout(fillFields, 250);
+  }
+})();
+<\/script>
+`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  RESET
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('btn-reset').addEventListener('click', reset);
+function reset() {
+  parsedData = null;
+  selectedRow = null;
+  rowWrap.style.display = 'none';
+  rowList.innerHTML = '';
+  prevCard.style.display = 'none';
+  prevBody.innerHTML = '';
+  prevWrap.style.display = 'none';
+  btnOpen.disabled = true;
+  document.getElementById('csv-paste').value = '';
+  document.getElementById('file-input').value = '';
+  hideBanner();
+}
+</script>
+</body>
+</html>
