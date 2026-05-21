@@ -917,18 +917,6 @@ window.__clearAll = clearAll;
   document.addEventListener('input',  saveDraft);
   document.addEventListener('change', saveDraft);
 
-  // On page load: check for a draft and show Banner A if found
-  document.addEventListener('DOMContentLoaded', function(){
-    try {
-      var raw = localStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      if (data && data.fields && Object.keys(data.fields).length > 0){
-        showBannerA(data);
-      }
-    } catch(e) {}
-  });
-
   // When Clear All is pressed, also wipe the draft and hide banners
   var origClearAll = window.__clearAll;
   window.__clearAll = function(){
@@ -1897,6 +1885,50 @@ var wz = {
     if (td){ try{ td.value = new Date().toISOString().slice(0,10); }catch(e){} }
   }
   startEmpty();
+  // After startEmpty clears the form, check for a saved draft and offer to restore it
+  (function checkDraftAfterStart(){
+    try {
+      var raw = localStorage.getItem('hsmi_draft_v1');
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data && data.fields && Object.keys(data.fields).length > 0){
+        var bannerA   = document.getElementById('draft-banner-a');
+        var meta      = document.getElementById('draft-banner-meta');
+        var restoreBtn= document.getElementById('draft-restore-btn');
+        var dismissBtn= document.getElementById('draft-dismiss-btn');
+        if (!bannerA) return;
+        var mins = Math.round((Date.now() - data.ts) / 60000);
+        var age  = mins < 1 ? 'just now' : mins < 60 ? mins + ' min ago' : Math.round(mins/60) + ' hr ago';
+        if (meta) meta.textContent = ' \u2022 saved ' + age;
+        bannerA.style.display = 'flex';
+        restoreBtn.addEventListener('click', function(){
+          // Restore all saved fields
+          for (var id in data.fields){
+            var el = document.getElementById(id);
+            if (!el) continue;
+            if (el.tagName === 'SELECT'){
+              for (var j = 0; j < el.options.length; j++){
+                if (el.options[j].value === data.fields[id] || el.options[j].text === data.fields[id]){ el.selectedIndex = j; break; }
+              }
+            } else { el.value = data.fields[id]; }
+            try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch(e){}
+            try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+          }
+          bannerA.style.display = 'none';
+          // Show Banner B above VO2 field
+          var bannerB = document.getElementById('draft-banner-b');
+          if (bannerB) bannerB.style.display = 'flex';
+          // Scroll to and focus VO2 field
+          var vo2el = document.getElementById('vo2');
+          if (vo2el) { setTimeout(function(){ vo2el.scrollIntoView({ behavior:'smooth', block:'center' }); vo2el.focus(); }, 150); }
+        }, { once: true });
+        dismissBtn.addEventListener('click', function(){
+          bannerA.style.display = 'none';
+          try { localStorage.removeItem('hsmi_draft_v1'); } catch(e){}
+        }, { once: true });
+      }
+    } catch(e){}
+  })();
 
   // Render: event-driven (no polling)
   (function wireRenderEvents(){
