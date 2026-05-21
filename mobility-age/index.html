@@ -142,6 +142,34 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
 .name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin: 0.5rem 0 1rem; }
 .name-row label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
 
+/* ── Draft save banners ─────────────────────────────────────── */
+#draft-banner-a {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  background: #e0f2fe;
+  border: 2px solid #7dd3fc;
+  border-radius: 14px;
+  padding: .85rem 1.1rem;
+  margin-bottom: .75rem;
+}
+#draft-banner-a .draft-msg { flex: 1; font-size: 1rem; font-weight: 700; color: #075985; }
+#draft-banner-a .draft-meta { font-size: .82rem; font-weight: 400; color: #0369a1; margin-left: 4px; }
+#draft-banner-a button { font-size: .95rem; padding: .6rem 1.1rem; }
+#draft-banner-a .draft-dismiss { background: #fff; color: #0369a1; border-color: #7dd3fc; margin-left: 4px; }
+
+#draft-banner-b {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  background: #f0fdf4;
+  border: 2px solid #86efac;
+  border-radius: 14px;
+  padding: .7rem 1rem;
+  margin-bottom: .6rem;
+}
+#draft-banner-b .draft-b-msg { font-size: .95rem; font-weight: 700; color: #166534; }
+
 /* ── Utility ────────────────────────────────────────────────── */
 .offscreen { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 #ok, #hb   { display: none !important; visibility: hidden !important; }
@@ -393,6 +421,15 @@ var timer = setInterval(function(){
   <div class="toolbar">
     <button id="clearBtn" class="btn">Clear All</button>
   </div>
+
+  <!-- Draft Banner A: shown on page load when a draft exists -->
+  <div id="draft-banner-a" role="status" aria-live="polite">
+    <span style="font-size:1.3rem;">&#128190;</span>
+    <span class="draft-msg">Draft found &mdash; restore all fields?<span class="draft-meta" id="draft-banner-meta"></span></span>
+    <button id="draft-restore-btn">Restore Draft</button>
+    <button id="draft-dismiss-btn" class="draft-dismiss secondary">Dismiss</button>
+  </div>
+
   <div id="dbg"></div>
   <div id="err"></div>
   <h1>Mobility Age</h1>
@@ -436,6 +473,11 @@ var timer = setInterval(function(){
         <div class="row"><label>Grip Strength Right (percentile)</label><input id="grip_r" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
         <div class="row"><label>Grip Strength Left (kg)</label><input id="grip_l_raw" type="number" step="0.1" placeholder="kg"></div>
         <div class="row"><label>Grip Strength Left (percentile)</label><input id="grip_l" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
+        <!-- Draft Banner B: shown after restore to focus coach on VO2 -->
+        <div id="draft-banner-b" role="status" aria-live="polite">
+          <span style="font-size:1.15rem;">&#10003;</span>
+          <span class="draft-b-msg">Draft restored &mdash; enter VO&#8322; max below to generate results.</span>
+        </div>
         <div class="row"><label>VO₂ Max (mL/kg/min)</label><input id="vo2" type="number" step="0.01" placeholder="ml/kg/min"></div>
       </div>
     </div>
@@ -776,6 +818,130 @@ function clearAll(){
 }
 
 window.__clearAll = clearAll;
+
+// ── Draft Save / Restore (localStorage) ─────────────────────────────────────
+(function(){
+  var DRAFT_KEY = 'hsmi_draft_v1';
+
+  // All field IDs to save/restore (mirrors clearAll list + testDate + sex)
+  var DRAFT_IDS = [
+    'tester','testDate','location','memberName','firstName','lastName',
+    'phone','sex','age','body_weight_lbs',
+    'sit','tug','mtp_raw','mtp',
+    'sway_r_raw','sway_r','sway_l_raw','sway_l',
+    'grip_r_raw','grip_r','grip_l_raw','grip_l',
+    'vo2'
+  ];
+
+  function saveDraft(){
+    try {
+      var data = { ts: Date.now(), fields: {} };
+      var hasAny = false;
+      for (var i = 0; i < DRAFT_IDS.length; i++){
+        var el = document.getElementById(DRAFT_IDS[i]);
+        if (el && el.value.trim() !== '') {
+          data.fields[DRAFT_IDS[i]] = el.value;
+          hasAny = true;
+        }
+      }
+      if (hasAny) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+      }
+    } catch(e) {}
+  }
+
+  function clearDraft(){
+    try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+  }
+
+  function fmtAge(ms){
+    var mins = Math.round((Date.now() - ms) / 60000);
+    if (mins < 1)  return 'just now';
+    if (mins < 60) return mins + ' min ago';
+    var hrs = Math.round(mins / 60);
+    return hrs + ' hr ago';
+  }
+
+  function restoreDraft(data){
+    for (var id in data.fields){
+      var el = document.getElementById(id);
+      if (!el) continue;
+      if (el.tagName === 'SELECT'){
+        for (var j = 0; j < el.options.length; j++){
+          if (el.options[j].value === data.fields[id] || el.options[j].text === data.fields[id]){
+            el.selectedIndex = j; break;
+          }
+        }
+      } else {
+        el.value = data.fields[id];
+      }
+      // trigger change event so the app recalculates
+      try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch(e){}
+    }
+  }
+
+  function showBannerA(data){
+    var bannerA = document.getElementById('draft-banner-a');
+    var meta    = document.getElementById('draft-banner-meta');
+    var restoreBtn = document.getElementById('draft-restore-btn');
+    var dismissBtn = document.getElementById('draft-dismiss-btn');
+    if (!bannerA) return;
+
+    if (meta) meta.textContent = ' \u2022 saved ' + fmtAge(data.ts);
+    bannerA.style.display = 'flex';
+
+    restoreBtn.addEventListener('click', function(){
+      restoreDraft(data);
+      bannerA.style.display = 'none';
+      showBannerB();
+      // scroll to VO2 field smoothly
+      var vo2el = document.getElementById('vo2');
+      if (vo2el) { setTimeout(function(){ vo2el.scrollIntoView({ behavior: 'smooth', block: 'center' }); vo2el.focus(); }, 150); }
+    }, { once: true });
+
+    dismissBtn.addEventListener('click', function(){
+      bannerA.style.display = 'none';
+      clearDraft();
+    }, { once: true });
+  }
+
+  function showBannerB(){
+    var bannerB = document.getElementById('draft-banner-b');
+    if (bannerB) bannerB.style.display = 'flex';
+  }
+
+  // Auto-save every 3 seconds while any field has data
+  setInterval(saveDraft, 3000);
+
+  // Also save immediately on any input change
+  document.addEventListener('input',  saveDraft);
+  document.addEventListener('change', saveDraft);
+
+  // On page load: check for a draft and show Banner A if found
+  document.addEventListener('DOMContentLoaded', function(){
+    try {
+      var raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data && data.fields && Object.keys(data.fields).length > 0){
+        showBannerA(data);
+      }
+    } catch(e) {}
+  });
+
+  // When Clear All is pressed, also wipe the draft and hide banners
+  var origClearAll = window.__clearAll;
+  window.__clearAll = function(){
+    origClearAll();
+    clearDraft();
+    var bannerA = document.getElementById('draft-banner-a');
+    var bannerB = document.getElementById('draft-banner-b');
+    if (bannerA) bannerA.style.display = 'none';
+    if (bannerB) bannerB.style.display = 'none';
+  };
+
+})();
+// ── End Draft Save / Restore ─────────────────────────────────────────────────
 
 // --- Inline input validation (non-blocking) ----------------------------
 var VALIDATION_RULES = {
@@ -1716,11 +1882,11 @@ var wz = {
     }
   }
 
-  // Hook up Clear button
+  // Hook up Clear button (draft-aware wrapper via window.__clearAll)
   document.addEventListener('click', function(ev){
     if (ev.target && ev.target.id === 'clearBtn'){
       ev.preventDefault();
-      clearAll();
+      if (typeof window.__clearAll === 'function') window.__clearAll(); else clearAll();
     }
   });
 
