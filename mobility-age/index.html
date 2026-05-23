@@ -2257,16 +2257,14 @@ Drop this whole block just before
 </script>
 
 
-<!-- Supabase client -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* === Export to Database (Supabase) === */
+/* === Export to Database (internal API placeholder) === */
+/* TODO: Replace API_ENDPOINT below with your internal database API URL.
+   The rec object contains all assessment fields (see window.hsmiExport.collect()).
+   Phone is excluded from database writes — CSV only.
+   Expected: POST JSON to endpoint, respond with { ok: true } on success.        */
 (function(){
-  const SUPABASE_URL  = 'https://sbrghdlbctqswwmpbnwm.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNicmdoZGxiY3Rxc3d3bXBibndtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyNDc3MzAsImV4cCI6MjA5MDgyMzczMH0.7Q0pZ4hrZeWnASPev2_f5dc967d0L4mIAYjPY_h6GPk';
-  const TABLE         = 'hsmi_records';
-
-  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  const API_ENDPOINT = ''; // <-- set to your internal API endpoint
 
   function showMsg(text, isError){
     var el = document.getElementById('dbExportMsg');
@@ -2283,16 +2281,19 @@ Drop this whole block just before
     var btn = document.getElementById('btnExportDB');
     if (!btn) return;
 
-    // collect() is exposed on window.hsmiExport by the existing export script
     if (!window.hsmiExport || typeof window.hsmiExport.collect !== 'function'){
       showMsg('Error: could not read form data. Please try again.', true);
+      return;
+    }
+
+    if (!API_ENDPOINT){
+      showMsg('Database endpoint not configured. Contact your administrator.', true);
       return;
     }
 
     var rec = window.hsmiExport.collect();
     delete rec.phone; // phone is CSV-only, not stored in database
 
-    // Basic guard: require at least a name or mobility age
     if (!rec.name_full && !rec.mobility_age){
       showMsg('Nothing to save — please complete the assessment first.', true);
       return;
@@ -2302,8 +2303,12 @@ Drop this whole block just before
     btn.textContent = 'Saving…';
 
     try {
-      var { error } = await client.from(TABLE).insert([rec]);
-      if (error) throw error;
+      var resp = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rec)
+      });
+      if (!resp.ok) throw new Error('Server returned ' + resp.status);
       showMsg('✓ Saved to database successfully.', false);
     } catch(e) {
       console.error('HSMI DB export error:', e);
