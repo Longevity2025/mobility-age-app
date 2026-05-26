@@ -109,6 +109,21 @@
     line-height: 1.5;
   }
 
+  /* ── Disabled tiles ── */
+  .tile.disabled {
+    opacity: .45;
+    cursor: not-allowed;
+    pointer-events: none;
+    filter: grayscale(40%);
+  }
+  .tile.disabled .tile-title::after {
+    content: ' — coming soon';
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .3px;
+  }
+
   /* ── Netlify Identity gate (identical pattern to HSMI app) ── */
   #nlf-gate {
     position: fixed; inset: 0;
@@ -140,25 +155,25 @@
       <p class="tile-desc">Six-test protocol to assess overall Mobility Age from measurements of strength, endurance, balance and flexibility.</p>
     </a>
 
-    <a class="tile" href="/exercise/">
+    <a class="tile disabled" href="/exercise/">
       <div class="tile-icon">💪</div>
       <div class="tile-title">Exercise Assessment</div>
       <p class="tile-desc">36-question member intake covering aerobic activity, strength training, flexibility, daily movement, and exercise mindset.</p>
     </a>
 
-    <a class="tile" href="/sleep/">
+    <a class="tile disabled" href="/sleep/">
       <div class="tile-icon">🌙</div>
       <div class="tile-title">Sleep Assessment</div>
       <p class="tile-desc">25-question member intake covering sleep schedule, sleep quality, daytime effects, habits and environment, and concerns.</p>
     </a>
 
-    <a class="tile" href="/stress/">
+    <a class="tile disabled" href="/stress/">
       <div class="tile-icon">🧠</div>
       <div class="tile-title">Stress Assessment</div>
       <p class="tile-desc">25-question member intake covering perceived stress, physical symptoms, coping strategies, and work-life balance.</p>
     </a>
 
-    <a class="tile" href="/nutrition/">
+    <a class="tile disabled" href="/nutrition/">
       <div class="tile-icon">🥗</div>
       <div class="tile-title">Nutrition Assessment</div>
       <p class="tile-desc">38-question member intake covering dietary quality, eating patterns, hydration, mindful eating, and dietary variety.</p>
