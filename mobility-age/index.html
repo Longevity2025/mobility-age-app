@@ -290,7 +290,7 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
 <!-- Netlify Identity: gate the app behind login -->
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
-<body data-v='v10' data-app-version="2026.05.23">
+<body data-v='v10' data-app-version="2026.05.29">
 
 
 <!-- print cover (print-only) -->
@@ -452,7 +452,8 @@ var timer = setInterval(function(){
             <option>Female</option>
           </select>
         </div>
-        <div class="row"><label>Age</label><input id="age" type="number" min="1" placeholder="Age in years"></div>
+        <div class="row"><label>Date of Birth (mm/dd/yyyy)</label><input id="dob" type="text" placeholder="mm/dd/yyyy" maxlength="10" inputmode="numeric"></div>
+        <input id="age" type="hidden">
         <div class="row"><label>Body Weight (lbs)</label><input id="body_weight_lbs" type="number" step="0.1" min="1" placeholder="lbs"></div>
       </div>
     </div>
@@ -592,6 +593,47 @@ var timer = setInterval(function(){
 <script id="gs_json" type="application/json">{"Male":{"10":{"mean":0.42,"sd":0.1502},"11":{"mean":0.44,"sd":0.1446},"12":{"mean":0.45,"sd":0.1502},"13":{"mean":0.47,"sd":0.1446},"14":{"mean":0.48,"sd":0.1483},"15":{"mean":0.49,"sd":0.1446},"16":{"mean":0.51,"sd":0.1446},"17":{"mean":0.52,"sd":0.1446},"18":{"mean":0.53,"sd":0.1446},"19":{"mean":0.54,"sd":0.1446},"20":{"mean":0.55,"sd":0.1446},"21":{"mean":0.55,"sd":0.1502},"22":{"mean":0.56,"sd":0.1446},"23":{"mean":0.56,"sd":0.1502},"24":{"mean":0.57,"sd":0.1446},"25":{"mean":0.57,"sd":0.1446},"26":{"mean":0.57,"sd":0.1446},"27":{"mean":0.56,"sd":0.1483},"28":{"mean":0.56,"sd":0.1483},"29":{"mean":0.56,"sd":0.1446},"30":{"mean":0.56,"sd":0.1446},"31":{"mean":0.55,"sd":0.1446},"32":{"mean":0.55,"sd":0.1483},"33":{"mean":0.55,"sd":0.1502},"34":{"mean":0.55,"sd":0.1483},"35":{"mean":0.55,"sd":0.1483},"36":{"mean":0.55,"sd":0.1483},"37":{"mean":0.55,"sd":0.1483},"38":{"mean":0.55,"sd":0.1483},"39":{"mean":0.55,"sd":0.1502},"40":{"mean":0.55,"sd":0.1483},"41":{"mean":0.55,"sd":0.1483},"42":{"mean":0.55,"sd":0.1446},"43":{"mean":0.55,"sd":0.1446},"44":{"mean":0.54,"sd":0.1483},"45":{"mean":0.54,"sd":0.1483},"46":{"mean":0.54,"sd":0.1446},"47":{"mean":0.53,"sd":0.1446},"48":{"mean":0.53,"sd":0.1502},"49":{"mean":0.53,"sd":0.1483},"50":{"mean":0.53,"sd":0.1446},"51":{"mean":0.53,"sd":0.1446},"52":{"mean":0.52,"sd":0.1483},"53":{"mean":0.52,"sd":0.1446},"54":{"mean":0.51,"sd":0.1483},"55":{"mean":0.5,"sd":0.1483},"56":{"mean":0.49,"sd":0.1483},"57":{"mean":0.48,"sd":0.1483},"58":{"mean":0.47,"sd":0.1483},"59":{"mean":0.46,"sd":0.1446},"60":{"mean":0.45,"sd":0.1446},"61":{"mean":0.44,"sd":0.1483},"62":{"mean":0.43,"sd":0.1483},"63":{"mean":0.43,"sd":0.1446},"64":{"mean":0.42,"sd":0.1483},"65":{"mean":0.42,"sd":0.1446},"66":{"mean":0.42,"sd":0.1446},"67":{"mean":0.41,"sd":0.1483},"68":{"mean":0.41,"sd":0.1483},"69":{"mean":0.41,"sd":0.1446},"70":{"mean":0.42,"sd":0.1446},"71":{"mean":0.42,"sd":0.1446},"72":{"mean":0.42,"sd":0.1446},"73":{"mean":0.42,"sd":0.1483},"74":{"mean":0.42,"sd":0.1502},"75":{"mean":0.42,"sd":0.1446},"76":{"mean":0.43,"sd":0.1446},"77":{"mean":0.43,"sd":0.1446},"78":{"mean":0.43,"sd":0.1483},"79":{"mean":0.43,"sd":0.1502},"80":{"mean":0.44,"sd":0.1446}},"Female":{"10":{"mean":0.51,"sd":0.1198},"11":{"mean":0.51,"sd":0.1235},"12":{"mean":0.5,"sd":0.1198},"13":{"mean":0.5,"sd":0.1235},"14":{"mean":0.49,"sd":0.1198},"15":{"mean":0.48,"sd":0.1235},"16":{"mean":0.48,"sd":0.1198},"17":{"mean":0.47,"sd":0.1235},"18":{"mean":0.47,"sd":0.1198},"19":{"mean":0.46,"sd":0.1235},"20":{"mean":0.46,"sd":0.1198},"21":{"mean":0.45,"sd":0.1235},"22":{"mean":0.45,"sd":0.1198},"23":{"mean":0.44,"sd":0.1235},"24":{"mean":0.44,"sd":0.1217},"25":{"mean":0.43,"sd":0.1235},"26":{"mean":0.43,"sd":0.1235},"27":{"mean":0.42,"sd":0.1198},"28":{"mean":0.42,"sd":0.1235},"29":{"mean":0.41,"sd":0.1198},"30":{"mean":0.4,"sd":0.1235},"31":{"mean":0.4,"sd":0.1198},"32":{"mean":0.4,"sd":0.1235},"33":{"mean":0.39,"sd":0.1235},"34":{"mean":0.39,"sd":0.1198},"35":{"mean":0.39,"sd":0.1198},"36":{"mean":0.39,"sd":0.1198},"37":{"mean":0.39,"sd":0.1198},"38":{"mean":0.39,"sd":0.1198},"39":{"mean":0.39,"sd":0.1198},"40":{"mean":0.39,"sd":0.1198},"41":{"mean":0.39,"sd":0.1198},"42":{"mean":0.39,"sd":0.1198},"43":{"mean":0.39,"sd":0.1198},"44":{"mean":0.39,"sd":0.1198},"45":{"mean":0.39,"sd":0.1217},"46":{"mean":0.39,"sd":0.1235},"47":{"mean":0.38,"sd":0.1235},"48":{"mean":0.38,"sd":0.1198},"49":{"mean":0.38,"sd":0.1235},"50":{"mean":0.37,"sd":0.1235},"51":{"mean":0.37,"sd":0.1217},"52":{"mean":0.36,"sd":0.1235},"53":{"mean":0.36,"sd":0.1198},"54":{"mean":0.36,"sd":0.1235},"55":{"mean":0.35,"sd":0.1198},"56":{"mean":0.35,"sd":0.1235},"57":{"mean":0.34,"sd":0.1198},"58":{"mean":0.34,"sd":0.1235},"59":{"mean":0.33,"sd":0.1198},"60":{"mean":0.32,"sd":0.1235},"61":{"mean":0.32,"sd":0.1217},"62":{"mean":0.31,"sd":0.1235},"63":{"mean":0.31,"sd":0.1217},"64":{"mean":0.3,"sd":0.1235},"65":{"mean":0.3,"sd":0.1198},"66":{"mean":0.3,"sd":0.1235},"67":{"mean":0.29,"sd":0.1235},"68":{"mean":0.29,"sd":0.1198},"69":{"mean":0.29,"sd":0.1198},"70":{"mean":0.29,"sd":0.1198},"71":{"mean":0.29,"sd":0.1235},"72":{"mean":0.29,"sd":0.1235},"73":{"mean":0.28,"sd":0.1235},"74":{"mean":0.28,"sd":0.1235},"75":{"mean":0.28,"sd":0.1198},"76":{"mean":0.28,"sd":0.1198},"77":{"mean":0.28,"sd":0.1198},"78":{"mean":0.28,"sd":0.1217},"79":{"mean":0.28,"sd":0.1217},"80":{"mean":0.28,"sd":0.1235}}}</script>
 <script id="sway_json" type="application/json">{"Male":{"10":{"mean":5.35,"sd":1.5125},"11":{"mean":5.26,"sd":1.5125},"12":{"mean":5.17,"sd":1.5125},"13":{"mean":5.08,"sd":1.5125},"14":{"mean":4.99,"sd":1.5125},"15":{"mean":4.9,"sd":1.5125},"16":{"mean":4.81,"sd":1.5125},"17":{"mean":4.72,"sd":1.5125},"18":{"mean":4.63,"sd":1.5125},"19":{"mean":4.55,"sd":1.5125},"20":{"mean":4.48,"sd":1.5181},"21":{"mean":4.41,"sd":1.5181},"22":{"mean":4.37,"sd":1.5125},"23":{"mean":4.34,"sd":1.5125},"24":{"mean":4.32,"sd":1.5144},"25":{"mean":4.32,"sd":1.5125},"26":{"mean":4.33,"sd":1.5181},"27":{"mean":4.34,"sd":1.5125},"28":{"mean":4.35,"sd":1.5144},"29":{"mean":4.37,"sd":1.5125},"30":{"mean":4.38,"sd":1.5181},"31":{"mean":4.38,"sd":1.5125},"32":{"mean":4.38,"sd":1.5125},"33":{"mean":4.38,"sd":1.5125},"34":{"mean":4.37,"sd":1.5144},"35":{"mean":4.37,"sd":1.5125},"36":{"mean":4.37,"sd":1.5125},"37":{"mean":4.37,"sd":1.5125},"38":{"mean":4.38,"sd":1.5125},"39":{"mean":4.4,"sd":1.5125},"40":{"mean":4.42,"sd":1.5125},"41":{"mean":4.46,"sd":1.5125},"42":{"mean":4.5,"sd":1.5125},"43":{"mean":4.55,"sd":1.5125},"44":{"mean":4.61,"sd":1.5125},"45":{"mean":4.67,"sd":1.5144},"46":{"mean":4.75,"sd":1.5181},"47":{"mean":4.82,"sd":1.5144},"48":{"mean":4.91,"sd":1.5181},"49":{"mean":4.99,"sd":1.5125},"50":{"mean":5.08,"sd":1.5181},"51":{"mean":5.18,"sd":1.5125},"52":{"mean":5.28,"sd":1.5125},"53":{"mean":5.38,"sd":1.5125},"54":{"mean":5.49,"sd":1.5181},"55":{"mean":5.59,"sd":1.5125},"56":{"mean":5.68,"sd":1.5144},"57":{"mean":5.78,"sd":1.5162},"58":{"mean":5.86,"sd":1.5125},"59":{"mean":5.94,"sd":1.5125},"60":{"mean":6.01,"sd":1.5144},"61":{"mean":6.08,"sd":1.5125},"62":{"mean":6.14,"sd":1.5125},"63":{"mean":6.2,"sd":1.5144},"64":{"mean":6.26,"sd":1.5125},"65":{"mean":6.32,"sd":1.5125},"66":{"mean":6.38,"sd":1.5125},"67":{"mean":6.43,"sd":1.5125},"68":{"mean":6.49,"sd":1.5162},"69":{"mean":6.54,"sd":1.5125},"70":{"mean":6.59,"sd":1.5162},"71":{"mean":6.63,"sd":1.5125},"72":{"mean":6.67,"sd":1.5181},"73":{"mean":6.72,"sd":1.5125},"74":{"mean":6.76,"sd":1.5125},"75":{"mean":6.8,"sd":1.5181},"76":{"mean":6.85,"sd":1.5125},"77":{"mean":6.89,"sd":1.5125},"78":{"mean":6.94,"sd":1.5162},"79":{"mean":6.98,"sd":1.5125},"80":{"mean":7.02,"sd":1.5181}},"Female":{"10":{"mean":4.25,"sd":1.2908},"11":{"mean":4.19,"sd":1.2908},"12":{"mean":4.14,"sd":1.2908},"13":{"mean":4.08,"sd":1.2871},"14":{"mean":4.03,"sd":1.2852},"15":{"mean":3.98,"sd":1.2908},"16":{"mean":3.94,"sd":1.2852},"17":{"mean":3.9,"sd":1.2908},"18":{"mean":3.88,"sd":1.2908},"19":{"mean":3.85,"sd":1.2908},"20":{"mean":3.84,"sd":1.2871},"21":{"mean":3.83,"sd":1.2908},"22":{"mean":3.83,"sd":1.2908},"23":{"mean":3.84,"sd":1.2871},"24":{"mean":3.85,"sd":1.2871},"25":{"mean":3.86,"sd":1.2908},"26":{"mean":3.88,"sd":1.2852},"27":{"mean":3.89,"sd":1.2908},"28":{"mean":3.91,"sd":1.2889},"29":{"mean":3.92,"sd":1.2852},"30":{"mean":3.92,"sd":1.2908},"31":{"mean":3.93,"sd":1.2908},"32":{"mean":3.93,"sd":1.2889},"33":{"mean":3.93,"sd":1.2889},"34":{"mean":3.93,"sd":1.2908},"35":{"mean":3.93,"sd":1.2908},"36":{"mean":3.93,"sd":1.2908},"37":{"mean":3.93,"sd":1.2908},"38":{"mean":3.93,"sd":1.2871},"39":{"mean":3.94,"sd":1.2852},"40":{"mean":3.95,"sd":1.2908},"41":{"mean":3.98,"sd":1.2852},"42":{"mean":4.01,"sd":1.2908},"43":{"mean":4.06,"sd":1.2889},"44":{"mean":4.11,"sd":1.2852},"45":{"mean":4.17,"sd":1.2852},"46":{"mean":4.23,"sd":1.2908},"47":{"mean":4.3,"sd":1.2908},"48":{"mean":4.36,"sd":1.2871},"49":{"mean":4.42,"sd":1.2871},"50":{"mean":4.48,"sd":1.2908},"51":{"mean":4.53,"sd":1.2852},"52":{"mean":4.57,"sd":1.2908},"53":{"mean":4.62,"sd":1.2852},"54":{"mean":4.66,"sd":1.2871},"55":{"mean":4.7,"sd":1.2908},"56":{"mean":4.75,"sd":1.2908},"57":{"mean":4.81,"sd":1.2852},"58":{"mean":4.87,"sd":1.2908},"59":{"mean":4.95,"sd":1.2871},"60":{"mean":5.04,"sd":1.2852},"61":{"mean":5.13,"sd":1.2908},"62":{"mean":5.23,"sd":1.2908},"63":{"mean":5.33,"sd":1.2908},"64":{"mean":5.43,"sd":1.2908},"65":{"mean":5.53,"sd":1.2908},"66":{"mean":5.61,"sd":1.2908},"67":{"mean":5.69,"sd":1.2908},"68":{"mean":5.76,"sd":1.2871},"69":{"mean":5.82,"sd":1.2908},"70":{"mean":5.88,"sd":1.2908},"71":{"mean":5.94,"sd":1.2908},"72":{"mean":6.0,"sd":1.2908},"73":{"mean":6.07,"sd":1.2908},"74":{"mean":6.13,"sd":1.2908},"75":{"mean":6.2,"sd":1.2889},"76":{"mean":6.26,"sd":1.2908},"77":{"mean":6.33,"sd":1.2871},"78":{"mean":6.4,"sd":1.2908},"79":{"mean":6.46,"sd":1.2908},"80":{"mean":6.53,"sd":1.2852}}}</script>
 <script id="mtp_json" type="application/json">{"Male":{"10":{"mean":1.35,"sd":0.2835},"11":{"mean":1.37,"sd":0.2815},"12":{"mean":1.4,"sd":0.2815},"13":{"mean":1.42,"sd":0.2815},"14":{"mean":1.44,"sd":0.2815},"15":{"mean":1.45,"sd":0.2835},"16":{"mean":1.47,"sd":0.2815},"17":{"mean":1.48,"sd":0.2815},"18":{"mean":1.48,"sd":0.2835},"19":{"mean":1.48,"sd":0.2835},"20":{"mean":1.48,"sd":0.2835},"21":{"mean":1.48,"sd":0.2815},"22":{"mean":1.47,"sd":0.2835},"23":{"mean":1.46,"sd":0.2835},"24":{"mean":1.45,"sd":0.2815},"25":{"mean":1.45,"sd":0.2815},"26":{"mean":1.44,"sd":0.2835},"27":{"mean":1.44,"sd":0.2835},"28":{"mean":1.44,"sd":0.2815},"29":{"mean":1.43,"sd":0.2835},"30":{"mean":1.43,"sd":0.2815},"31":{"mean":1.42,"sd":0.2835},"32":{"mean":1.42,"sd":0.2815},"33":{"mean":1.41,"sd":0.2815},"34":{"mean":1.4,"sd":0.2815},"35":{"mean":1.39,"sd":0.2815},"36":{"mean":1.38,"sd":0.2815},"37":{"mean":1.37,"sd":0.2815},"38":{"mean":1.36,"sd":0.2815},"39":{"mean":1.35,"sd":0.2835},"40":{"mean":1.34,"sd":0.2835},"41":{"mean":1.34,"sd":0.2815},"42":{"mean":1.33,"sd":0.2835},"43":{"mean":1.33,"sd":0.2815},"44":{"mean":1.32,"sd":0.2835},"45":{"mean":1.32,"sd":0.2815},"46":{"mean":1.31,"sd":0.2872},"47":{"mean":1.31,"sd":0.2835},"48":{"mean":1.31,"sd":0.2815},"49":{"mean":1.3,"sd":0.2835},"50":{"mean":1.3,"sd":0.2835},"51":{"mean":1.29,"sd":0.2815},"52":{"mean":1.29,"sd":0.2835},"53":{"mean":1.28,"sd":0.2852},"54":{"mean":1.28,"sd":0.2815},"55":{"mean":1.27,"sd":0.2835},"56":{"mean":1.26,"sd":0.2835},"57":{"mean":1.25,"sd":0.2835},"58":{"mean":1.24,"sd":0.2815},"59":{"mean":1.22,"sd":0.2852},"60":{"mean":1.21,"sd":0.2835},"61":{"mean":1.19,"sd":0.2815},"62":{"mean":1.18,"sd":0.2835},"63":{"mean":1.17,"sd":0.2815},"64":{"mean":1.15,"sd":0.2835},"65":{"mean":1.14,"sd":0.2835},"66":{"mean":1.13,"sd":0.2815},"67":{"mean":1.12,"sd":0.2815},"68":{"mean":1.1,"sd":0.2835},"69":{"mean":1.09,"sd":0.2835},"70":{"mean":1.08,"sd":0.2815},"71":{"mean":1.06,"sd":0.2852},"72":{"mean":1.05,"sd":0.2835},"73":{"mean":1.04,"sd":0.2815},"74":{"mean":1.02,"sd":0.2835},"75":{"mean":1.01,"sd":0.2815},"76":{"mean":0.99,"sd":0.2835},"77":{"mean":0.98,"sd":0.2815},"78":{"mean":0.96,"sd":0.2835},"79":{"mean":0.95,"sd":0.2815},"80":{"mean":0.93,"sd":0.2835}},"Female":{"10":{"mean":1.24,"sd":0.2243},"11":{"mean":1.24,"sd":0.2243},"12":{"mean":1.25,"sd":0.2243},"13":{"mean":1.25,"sd":0.2206},"14":{"mean":1.26,"sd":0.2243},"15":{"mean":1.26,"sd":0.2243},"16":{"mean":1.26,"sd":0.2187},"17":{"mean":1.26,"sd":0.2187},"18":{"mean":1.26,"sd":0.2243},"19":{"mean":1.26,"sd":0.2243},"20":{"mean":1.25,"sd":0.2243},"21":{"mean":1.24,"sd":0.2243},"22":{"mean":1.24,"sd":0.2243},"23":{"mean":1.23,"sd":0.2243},"24":{"mean":1.23,"sd":0.2243},"25":{"mean":1.22,"sd":0.2243},"26":{"mean":1.21,"sd":0.2243},"27":{"mean":1.21,"sd":0.2243},"28":{"mean":1.2,"sd":0.2243},"29":{"mean":1.19,"sd":0.2206},"30":{"mean":1.19,"sd":0.2243},"31":{"mean":1.18,"sd":0.2243},"32":{"mean":1.18,"sd":0.2243},"33":{"mean":1.18,"sd":0.2243},"34":{"mean":1.17,"sd":0.2243},"35":{"mean":1.17,"sd":0.2243},"36":{"mean":1.16,"sd":0.2187},"37":{"mean":1.16,"sd":0.2243},"38":{"mean":1.15,"sd":0.2243},"39":{"mean":1.15,"sd":0.2243},"40":{"mean":1.14,"sd":0.2243},"41":{"mean":1.14,"sd":0.2243},"42":{"mean":1.13,"sd":0.2243},"43":{"mean":1.13,"sd":0.2243},"44":{"mean":1.12,"sd":0.2243},"45":{"mean":1.12,"sd":0.2243},"46":{"mean":1.12,"sd":0.2243},"47":{"mean":1.12,"sd":0.2243},"48":{"mean":1.11,"sd":0.2243},"49":{"mean":1.1,"sd":0.2243},"50":{"mean":1.09,"sd":0.2243},"51":{"mean":1.08,"sd":0.2243},"52":{"mean":1.06,"sd":0.2187},"53":{"mean":1.05,"sd":0.2243},"54":{"mean":1.04,"sd":0.2243},"55":{"mean":1.03,"sd":0.2243},"56":{"mean":1.02,"sd":0.2243},"57":{"mean":1.01,"sd":0.2243},"58":{"mean":1.0,"sd":0.2243},"59":{"mean":0.99,"sd":0.2187},"60":{"mean":0.99,"sd":0.2243},"61":{"mean":0.98,"sd":0.2243},"62":{"mean":0.97,"sd":0.2243},"63":{"mean":0.97,"sd":0.2243},"64":{"mean":0.96,"sd":0.2243},"65":{"mean":0.95,"sd":0.2187},"66":{"mean":0.95,"sd":0.2243},"67":{"mean":0.94,"sd":0.2243},"68":{"mean":0.93,"sd":0.2243},"69":{"mean":0.93,"sd":0.2243},"70":{"mean":0.92,"sd":0.2243},"71":{"mean":0.91,"sd":0.2187},"72":{"mean":0.91,"sd":0.2243},"73":{"mean":0.9,"sd":0.2243},"74":{"mean":0.89,"sd":0.2243},"75":{"mean":0.88,"sd":0.2187},"76":{"mean":0.88,"sd":0.2243},"77":{"mean":0.87,"sd":0.2243},"78":{"mean":0.86,"sd":0.2243},"79":{"mean":0.85,"sd":0.2206},"80":{"mean":0.85,"sd":0.2243}}}</script>
+
+<script>
+/* ── DOB helper: compute integer age from "mm/dd/yyyy" string ── */
+function computeAgeFromDob(dobStr) {
+  if (!dobStr) return NaN;
+  var parts = String(dobStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!parts) return NaN;
+  var mo = parseInt(parts[1], 10) - 1; // 0-based month
+  var dy = parseInt(parts[2], 10);
+  var yr = parseInt(parts[3], 10);
+  var birth = new Date(yr, mo, dy);
+  // Reject impossible dates (e.g. Feb 30)
+  if (birth.getMonth() !== mo || birth.getDate() !== dy) return NaN;
+  var today = new Date();
+  var age = today.getFullYear() - yr;
+  if (today.getMonth() < mo || (today.getMonth() === mo && today.getDate() < dy)) age--;
+  return age >= 0 ? age : NaN;
+}
+window.computeAgeFromDob = computeAgeFromDob;
+
+/* ── DOB input: auto-format mm/dd/yyyy + sync hidden #age ── */
+(function() {
+  var dobEl = document.getElementById('dob');
+  if (!dobEl) return;
+  dobEl.addEventListener('input', function() {
+    // Strip non-digits and limit to 8 digits
+    var digits = dobEl.value.replace(/\D/g, '').slice(0, 8);
+    var fmt = digits;
+    if (digits.length > 4) {
+      fmt = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+    } else if (digits.length > 2) {
+      fmt = digits.slice(0, 2) + '/' + digits.slice(2);
+    }
+    if (dobEl.value !== fmt) dobEl.value = fmt;
+    // Keep hidden #age in sync for export/print scripts
+    var a = computeAgeFromDob(fmt);
+    var ageEl = document.getElementById('age');
+    if (ageEl) ageEl.value = (Number.isFinite(a) && a > 0) ? String(Math.floor(a)) : '';
+  });
+})();
+</script>
 
 <script>
 (function(){
@@ -776,7 +818,9 @@ var timer = setInterval(function(){
   function clamp(x,lo,hi){ if(x<lo) return lo; if(x>hi) return hi; return x; }
 
   function requiredFilled(){
-    var age = document.getElementById('age').value.trim();
+    var dobRaw = (document.getElementById('dob') || {}).value || '';
+    var ageNum = (typeof computeAgeFromDob === 'function') ? computeAgeFromDob(dobRaw) : NaN;
+    var age = (Number.isFinite(ageNum) && ageNum > 0) ? String(ageNum) : '';
     var sex = document.getElementById('sex').value.trim();
     var ids = ['sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'];
     if(!(age && sex)) return false;
@@ -792,7 +836,7 @@ function clearAll(){
   // Clear input controls (safe if some IDs don't exist)
   var ids = [
     'tester','location','memberName','firstName','lastName',
-    'phone','age','body_weight_lbs','sit','tug','mtp_raw','mtp','sway_r_raw','sway_r','sway_l_raw','sway_l','grip_r_raw','grip_r','grip_l_raw','grip_l','vo2',
+    'phone','dob','age','body_weight_lbs','sit','tug','mtp_raw','mtp','sway_r_raw','sway_r','sway_l_raw','sway_l','grip_r_raw','grip_r','grip_l_raw','grip_l','vo2',
     'decl_vo2','decl_tug','decl_sr','decl_end',
     'decl_grip','decl_sway','decl_mtp',
     'decl_scn'
@@ -826,7 +870,7 @@ window.__clearAll = clearAll;
   // All field IDs to save/restore (mirrors clearAll list + testDate + sex)
   var DRAFT_IDS = [
     'tester','testDate','location','memberName','firstName','lastName',
-    'phone','sex','age','body_weight_lbs',
+    'phone','sex','dob','body_weight_lbs',
     'sit','tug','mtp_raw','mtp',
     'sway_r_raw','sway_r','sway_l_raw','sway_l',
     'grip_r_raw','grip_r','grip_l_raw','grip_l',
@@ -1652,7 +1696,17 @@ function renderTrajectoryTable(series, age0, endAge){
       }
 
       var sex = document.getElementById('sex').value;
-      var age = Number(document.getElementById('age').value)||0;
+      var age = (function(){
+        var dob = (document.getElementById('dob') || {}).value || '';
+        var a = (typeof computeAgeFromDob === 'function') ? computeAgeFromDob(dob) : NaN;
+        if (Number.isFinite(a) && a > 0) {
+          // Keep hidden #age in sync for print/export scripts
+          var ageHidden = document.getElementById('age');
+          if (ageHidden) ageHidden.value = String(Math.floor(a));
+          return Math.floor(a);
+        }
+        return 0;
+      })();
       function num(id){ var v = Number(document.getElementById(id).value); return isFinite(v)?v:0; }
       var sit=num('sit'), tugRaw=num('tug'), mtpPct=num('mtp'), vo2Raw=num('vo2');
       var sway_r_pct=clamp(num('sway_r'),0.0001,99.9999), sway_l_pct=clamp(num('sway_l'),0.0001,99.9999);
@@ -2074,7 +2128,7 @@ Drop this whole block just before
   // ===== CONSTANTS =====
   const STORAGE_KEY = 'hsmi_field_map_v3';
   const HEADERS = [
-    'timestamp_local','app_version','name_full','phone','tester','location','sex','age',
+    'timestamp_local','app_version','name_full','phone','tester','location','sex','age','dob',
     'body_weight_lbs','body_weight_kg',
     'tug_s','vo2_mlkgmin','sitreach_in',
     'mtp_kg','mtp_pct',
@@ -2167,7 +2221,8 @@ Drop this whole block just before
       tester: getValFromMap('tester', true) || text($(CONFIG.selectors.tester)) || '',
       location: getValFromMap('location', true) || text($(CONFIG.selectors.location)) || '',
       sex: getValFromMap('sex', true) || text($(CONFIG.selectors.sex)) || '',
-      age: getValFromMap('age') || numFrom($(CONFIG.selectors.age)) || '',
+      age: (function(){ var fromMap = getValFromMap('age') || numFrom($(CONFIG.selectors.age)); if (fromMap !== '' && fromMap != null) return fromMap; var dob = (document.getElementById('dob')||{}).value || ''; var a = typeof window.computeAgeFromDob === 'function' ? window.computeAgeFromDob(dob) : NaN; return (Number.isFinite(a) && a > 0) ? Math.floor(a) : ''; })(),
+      dob: (document.getElementById('dob')||{}).value || '',
       body_weight_lbs: (document.getElementById('body_weight_lbs')||{}).value || '',
       body_weight_kg: (function(){ var lbs=parseFloat((document.getElementById('body_weight_lbs')||{}).value||''); return Number.isFinite(lbs) ? (lbs*0.453592).toFixed(1) : ''; })(),
       tug_s: numFrom($(CONFIG.selectors.tug_s)) || (tugJ && (tugJ.value||tugJ.tug)) || '',
