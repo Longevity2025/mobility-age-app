@@ -683,8 +683,21 @@ window.computeAgeFromDob = computeAgeFromDob;
   }
 
   dobEl.addEventListener('input', function() {
-    // Auto-format: keep only digits, insert slashes at positions 2 and 4
-    var digits = dobEl.value.replace(/\D/g, '').slice(0, 8);
+    var val = dobEl.value;
+
+    // If the field already looks like m/d/yyyy or mm/dd/yyyy (e.g. pasted or autofilled
+    // with single-digit month/day), normalize immediately to mm/dd/yyyy with leading zeros.
+    var slashMatch = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (slashMatch) {
+      var normalized = slashMatch[1].padStart(2,'0') + '/' + slashMatch[2].padStart(2,'0') + '/' + slashMatch[3];
+      if (val !== normalized) { dobEl.value = normalized; val = normalized; }
+      syncAge(normalized);
+      updateFeedback(normalized, false);
+      return;
+    }
+
+    // Default path: strip non-digits and auto-insert slashes at positions 2 and 4.
+    var digits = val.replace(/\D/g, '').slice(0, 8);
     var fmt = digits;
     if (digits.length > 4) {
       fmt = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
