@@ -613,12 +613,77 @@ function computeAgeFromDob(dobStr) {
 }
 window.computeAgeFromDob = computeAgeFromDob;
 
-/* ── DOB input: auto-format mm/dd/yyyy + sync hidden #age ── */
+/* ── DOB input: auto-format mm/dd/yyyy + sync hidden #age + validation ── */
 (function() {
   var dobEl = document.getElementById('dob');
   if (!dobEl) return;
+
+  // Inject a small feedback line below the DOB row for confirmation / errors
+  var feedback = document.createElement('div');
+  feedback.id = 'dob-feedback';
+  feedback.style.cssText = 'font-size:13px; margin-top:4px; display:none;';
+  var dobRow = dobEl.closest ? dobEl.closest('.row') : dobEl.parentElement;
+  if (dobRow && dobRow.parentElement) {
+    dobRow.parentElement.insertBefore(feedback, dobRow.nextSibling);
+  }
+
+  // Lazily create (or retrieve) a .field-error div inside the DOB's parent
+  function getErrEl() {
+    var parent = dobEl.parentElement;
+    if (!parent) return null;
+    var existing = parent.querySelector('.field-error');
+    if (existing) return existing;
+    var div = document.createElement('div');
+    div.className = 'field-error';
+    div.style.display = 'none';
+    parent.appendChild(div);
+    return div;
+  }
+
+  function syncAge(fmt) {
+    var a = computeAgeFromDob(fmt);
+    var ageEl = document.getElementById('age');
+    if (ageEl) ageEl.value = (Number.isFinite(a) && a > 0) ? String(Math.floor(a)) : '';
+    return a;
+  }
+
+  function updateFeedback(fmt, force) {
+    var errEl = getErrEl();
+    if (!fmt) {
+      // Empty — clear everything silently
+      dobEl.classList.remove('input-invalid');
+      if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+      feedback.style.display = 'none';
+      return;
+    }
+    var a = computeAgeFromDob(fmt);
+    var digits = fmt.replace(/\D/g, '');
+    var complete = digits.length === 8; // all 8 digits entered
+
+    if (Number.isFinite(a) && a >= 1 && a <= 120) {
+      // Valid DOB → green confirmation
+      dobEl.classList.remove('input-invalid');
+      if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+      feedback.textContent = '\u2713 Age: ' + Math.floor(a) + ' years';
+      feedback.style.cssText = 'font-size:13px; margin-top:4px; color:#166534; display:block;';
+    } else if (complete || force) {
+      // 8 digits typed (or blur) but still invalid → red error
+      dobEl.classList.add('input-invalid');
+      if (errEl) {
+        errEl.textContent = 'Please enter a valid date of birth in mm/dd/yyyy format (e.g., 05/26/1981).';
+        errEl.style.display = 'block';
+      }
+      feedback.style.display = 'none';
+    } else {
+      // Still typing — stay neutral
+      dobEl.classList.remove('input-invalid');
+      if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+      feedback.style.display = 'none';
+    }
+  }
+
   dobEl.addEventListener('input', function() {
-    // Strip non-digits and limit to 8 digits
+    // Auto-format: keep only digits, insert slashes at positions 2 and 4
     var digits = dobEl.value.replace(/\D/g, '').slice(0, 8);
     var fmt = digits;
     if (digits.length > 4) {
@@ -627,10 +692,21 @@ window.computeAgeFromDob = computeAgeFromDob;
       fmt = digits.slice(0, 2) + '/' + digits.slice(2);
     }
     if (dobEl.value !== fmt) dobEl.value = fmt;
-    // Keep hidden #age in sync for export/print scripts
-    var a = computeAgeFromDob(fmt);
-    var ageEl = document.getElementById('age');
-    if (ageEl) ageEl.value = (Number.isFinite(a) && a > 0) ? String(Math.floor(a)) : '';
+    syncAge(fmt);
+    updateFeedback(fmt, false);
+  });
+
+  // On blur: force error display even if fewer than 8 digits were typed (catches "45" etc.)
+  dobEl.addEventListener('blur', function() {
+    var fmt = dobEl.value.trim();
+    if (fmt) updateFeedback(fmt, true);
+  });
+
+  // On focus: clear error so user can retype cleanly
+  dobEl.addEventListener('focus', function() {
+    dobEl.classList.remove('input-invalid');
+    var errEl = getErrEl();
+    if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
   });
 })();
 </script>
