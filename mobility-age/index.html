@@ -696,10 +696,25 @@ window.computeAgeFromDob = computeAgeFromDob;
     updateFeedback(fmt, false);
   });
 
-  // On blur: force error display even if fewer than 8 digits were typed (catches "45" etc.)
+  // On blur: normalize to zero-padded mm/dd/yyyy if valid; otherwise force error display
   dobEl.addEventListener('blur', function() {
     var fmt = dobEl.value.trim();
-    if (fmt) updateFeedback(fmt, true);
+    if (!fmt) return;
+    var a = computeAgeFromDob(fmt);
+    if (Number.isFinite(a) && a >= 1 && a <= 120) {
+      // Normalize: pad month and day to 2 digits so field always shows mm/dd/yyyy
+      var parts = fmt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (parts) {
+        var normalized = parts[1].padStart(2, '0') + '/' + parts[2].padStart(2, '0') + '/' + parts[3];
+        if (dobEl.value !== normalized) {
+          dobEl.value = normalized;
+          syncAge(normalized);
+        }
+      }
+      updateFeedback(dobEl.value, false);
+    } else {
+      updateFeedback(fmt, true);
+    }
   });
 
   // On focus: clear error so user can retype cleanly
@@ -2298,7 +2313,13 @@ Drop this whole block just before
       location: getValFromMap('location', true) || text($(CONFIG.selectors.location)) || '',
       sex: getValFromMap('sex', true) || text($(CONFIG.selectors.sex)) || '',
       age: (function(){ var fromMap = getValFromMap('age') || numFrom($(CONFIG.selectors.age)); if (fromMap !== '' && fromMap != null) return fromMap; var dob = (document.getElementById('dob')||{}).value || ''; var a = typeof window.computeAgeFromDob === 'function' ? window.computeAgeFromDob(dob) : NaN; return (Number.isFinite(a) && a > 0) ? Math.floor(a) : ''; })(),
-      dob: (document.getElementById('dob')||{}).value || '',
+      dob: (function(){
+        var raw = (document.getElementById('dob')||{}).value || '';
+        if (!raw) return '';
+        var parts = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (!parts) return raw;
+        return parts[1].padStart(2,'0') + '/' + parts[2].padStart(2,'0') + '/' + parts[3];
+      })(),
       body_weight_lbs: (document.getElementById('body_weight_lbs')||{}).value || '',
       body_weight_kg: (function(){ var lbs=parseFloat((document.getElementById('body_weight_lbs')||{}).value||''); return Number.isFinite(lbs) ? (lbs*0.453592).toFixed(1) : ''; })(),
       tug_s: numFrom($(CONFIG.selectors.tug_s)) || (tugJ && (tugJ.value||tugJ.tug)) || '',
