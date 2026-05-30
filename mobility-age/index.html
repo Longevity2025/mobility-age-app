@@ -682,14 +682,29 @@ window.computeAgeFromDob = computeAgeFromDob;
     }
   }
 
-  dobEl.addEventListener('input', function() {
+  function applyDobNorm(val) {
+    // Try split-based normalization first (handles m/d/yyyy, mm/dd/yyyy, etc.)
+    var parts = String(val || '').split('/');
+    if (parts.length === 3) {
+      var mm = (parts[0] || '').trim();
+      var dd = (parts[1] || '').trim();
+      var yyyy = (parts[2] || '').trim();
+      if (/^\d{1,2}$/.test(mm) && /^\d{1,2}$/.test(dd) && /^\d{4}$/.test(yyyy)) {
+        return mm.padStart(2, '0') + '/' + dd.padStart(2, '0') + '/' + yyyy;
+      }
+    }
+    return val;
+  }
+  window.normalizeDob = applyDobNorm;
+
+  function handleDobInput() {
     var val = dobEl.value;
 
-    // If the field already looks like m/d/yyyy or mm/dd/yyyy (e.g. pasted or autofilled
-    // with single-digit month/day), normalize immediately to mm/dd/yyyy with leading zeros.
-    var slashMatch = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (slashMatch) {
-      var normalized = slashMatch[1].padStart(2,'0') + '/' + slashMatch[2].padStart(2,'0') + '/' + slashMatch[3];
+    // If the field already looks like m/d/yyyy — normalize without stripping slashes.
+    var parts = val.split('/');
+    if (parts.length === 3 && /^\d{1,2}$/.test(parts[0].trim()) &&
+        /^\d{1,2}$/.test(parts[1].trim()) && /^\d{4}$/.test(parts[2].trim())) {
+      var normalized = applyDobNorm(val);
       if (val !== normalized) { dobEl.value = normalized; val = normalized; }
       syncAge(normalized);
       updateFeedback(normalized, false);
@@ -707,7 +722,12 @@ window.computeAgeFromDob = computeAgeFromDob;
     if (dobEl.value !== fmt) dobEl.value = fmt;
     syncAge(fmt);
     updateFeedback(fmt, false);
-  });
+  }
+
+  // Wire to both 'input' and 'change' — 'change' catches paste on browsers
+  // that don't fire 'input' for paste/autofill (e.g. older iOS Safari).
+  dobEl.addEventListener('input',  handleDobInput);
+  dobEl.addEventListener('change', handleDobInput);
 
   // On blur: normalize to zero-padded mm/dd/yyyy if valid; otherwise force error display
   dobEl.addEventListener('blur', function() {
@@ -716,13 +736,10 @@ window.computeAgeFromDob = computeAgeFromDob;
     var a = computeAgeFromDob(fmt);
     if (Number.isFinite(a) && a >= 1 && a <= 120) {
       // Normalize: pad month and day to 2 digits so field always shows mm/dd/yyyy
-      var parts = fmt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (parts) {
-        var normalized = parts[1].padStart(2, '0') + '/' + parts[2].padStart(2, '0') + '/' + parts[3];
-        if (dobEl.value !== normalized) {
-          dobEl.value = normalized;
-          syncAge(normalized);
-        }
+      var normalized = (typeof applyDobNorm === 'function') ? applyDobNorm(fmt) : fmt;
+      if (dobEl.value !== normalized) {
+        dobEl.value = normalized;
+        syncAge(normalized);
       }
       updateFeedback(dobEl.value, false);
     } else {
@@ -2329,9 +2346,14 @@ Drop this whole block just before
       dob: (function(){
         var raw = (document.getElementById('dob')||{}).value || '';
         if (!raw) return '';
-        var parts = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (!parts) return raw;
-        return parts[1].padStart(2,'0') + '/' + parts[2].padStart(2,'0') + '/' + parts[3];
+        // Split-based normalization: handles "9/9/1980", "09/9/1980", etc.
+        var p = raw.split('/');
+        if (p.length === 3 && p[2] && p[2].trim().length === 4) {
+          return (p[0]||'').trim().padStart(2,'0') + '/' +
+                 (p[1]||'').trim().padStart(2,'0') + '/' +
+                 (p[2]||'').trim();
+        }
+        return raw;
       })(),
       body_weight_lbs: (document.getElementById('body_weight_lbs')||{}).value || '',
       body_weight_kg: (function(){ var lbs=parseFloat((document.getElementById('body_weight_lbs')||{}).value||''); return Number.isFinite(lbs) ? (lbs*0.453592).toFixed(1) : ''; })(),
@@ -2418,6 +2440,38 @@ Drop this whole block just before
 
   // Expose a tiny debug hook
   window.hsmiExport = { rewire: wire, collect };
+})();
+</script>
+
+<script>
+/* ── DOB zero-pad safety net: patch collect() after it is wired ──
+   Runs after DOMContentLoaded so hsmiExport is already set.
+   Wraps the real collect() to always zero-pad the dob field
+   regardless of what the input handler or UI state produced.       */
+(function(){
+  function patchCollect(){
+    if (!window.hsmiExport || typeof window.hsmiExport.collect !== 'function') return;
+    if (window.hsmiExport.__dobPatched) return;
+    var orig = window.hsmiExport.collect;
+    window.hsmiExport.collect = function(){
+      var rec = orig.apply(this, arguments);
+      if (rec && rec.dob) {
+        var p = String(rec.dob).split('/');
+        if (p.length === 3 && (p[2]||'').trim().length === 4) {
+          rec.dob = (p[0]||'').trim().padStart(2,'0') + '/' +
+                    (p[1]||'').trim().padStart(2,'0') + '/' +
+                    (p[2]||'').trim();
+        }
+      }
+      return rec;
+    };
+    window.hsmiExport.__dobPatched = true;
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(patchCollect, 200); });
+  } else {
+    setTimeout(patchCollect, 200);
+  }
 })();
 </script>
 
