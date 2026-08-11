@@ -978,6 +978,13 @@ function clearAll(){
     document.querySelector('[data-summary]');
   if (summary) summary.textContent = '';
 
+  // Discard the last-calculation snapshot too. Without this, starting a new
+  // test after a completed one leaves the print-time parity check comparing
+  // this test's still-in-progress data against a totally different, already-
+  // finished test -- which produces confusing, irrelevant warnings about
+  // fields that were never actually lost, just not filled in yet.
+  window.__HSMI_LAST_CALC_SNAPSHOT__ = null;
+
   // Optional: refresh UI if your app exposes render()
   if (typeof render === 'function') render();
 }
