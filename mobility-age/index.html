@@ -1994,6 +1994,17 @@ var wz = {
       }
       if(fin){ fin.textContent = final.toFixed(2); }
 
+      // Snapshot every labeled field's current value now that results have
+      // successfully calculated. checkFieldParityBeforePrint() (in the print
+      // helper, loaded later on the page) compares against this right before
+      // printing, so any field that goes blank between now and print time gets
+      // caught instead of silently vanishing from the report.
+      try{
+        if (typeof window.__HSMI_collectFieldSnapshot === 'function'){
+          window.__HSMI_LAST_CALC_SNAPSHOT__ = window.__HSMI_collectFieldSnapshot();
+        }
+      }catch(_e){}
+
       // --- Path B: Expected-decline trajectory (UI add-on) ---
       try{
         var ctx = {
@@ -3544,9 +3555,126 @@ function syncControlValues(clone){
     return '<!doctype html><html><head><meta charset="utf-8">'+css+'</head><body>'+header+frag.innerHTML+'</body></html>';
   }
 
+  // ---- Guard against silently-invalid <input type="number"> values before printing ----
+  // Per the HTML spec, if a number input's content doesn't parse as a plain number
+  // (comma decimal separator, stray text from a paste, leading/trailing whitespace
+  // from autofill, etc.), .value silently returns "" even though the box may still
+  // visually show something and checkValidity() reports true. That means a field
+  // like Body Weight can look filled-in on screen yet be completely dropped from
+  // the printed report with no warning. This checks for that state and gives the
+  // user a chance to fix it before the report is generated.
+  function checkForBadNumberInputs(){
+    var fieldsToCheck = [
+      { id: 'body_weight_lbs', label: 'Body Weight' }
+    ];
+    for (var i = 0; i < fieldsToCheck.length; i++){
+      var f = fieldsToCheck[i];
+      var el = document.getElementById(f.id);
+      if (el && el.validity && el.validity.badInput){
+        var proceed = confirm(
+          f.label + ' has an unrecognized value and will be left OFF the printed report.\n\n' +
+          'This can happen from a paste, autofill, or a decimal comma instead of a period.\n\n' +
+          'Click Cancel to go fix it, or OK to print anyway without ' + f.label + '.'
+        );
+        if (!proceed){
+          try { el.focus(); el.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(e){}
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  // ---- Shared: collect current {label: value} pairs for every labeled, non-empty ----
+  // field on the page. Mirrors buildPrintableHTML()'s own label/control-matching logic
+  // exactly, so a value read here is always the same value that would end up in the
+  // printed report if collected at the same moment. Exposed on window so render()
+  // (a separate closure, defined earlier in the file) can call it to take a snapshot
+  // at calculation time.
+  function collectLabeledFieldValues(){
+    var root = document.querySelector('.wrap') || document.querySelector('main') || document.body;
+    var out = {};
+    var labels = root.querySelectorAll('label');
+    for (var i=0;i<labels.length;i++){
+      var lab = labels[i];
+      var id = lab.getAttribute('for');
+      var ctrl = id ? document.getElementById(id) : null;
+      if (!ctrl && lab.nextElementSibling && /^(INPUT|SELECT|TEXTAREA)$/.test(lab.nextElementSibling.tagName)) ctrl = lab.nextElementSibling;
+      if (!ctrl) continue;
+      if (ctrl.id && /^(decl_vo2|decl_tug|decl_sr|decl_end)$/.test(ctrl.id)) continue;
+
+      var val = '';
+      if (ctrl.tagName==='SELECT'){
+        var opt = ctrl.options[ctrl.selectedIndex]; val = opt ? (opt.text || opt.value) : '';
+      } else if (ctrl.type==='checkbox' || ctrl.type==='radio'){
+        val = ctrl.checked ? (ctrl.value || 'Yes') : 'No';
+      } else { val = ctrl.value || ''; }
+      val = (''+val).trim();
+      if (!val) continue;
+
+      var key = (lab.textContent||'').trim().replace(/:$/,'');
+      out[key] = val;
+    }
+    return out;
+  }
+  window.__HSMI_collectFieldSnapshot = collectLabeledFieldValues;
+
+  // ---- Guard against data silently disappearing between calculation and print ----
+  // Compares the field values captured the last time results were successfully
+  // calculated (see render(), which populates window.__HSMI_LAST_CALC_SNAPSHOT__)
+  // against the live values right now. Catches ANY field that had a value at calc
+  // time but is blank now -- regardless of why -- rather than guessing at a specific
+  // mechanism. If nothing has been calculated yet, there's nothing to compare, so it
+  // passes through silently.
+  function checkFieldParityBeforePrint(){
+    var snapshot = window.__HSMI_LAST_CALC_SNAPSHOT__;
+    if (!snapshot) return true;
+
+    var current = collectLabeledFieldValues();
+    var dropped = [];
+    for (var key in snapshot){
+      if (!Object.prototype.hasOwnProperty.call(snapshot, key)) continue;
+      if (!current[key]) dropped.push({ label: key, was: snapshot[key] });
+    }
+    if (dropped.length === 0) return true;
+
+    var n = dropped.length;
+    var msg = '\u26A0 Report data check\n\n' +
+      n + (n===1 ? ' field had a value' : ' fields had values') +
+      ' when your results were last calculated,\n' +
+      (n===1 ? 'but is now blank' : 'but are now blank') +
+      ' and will NOT appear in the printed report:\n\n' +
+      dropped.map(function(d){ return '  \u2022 ' + d.label + ': was "' + d.was + '" \u2014 now blank'; }).join('\n') +
+      '\n\nThis usually means something changed the field after you entered\n' +
+      'your data, or the value didn\'t save the way it appeared to.\n\n' +
+      'Click Cancel to stop and re-check your entries before printing,\n' +
+      'or OK to print anyway with ' + (n===1 ? 'this field' : 'these fields') + ' left blank.';
+
+    var proceed = confirm(msg);
+    if (!proceed){
+      try{
+        var root = document.querySelector('.wrap') || document.querySelector('main') || document.body;
+        var labels = root.querySelectorAll('label');
+        for (var i=0;i<labels.length;i++){
+          var lab = labels[i];
+          if ((lab.textContent||'').trim().replace(/:$/,'') === dropped[0].label){
+            var id = lab.getAttribute('for');
+            var ctrl = id ? document.getElementById(id) : (lab.nextElementSibling && /^(INPUT|SELECT|TEXTAREA)$/.test(lab.nextElementSibling.tagName) ? lab.nextElementSibling : null);
+            if (ctrl){ ctrl.focus(); ctrl.scrollIntoView({ behavior:'smooth', block:'center' }); }
+            break;
+          }
+        }
+      }catch(e){}
+      return false;
+    }
+    return true;
+  }
+
   // ---- Print via hidden iframe (single, robust) ----
   function iframePrint(){
     if (window.__PRINT_LOCK__) return;
+    if (!checkForBadNumberInputs()) return;
+    if (!checkFieldParityBeforePrint()) return;
     window.__PRINT_LOCK__ = true; setTimeout(function(){ window.__PRINT_LOCK__ = false; }, 2500);
 
 // Ensure latest calculations & default trajectory inputs are in place before cloning
@@ -3673,6 +3801,8 @@ function hideLegacyPrintButtons(){
   // ---- Alternate print via hidden iframe ----
   function iframePrint_v2(){
     if (window.__PRINT_LOCK_V2__) return;
+    if (!checkForBadNumberInputs()) return;
+    if (!checkFieldParityBeforePrint()) return;
     window.__PRINT_LOCK_V2__ = true; setTimeout(function(){ window.__PRINT_LOCK_V2__ = false; }, 2500);
 
     try{ if (typeof render === 'function') { render(); } }catch(e){}
