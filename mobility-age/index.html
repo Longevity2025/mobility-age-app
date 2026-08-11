@@ -433,7 +433,7 @@ var timer = setInterval(function(){
   <div id="dbg"></div>
   <div id="err"></div>
   <h1>Mobility Age</h1>
-  <p class="note">Capped MAEs: Sit &amp; Reach ≥ 21, TUG ≥ 21, VO₂ ≥ 21. Auto-calc every 0.5s after all fields are filled.</p>
+  <p class="note">Capped MAEs: Sit &amp; Reach ≥ 21, TUG ≥ 21, VO₂ ≥ 21, Postural Sway ≥ 21. Auto-calc every 0.5s after all fields are filled.</p>
   <div class="card">
     <h2>Inputs</h2>
     <div class="grid-2">
@@ -1402,7 +1402,7 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var mae_sit = Math.max(21, t - 15*(z_sr*w.sit));
       var mae_tug = Math.max(21, t - 15*(z_tg*w.tug));
       var mae_mtp = t - 15*(z_mtp*w.mtp);
-      var mae_swy = t - 15*(z_sway*w.sway);
+      var mae_swy = Math.max(21, t - 15*(z_sway*w.sway));
       var mae_grp = t - 15*(z_grip*w.grip);
       var mae_vo2 = Math.max(21, t - 15*(z_v2*w.vo2));
       var mobAge  = (mae_sit*w.sit + mae_tug*w.tug + mae_mtp*w.mtp + mae_swy*w.sway + mae_grp*w.grip + mae_vo2*w.vo2) / sumW;
@@ -1593,7 +1593,7 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var mae_sit = Math.max(21, t - 15*(z_sr*w.sit));
       var mae_tug = Math.max(21, t - 15*(z_tg*w.tug));
       var mae_mtp = t - 15*(z_mtp*w.mtp);
-      var mae_swy = t - 15*(z_sway*w.sway);
+      var mae_swy = Math.max(21, t - 15*(z_sway*w.sway));
       var mae_grp = t - 15*(z_grip*w.grip);
       var mae_vo2 = Math.max(21, t - 15*(z_v2*w.vo2));
       var mobAge  = (mae_sit*w.sit + mae_tug*w.tug + mae_mtp*w.mtp + mae_swy*w.sway + mae_grp*w.grip + mae_vo2*w.vo2) / sumW;
@@ -1952,7 +1952,7 @@ var wz = {
         sit:Math.max(21, age-15*wz.sit), 
         tug:Math.max(21, age-15*wz.tug), 
         mtp:age-15*wz.mtp, 
-        sway:age-15*wz.sway, 
+        sway:Math.max(21, age-15*wz.sway), 
         grip:age-15*wz.grip, 
         vo2:Math.max(21, age-15*wz.vo2) 
       };
@@ -1988,7 +1988,7 @@ var wz = {
           + rowHtml('Sit & Reach (in)', z_sit, mae.sit)
           + rowHtml('TUG (MAE floor ≥21; z capped ±'+ZCAP+')', z_tug, mae.tug)
           + rowHtml('Mid-Thigh Pull', z_mtp, mae.mtp)
-          + rowHtml('Postural Sway (avg R/L pct)', z_sway, mae.sway)
+          + rowHtml('Postural Sway (avg R/L pct; MAE floor ≥21)', z_sway, mae.sway)
           + rowHtml('Grip Strength (avg R/L pct)', z_grip, mae.grip)
           + rowHtml('VO₂ Max', z_vo2, mae.vo2);
       }
