@@ -3670,15 +3670,53 @@ function syncControlValues(clone){
     return true;
   }
 
+  // ---- Guard against printing when results never calculated at all ----
+  // render() bails out early (clearing #final/#rows, no snapshot taken) if any
+  // required field -- age/sex/sit/tug/mtp/sway/grip/vo2 -- is blank. That's a
+  // silent no-op, not an error, so checkFieldParityBeforePrint() has nothing to
+  // compare against and correctly stays quiet. This check independently verifies
+  // a real calculation actually succeeded, so a blank required field can't slip
+  // through and produce an empty report with no warning either.
+  function checkResultsCalculatedBeforePrint(){
+    var fin = document.getElementById('final');
+    var finVal = fin ? (fin.textContent || '').trim() : '';
+    var finIsNumber = finVal !== '' && isFinite(Number(finVal));
+    var tbody = document.getElementById('rows');
+    var hasRows = !!(tbody && tbody.children && tbody.children.length > 0);
+
+    if (!finIsNumber || !hasRows){
+      alert(
+        '\u26A0 Cannot print yet\n\n' +
+        'Results have not been calculated, so the printed report would be empty.\n\n' +
+        'This usually means at least one required field (Age, Sex, Sit & Reach, ' +
+        'TUG, MTP, Sway, Grip, or VO\u2082) is blank or contains an unrecognized value.\n\n' +
+        'Fill in all required fields until Mobility Age appears on screen, then try printing again.'
+      );
+      try{
+        var dbg = document.getElementById('dbg');
+        (dbg || fin) && (dbg || fin).scrollIntoView({ behavior:'smooth', block:'center' });
+      }catch(e){}
+      return false;
+    }
+    return true;
+  }
+
   // ---- Print via hidden iframe (single, robust) ----
   function iframePrint(){
     if (window.__PRINT_LOCK__) return;
     if (!checkForBadNumberInputs()) return;
     if (!checkFieldParityBeforePrint()) return;
+
+    // Force a fresh calculation pass now, using the current field values --
+    // catches a required field that's blank/invalid right now, independent
+    // of whatever render() last did (which could have succeeded several
+    // edits ago, or failed silently since).
+    try{ if (typeof render === 'function') { render(); } }catch(e){}
+    if (!checkResultsCalculatedBeforePrint()) return;
+
     window.__PRINT_LOCK__ = true; setTimeout(function(){ window.__PRINT_LOCK__ = false; }, 2500);
 
-// Ensure latest calculations & default trajectory inputs are in place before cloning
-try{ if (typeof render === 'function') { render(); } }catch(e){}
+// Ensure latest trajectory inputs are in place before cloning
 try{
   var __ctx = window.__LAST_TRAJ_CTX__;
   if (__ctx && typeof updateTrajectoryPanel === 'function') { updateTrajectoryPanel(__ctx); }
@@ -3803,9 +3841,12 @@ function hideLegacyPrintButtons(){
     if (window.__PRINT_LOCK_V2__) return;
     if (!checkForBadNumberInputs()) return;
     if (!checkFieldParityBeforePrint()) return;
-    window.__PRINT_LOCK_V2__ = true; setTimeout(function(){ window.__PRINT_LOCK_V2__ = false; }, 2500);
 
     try{ if (typeof render === 'function') { render(); } }catch(e){}
+    if (!checkResultsCalculatedBeforePrint()) return;
+
+    window.__PRINT_LOCK_V2__ = true; setTimeout(function(){ window.__PRINT_LOCK_V2__ = false; }, 2500);
+
     try{
       var __ctx = window.__LAST_TRAJ_CTX__;
       if (__ctx && typeof updateTrajectoryPanel === 'function') { updateTrajectoryPanel(__ctx); }
