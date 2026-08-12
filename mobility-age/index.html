@@ -583,6 +583,43 @@ var timer = setInterval(function(){
     </div>
   </div>
 
+  <div id="vo2-norms" class="card" style="margin-top:14px;">
+    <h2>VO&#8322; Max Fitness Categories</h2>
+    <p class="muted" style="margin-top:-6px;font-size:13px;line-height:1.4;">Category bands are derived from each age group&rsquo;s mean and standard deviation (&plusmn;0.5 SD and &plusmn;1.5 SD cutoffs). Values in mL/kg/min.</p>
+
+    <div style="margin-top:10px;">
+      <div class="muted" style="margin-bottom:6px;"><strong>Men</strong></div>
+      <div style="overflow:auto;">
+      <table id="vo2-norms-male" style="min-width:640px;">
+        <thead><tr><th>Category</th><th>20s</th><th>30s</th><th>40s</th><th>50s</th><th>60s</th><th>70s</th><th>80s</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:900;">Excellent</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 57.5</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 53.5</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 49.5</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 45.5</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 41.5</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 37.5</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 33.5</td></tr>
+          <tr><td style="font-weight:900;">Good</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">52.5&#8211;57.5</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">48.5&#8211;53.5</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">44.5&#8211;49.5</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">40.5&#8211;45.5</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">36.5&#8211;41.5</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">32.5&#8211;37.5</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">28.5&#8211;33.5</td></tr>
+          <tr><td style="font-weight:900;">Average</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">47.5&#8211;52.5</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">43.5&#8211;48.5</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">39.5&#8211;44.5</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">35.5&#8211;40.5</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">31.5&#8211;36.5</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">27.5&#8211;32.5</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">23.5&#8211;28.5</td></tr>
+          <tr><td style="font-weight:900;">Fair</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">42.5&#8211;47.5</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">38.5&#8211;43.5</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">34.5&#8211;39.5</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">30.5&#8211;35.5</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">26.5&#8211;31.5</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">22.5&#8211;27.5</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">18.5&#8211;23.5</td></tr>
+          <tr><td style="font-weight:900;">Poor</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 42.5</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 38.5</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 34.5</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 30.5</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 26.5</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 22.5</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 18.5</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;">
+      <div class="muted" style="margin-bottom:6px;"><strong>Women</strong></div>
+      <div style="overflow:auto;">
+      <table id="vo2-norms-female" style="min-width:640px;">
+        <thead><tr><th>Category</th><th>20s</th><th>30s</th><th>40s</th><th>50s</th><th>60s</th><th>70s</th><th>80s</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:900;">Excellent</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 46.8</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 43.2</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 39.8</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 36.2</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 32.8</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 29.2</td><td style="background:#86efac;color:#14532d;text-align:center;font-weight:600;">&gt; 25.8</td></tr>
+          <tr><td style="font-weight:900;">Good</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">42.2&#8211;46.8</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">38.8&#8211;43.2</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">35.2&#8211;39.8</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">31.8&#8211;36.2</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">28.2&#8211;32.8</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">24.8&#8211;29.2</td><td style="background:#dcfce7;color:#166534;text-align:center;font-weight:600;">21.2&#8211;25.8</td></tr>
+          <tr><td style="font-weight:900;">Average</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">37.8&#8211;42.2</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">34.2&#8211;38.8</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">30.8&#8211;35.2</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">27.2&#8211;31.8</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">23.8&#8211;28.2</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">20.2&#8211;24.8</td><td style="background:#e0f2fe;color:#075985;text-align:center;font-weight:600;">16.8&#8211;21.2</td></tr>
+          <tr><td style="font-weight:900;">Fair</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">33.2&#8211;37.8</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">29.8&#8211;34.2</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">26.2&#8211;30.8</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">22.8&#8211;27.2</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">19.2&#8211;23.8</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">15.8&#8211;20.2</td><td style="background:#ffedd5;color:#9a3412;text-align:center;font-weight:600;">12.2&#8211;16.8</td></tr>
+          <tr><td style="font-weight:900;">Poor</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 33.2</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 29.8</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 26.2</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 22.8</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 19.2</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 15.8</td><td style="background:#fee2e2;color:#7f1d1d;text-align:center;font-weight:600;">&lt; 12.2</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+
 
 </div>
 
@@ -3625,6 +3662,9 @@ function syncControlValues(clone){
 
 
       '#results{break-inside:avoid;page-break-inside:avoid;}' +
+      '#vo2-norms{break-inside:avoid;page-break-inside:avoid;}' +
+      '#vo2-norms table{font-size:8.5pt;}' +
+      '#vo2-norms th,#vo2-norms td{padding:4px 5px;}' +
       '#results table{break-inside:avoid;page-break-inside:avoid;}' +
       '#results h2,#results #who{break-after:avoid-page;page-break-after:avoid;}' +
       '</style>';
