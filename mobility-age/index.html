@@ -556,6 +556,7 @@ var timer = setInterval(function(){
             <!-- axes + lines injected by JS -->
           </svg>
         </div>
+        <div id="traj_summary" class="muted" style="margin-top:8px; font-size:12.5px; line-height:1.4;"></div>
       </div>
 
       <div id="traj_decade_checkpoints" style="margin-top:14px;">
@@ -1434,6 +1435,12 @@ var rateVo2 = readNum(inpVo2, defVo2);
     if(!svg) return;
     // clear
     while(svg.firstChild) svg.removeChild(svg.firstChild);
+    // this view shows a single scenario, so clear any spread callout left over
+    // from the 3-trajectory print view
+    try{
+      var summaryEl = document.getElementById('traj_summary');
+      if(summaryEl) summaryEl.innerHTML = '';
+    }catch(e){}
 
     var W = 760, H = 260, padL = 44, padR = 18, padT = 16, padB = 34;
     var x0 = padL, x1 = W - padR, y0 = padT, y1 = H - padB;
@@ -1620,7 +1627,10 @@ var rateVo2 = readNum(inpVo2, defVo2);
     // clear
     while(svg.firstChild) svg.removeChild(svg.firstChild);
 
-    var W = 760, H = 260, padL = 44, padR = 18, padT = 16, padB = 34;
+    // Wider right margin makes room for a mirrored right-hand axis PLUS
+    // direct end-of-line value labels, so the final Mobility Age for each
+    // trajectory can be read exactly without tracing back to the left axis.
+    var W = 760, H = 260, padL = 44, padR = 100, padT = 16, padB = 34;
     var x0 = padL, x1 = W - padR, y0 = padT, y1 = H - padB;
 
     var minA = age0, maxA = endAge;
@@ -1652,16 +1662,22 @@ var rateVo2 = readNum(inpVo2, defVo2);
       return e;
     }
 
-    // grid lines + ticks
+    // grid lines + ticks (left AND mirrored right axis, same scale)
     var grid = el('g', {});
     var tickCount = 5;
     for(var t=0;t<=tickCount;t++){
       var yy = y0 + t*(y1-y0)/tickCount;
       grid.appendChild(el('line', { x1:x0, y1:yy, x2:x1, y2:yy, stroke:'rgba(0,0,0,.06)' }));
       var val = (maxY - t*(maxY-minY)/tickCount);
-      var tx = el('text', { x:x0-8, y:yy+4, 'text-anchor':'end', 'font-size':'11', fill:'rgba(0,0,0,.55)' });
-      tx.textContent = String(Math.round(val));
-      grid.appendChild(tx);
+      var txL = el('text', { x:x0-8, y:yy+4, 'text-anchor':'end', 'font-size':'11', fill:'rgba(0,0,0,.55)' });
+      txL.textContent = String(Math.round(val));
+      grid.appendChild(txL);
+      // right-side mirror: same values, so you can read a trajectory near
+      // the right edge without hunting back across the chart
+      grid.appendChild(el('line', { x1:x1, y1:yy, x2:x1+4, y2:yy, stroke:'rgba(0,0,0,.3)' }));
+      var txR = el('text', { x:x1+7, y:yy+4, 'text-anchor':'start', 'font-size':'10.5', fill:'rgba(0,0,0,.5)' });
+      txR.textContent = String(Math.round(val));
+      grid.appendChild(txR);
     }
     // x ticks (decades)
     var startDec = Math.ceil(minA/10)*10;
@@ -1674,42 +1690,85 @@ var rateVo2 = readNum(inpVo2, defVo2);
     }
     svg.appendChild(grid);
 
-    // axes
+    // axes (left, right, bottom)
     svg.appendChild(el('line', { x1:x0, y1:y0, x2:x0, y2:y1, stroke:'rgba(0,0,0,.22)' }));
+    svg.appendChild(el('line', { x1:x1, y1:y0, x2:x1, y2:y1, stroke:'rgba(0,0,0,.22)' }));
     svg.appendChild(el('line', { x1:x0, y1:y1, x2:x1, y2:y1, stroke:'rgba(0,0,0,.22)' }));
 
-
-    // axis labels
+    // axis labels (left + mirrored right)
     var xLab = el('text', { x:(x0+x1)/2, y:H-6, 'text-anchor':'middle', 'font-size':'12', fill:'rgba(0,0,0,.65)' });
     xLab.textContent = 'Chronological Age';
     svg.appendChild(xLab);
     var yLab = el('text', { x:14, y:(y0+y1)/2, 'text-anchor':'middle', 'font-size':'12', fill:'rgba(0,0,0,.65)', transform:'rotate(-90 14 ' + ((y0+y1)/2) + ')' });
     yLab.textContent = 'Mobility Age';
     svg.appendChild(yLab);
+    var yLabR = el('text', { x:W-8, y:(y0+y1)/2, 'text-anchor':'middle', 'font-size':'12', fill:'rgba(0,0,0,.65)', transform:'rotate(90 ' + (W-8) + ' ' + ((y0+y1)/2) + ')' });
+    yLabR.textContent = 'Mobility Age';
+    svg.appendChild(yLabR);
 
-    // mobility age lines (different dash patterns for clarity)
+    // Color-code by outcome (in addition to dash pattern, so lines stay
+    // distinguishable even on a black-and-white printout): green = slower
+    // decline (favorable/younger), blue = average, orange = faster decline
+    // (unfavorable/older).
+    var colors = ['#16a34a', '#2563eb', '#ea580c'];
     var dash = ['4 3', '', '1 4']; // slower, average, faster
+
+    // mobility age lines
+    var endPts = [];
     for(var s=0;s<(seriesList||[]).length;s++){
       var ser = seriesList[s] || [];
       var pts = [];
       for(var i=0;i<ser.length;i++){
         pts.push(xScale(ser[i].age)+','+yScale(ser[i].mobAge));
       }
-      var attrs = { points:pts.join(' '), fill:'none', stroke:'#2563eb', 'stroke-width': (s===1?3:2.5) };
+      var color = colors[s] || '#2563eb';
+      var attrs = { points:pts.join(' '), fill:'none', stroke:color, 'stroke-width': (s===1?3:2.5) };
       if(dash[s]) attrs['stroke-dasharray'] = dash[s];
       svg.appendChild(el('polyline', attrs));
+
+      if(ser.length){
+        var last = ser[ser.length-1];
+        if(Number.isFinite(last.mobAge)){
+          endPts.push({ y: yScale(last.mobAge), val: last.mobAge, color: color });
+        }
+      }
     }
+
+    // De-clutter end-label y-positions (min 14px apart) so values don't
+    // overlap when two trajectories finish close together, while keeping
+    // them anchored to their true vertical order.
+    endPts.sort(function(a,b){ return a.y - b.y; });
+    var minGap = 14;
+    for(var i=1;i<endPts.length;i++){
+      if(endPts[i].y - endPts[i-1].y < minGap) endPts[i].y = endPts[i-1].y + minGap;
+    }
+
+    // Direct end-of-line value labels: the exact final Mobility Age for
+    // each trajectory, printed right where the line ends — no need to
+    // trace across to an axis at all.
+    var endG = el('g', {});
+    for(var i=0;i<endPts.length;i++){
+      var p = endPts[i];
+      endG.appendChild(el('circle', { cx:x1, cy:p.y, r:3, fill:p.color }));
+      endG.appendChild(el('line', { x1:x1, y1:p.y, x2:x1+30, y2:p.y, stroke:p.color, 'stroke-width':1, 'stroke-dasharray':'2 2' }));
+      var lab = el('text', { x:x1+34, y:p.y+4, 'text-anchor':'start', 'font-size':'12', 'font-weight':'700', fill:p.color });
+      lab.textContent = p.val.toFixed(1);
+      endG.appendChild(lab);
+    }
+    svg.appendChild(endG);
 
     // legend
     var legend = el('g', {});
-    var lx = x0, ly = 6, lw = 410, lh = 30;
+    var lx = x0, ly = 6, lw = Math.min(460, x1-x0), lh = 30;
     legend.appendChild(el('rect', { x:lx, y:ly, width:lw, height:lh, rx:10, fill:'rgba(255,255,255,.92)', stroke:'rgba(0,0,0,.06)' }));
 
     var baseY = ly + 18;
+    var slotW = lw / ((labels||[]).length || 1);
     for(var s=0;s<(labels||[]).length;s++){
-      var x1s = lx + 10 + s*132;
-      var x2s = x1s + 26;
-      var lineAttrs = { x1:x1s, y1:baseY, x2:x2s, y2:baseY, stroke:'#2563eb', 'stroke-width': (s===1?3:2.5) };
+      var x1s = lx + 10 + s*slotW;
+      var x2s = x1s + 22;
+      var lc = colors[s] || '#2563eb';
+      var lineAttrs = { x1:x1s, y1:baseY, x2:x2s, y2:baseY, stroke:lc, 'stroke-width': (s===1?3:2.5) };
       if(dash[s]) lineAttrs['stroke-dasharray'] = dash[s];
       legend.appendChild(el('line', lineAttrs));
       var lab = el('text', { x:x2s+6, y:baseY+4, 'font-size':'11', fill:'rgba(0,0,0,.75)' });
@@ -1717,6 +1776,30 @@ var rateVo2 = readNum(inpVo2, defVo2);
       legend.appendChild(lab);
     }
     svg.appendChild(legend);
+
+    // ---- Computed spread callout (below the chart, in plain HTML) ----
+    // Answers "how different are the endpoints?" directly, in years, so
+    // nobody needs a ruler against the left axis to work it out.
+    try{
+      var summaryEl = document.getElementById('traj_summary');
+      if(summaryEl){
+        summaryEl.innerHTML = '';
+        var slowSer = (seriesList||[])[0] || [];
+        var fastSer = (seriesList||[])[2] || [];
+        var slowLast = slowSer.length ? slowSer[slowSer.length-1] : null;
+        var fastLast = fastSer.length ? fastSer[fastSer.length-1] : null;
+        if(slowLast && fastLast && Number.isFinite(slowLast.mobAge) && Number.isFinite(fastLast.mobAge)){
+          var lo = Math.min(slowLast.mobAge, fastLast.mobAge);
+          var hi = Math.max(slowLast.mobAge, fastLast.mobAge);
+          var loIsSlow = slowLast.mobAge <= fastLast.mobAge;
+          var spread = hi - lo;
+          summaryEl.innerHTML =
+            'At age <strong>' + Math.round(maxA) + '</strong>, projected Mobility Age ranges from <strong style="color:' + (loIsSlow?colors[0]:colors[2]) + '">' + lo.toFixed(1) + '</strong> (' + (loIsSlow?'slower':'faster') + ' decline) ' +
+            'to <strong style="color:' + (loIsSlow?colors[2]:colors[0]) + '">' + hi.toFixed(1) + '</strong> (' + (loIsSlow?'faster':'slower') + ' decline) &mdash; ' +
+            'a difference of <strong>' + spread.toFixed(1) + ' years</strong> depending on how consistently current gains are maintained.';
+        }
+      }
+    }catch(e){}
   }
 
   // Expose a print helper that draws ALL 3 trajectories on the existing SVG (for the Print Report)
