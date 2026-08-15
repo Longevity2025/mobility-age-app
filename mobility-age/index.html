@@ -290,7 +290,7 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
 <!-- Netlify Identity: gate the app behind login -->
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
-<body data-v='v10' data-app-version="2026.08.15">
+<body data-v='v10' data-app-version="2026.08.12">
 
 
 <!-- print cover (print-only) -->
@@ -1075,6 +1075,18 @@ function clearAll(){
   for (var i = 0; i < ids.length; i++) {
     var el = document.getElementById(ids[i]);
     if (el) { if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = ''; try{ el.__AUTO_SET__ = false; }catch(e){} }
+  }
+
+  // Clear the "✓ Age: NN years" confirmation line under Date of Birth — it's a
+  // separately-injected feedback div (id="dob-feedback"), not a form input, so
+  // the generic .value-clearing loop above doesn't touch it.
+  var dobFeedback = document.getElementById('dob-feedback');
+  if (dobFeedback) { dobFeedback.textContent = ''; dobFeedback.style.display = 'none'; }
+  var dobEl2 = document.getElementById('dob');
+  if (dobEl2) {
+    dobEl2.classList.remove('input-invalid');
+    var dobErrEl = dobEl2.parentElement ? dobEl2.parentElement.querySelector('.field-error') : null;
+    if (dobErrEl) { dobErrEl.textContent = ''; dobErrEl.style.display = 'none'; }
   }
 
   // Clear rows + final number
