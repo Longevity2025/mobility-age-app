@@ -447,6 +447,7 @@ var timer = setInterval(function(){
     <div class="draft-list-header">
       <span style="font-size:1.3rem;">&#128190;</span>
       <span class="draft-msg" id="draft-list-title">Draft found &mdash; restore all fields?</span>
+      <button type="button" id="draft-clear-all-btn" class="secondary draft-dismiss" style="font-size:.8rem; padding:.4rem .8rem; flex-shrink:0;">Clear all drafts</button>
     </div>
     <div id="draft-list-items"></div>
   </div>
@@ -1168,24 +1169,59 @@ function draftHasAnyName(){
   return !!(first || last || mn);
 }
 
-// Returns the stable id for whichever member is on screen, MINTING one the
-// first time a name is present. Once minted it lives in the hidden
-// #draftRecordId field for the rest of that record's life (through Resume
-// too, since it's part of DRAFT_IDS), so later edits to DOB/phone/name -- or
-// even just typing those fields one character at a time -- keep updating the
-// same draft instead of spawning a new one per keystroke.
+// Returns the stable id for whichever member is on screen. The first time
+// a name is present (and this call is NOT coming from a raw keystroke --
+// see the input/change wiring below), it either:
+//   (a) finds an already-saved draft with the same name (and a compatible
+//       DOB -- matching or not-yet-entered on either side) and REUSES its
+//       id, so re-typing a member you already started -- instead of
+//       clicking Resume -- updates that same draft rather than spawning a
+//       duplicate; or
+//   (b) mints a brand-new id if no match is found.
+// Once resolved it lives in the hidden #draftRecordId field for the rest of
+// that record's life (through Resume too, since it's part of DRAFT_IDS), so
+// further edits -- including typing DOB/phone one character at a time --
+// just keep updating the same draft.
+//
+// Known trade-off: two genuinely different members who share an exact name
+// AND haven't had a DOB typed yet for either of them will be merged onto one
+// draft. Entering DOB early tells them apart. This is far rarer in practice
+// than a tester re-typing the same person's name instead of resuming.
 function ensureDraftRecordId(){
   var idEl = document.getElementById('draftRecordId');
   if (!idEl) return null;
   if (idEl.value) return idEl.value;
   if (!draftHasAnyName()) return null; // nothing identifiable yet
+
+  var currentName = draftNormPart(draftDisplayName({
+    firstName:  (document.getElementById('firstName')||{}).value,
+    lastName:   (document.getElementById('lastName')||{}).value,
+    memberName: (document.getElementById('memberName')||{}).value
+  }));
+  var currentDob = draftNormPart((document.getElementById('dob')||{}).value);
+
+  if (currentName) {
+    var store = loadDraftStore();
+    var bestKey = null, bestTs = -1;
+    for (var k in store){
+      if (!Object.prototype.hasOwnProperty.call(store, k)) continue;
+      var e = store[k];
+      if (!e || !e.fields) continue;
+      if (draftNormPart(draftDisplayName(e.fields)) !== currentName) continue;
+      var eDob = draftNormPart(e.fields.dob);
+      if (currentDob && eDob && currentDob !== eDob) continue; // different DOBs -- treat as a different person
+      if ((e.ts||0) > bestTs) { bestKey = k; bestTs = e.ts||0; }
+    }
+    if (bestKey) { idEl.value = bestKey; return bestKey; }
+  }
+
   var id = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
   idEl.value = id;
   return id;
 }
 
-// Same idea but read-only -- used anywhere we must NOT mint a new id just by
-// looking (e.g. deciding what to exclude from the rendered list).
+// Same idea but read-only -- used anywhere we must NOT mint or match an id
+// just by looking (e.g. deciding what to exclude from the rendered list).
 function peekDraftRecordId(){
   var idEl = document.getElementById('draftRecordId');
   return (idEl && idEl.value) ? idEl.value : null;
@@ -1305,7 +1341,11 @@ function restoreDraftFields(fields){
 }
 
 // Saves (or clears) the draft for whichever member is currently on screen.
-// Called on every input/change and every few seconds.
+// Resolves/mints the identity if needed (see ensureDraftRecordId). Called on
+// field 'change' (roughly: blur, once a field's edit is "settled") and every
+// few seconds -- deliberately NOT on raw keystrokes, so a name typed one
+// letter at a time isn't matched/locked against an existing draft before
+// it's actually finished being typed.
 function saveDraft(){
   try {
     var key = ensureDraftRecordId();
@@ -1413,12 +1453,53 @@ function renderDraftList(){
   bannerA.style.display = 'flex';
 }
 
-// Auto-save every 3 seconds while any field has data
+// "Clear all drafts" -- a manual escape hatch for wiping every pending
+// member draft at once (e.g. cleaning up test data, or a fresh start).
+// Confirms first since it's destructive and can't be undone.
+(function wireClearAllDraftsButton(){
+  var btn = document.getElementById('draft-clear-all-btn');
+  if (!btn) return;
+  btn.addEventListener('click', function(){
+    var ok = window.confirm('Discard ALL pending member drafts? This cannot be undone.');
+    if (!ok) return;
+    writeDraftStore({});
+    renderDraftList();
+  });
+})();
+
+// Auto-save every 3 seconds while any field has data (this also resolves
+// identity via saveDraft -> ensureDraftRecordId if it hasn't happened yet --
+// a safety net in case the tester never blurs out of the name fields below)
 setInterval(saveDraft, 3000);
 
-// Also save immediately on any input change
-document.addEventListener('input',  saveDraft);
-document.addEventListener('change', saveDraft);
+// Fields where a 'change' (blur) doesn't yet mean the tester is DONE typing
+// the name -- e.g. tabbing from First Name to Last Name blurs First Name,
+// but the name isn't complete yet. Resolving identity right then would
+// match/mint against a half-typed name. So these fields only get a plain
+// (non-resolving) update; identity resolution waits for the first *other*
+// field's change, by which point the whole name section is normally done.
+var DRAFT_NAME_FIELD_IDS = { firstName: 1, lastName: 1, memberName: 1 };
+
+document.addEventListener('change', function(ev){
+  try {
+    var id = ev && ev.target && ev.target.id;
+    if (id && DRAFT_NAME_FIELD_IDS[id]) {
+      if (peekDraftRecordId()) saveDraft(); // already identified -- fine to update
+      return;                               // otherwise, don't resolve yet
+    }
+    saveDraft(); // any other field's change is a safe moment to resolve identity
+  } catch(e){}
+});
+
+// On raw keystrokes ('input'), only keep updating a draft whose identity is
+// ALREADY resolved. Deliberately does not call ensureDraftRecordId itself,
+// so a name being typed one letter at a time can't get matched (or minted)
+// against an existing draft before it's actually finished.
+document.addEventListener('input', function(){
+  try {
+    if (peekDraftRecordId()) saveDraft();
+  } catch(e){}
+});
 
 // When Clear All is pressed: if the member on screen still has a pending
 // (incomplete) draft, KEEP it -- the tester is very likely moving on to test
