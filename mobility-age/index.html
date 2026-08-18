@@ -143,19 +143,38 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
 .name-row label { display: block; font-weight: 600; margin-bottom: 0.25rem; }
 
 /* ── Draft save banners ─────────────────────────────────────── */
+/* draft-banner-a now holds a header plus a list of per-member draft rows,
+   since multiple members can each have their own in-progress test waiting
+   on a VO2 max value from the vendor at the same time. */
 #draft-banner-a {
   display: none;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
   background: #e0f2fe;
   border: 2px solid #7dd3fc;
   border-radius: 14px;
   padding: .85rem 1.1rem;
   margin-bottom: .75rem;
 }
+.draft-list-header { display: flex; align-items: center; gap: 12px; }
 #draft-banner-a .draft-msg { flex: 1; font-size: 1rem; font-weight: 700; color: #075985; }
 #draft-banner-a .draft-meta { font-size: .82rem; font-weight: 400; color: #0369a1; margin-left: 4px; }
+#draft-list-items { display: flex; flex-direction: column; }
+.draft-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: .55rem 0;
+  border-top: 1px solid #bae6fd;
+  margin-top: 4px;
+}
+.draft-item-info { flex: 1; min-width: 0; }
+.draft-item-name { font-weight: 700; color: #075985; }
+.draft-item-meta { font-size: .8rem; font-weight: 400; color: #0369a1; margin-left: 4px; }
+.draft-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
 #draft-banner-a button { font-size: .95rem; padding: .6rem 1.1rem; }
+.draft-item button { font-size: .85rem; padding: .45rem .9rem; }
 #draft-banner-a .draft-dismiss { background: #fff; color: #0369a1; border-color: #7dd3fc; margin-left: 4px; }
 
 #draft-banner-b {
@@ -422,12 +441,14 @@ var timer = setInterval(function(){
     <button id="clearBtn" class="btn">Clear All</button>
   </div>
 
-  <!-- Draft Banner A: shown on page load when a draft exists -->
+  <!-- Draft Banner A: shown on page load when one or more member drafts are
+       pending a VO2 max (each row below is a separate member). -->
   <div id="draft-banner-a" role="status" aria-live="polite">
-    <span style="font-size:1.3rem;">&#128190;</span>
-    <span class="draft-msg">Draft found &mdash; restore all fields?<span class="draft-meta" id="draft-banner-meta"></span></span>
-    <button id="draft-restore-btn">Restore Draft</button>
-    <button id="draft-dismiss-btn" class="draft-dismiss secondary">Dismiss</button>
+    <div class="draft-list-header">
+      <span style="font-size:1.3rem;">&#128190;</span>
+      <span class="draft-msg" id="draft-list-title">Draft found &mdash; restore all fields?</span>
+    </div>
+    <div id="draft-list-items"></div>
   </div>
 
   <div id="dbg"></div>
@@ -1113,116 +1134,254 @@ function clearAll(){
 
 window.__clearAll = clearAll;
 
-// ── Draft Save / Restore (localStorage) ─────────────────────────────────────
-(function(){
-  var DRAFT_KEY = 'hsmi_draft_v1';
+// ── Draft Save / Restore (localStorage) — MULTI-MEMBER ──────────────────────
+// A tester may run several test protocols in a day, each waiting on a
+// vendor-supplied VO2 max that can take hours to arrive. So instead of one
+// single "in progress" draft, we keep a small store of drafts keyed by
+// member identity, and render all of them (minus whichever member is
+// currently on screen) as a list the tester can resume individually.
+var MULTI_DRAFT_KEY = 'hsmi_drafts_v2';
 
-  // All field IDs to save/restore (mirrors clearAll list + testDate + sex)
-  var DRAFT_IDS = [
-    'tester','testDate','location','memberName','firstName','lastName',
-    'phone','sex','dob','body_weight_lbs',
-    'sit','tug','mtp_raw','mtp',
-    'sway_r_raw','sway_r','sway_l_raw','sway_l',
-    'grip_r_raw','grip_r','grip_l_raw','grip_l',
-    'vo2'
-  ];
+// All field IDs to save/restore (mirrors clearAll list + testDate + sex)
+var DRAFT_IDS = [
+  'tester','testDate','location','memberName','firstName','lastName',
+  'phone','sex','dob','body_weight_lbs',
+  'sit','tug','mtp_raw','mtp',
+  'sway_r_raw','sway_r','sway_l_raw','sway_l',
+  'grip_r_raw','grip_r','grip_l_raw','grip_l',
+  'vo2'
+];
 
-  function saveDraft(){
-    try {
-      var data = { ts: Date.now(), fields: {} };
-      var hasAny = false;
-      for (var i = 0; i < DRAFT_IDS.length; i++){
-        var el = document.getElementById(DRAFT_IDS[i]);
-        if (el && el.value.trim() !== '') {
-          data.fields[DRAFT_IDS[i]] = el.value;
-          hasAny = true;
-        }
-      }
-      if (hasAny) {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
-      }
-    } catch(e) {}
-  }
+function draftNormPart(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
 
-  function clearDraft(){
-    try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
-  }
+// Identifies which member the on-screen form currently belongs to. Uses
+// name + DOB + phone so that two members with the same name (but different
+// DOB/phone) don't collide; returns null once no name has been typed yet,
+// since there's nothing to key a draft to at that point.
+function getDraftIdentityKey(){
+  var first = draftNormPart((document.getElementById('firstName')||{}).value);
+  var last  = draftNormPart((document.getElementById('lastName')||{}).value);
+  var name  = (first || last) ? (last + ', ' + first) : draftNormPart((document.getElementById('memberName')||{}).value);
+  if (!name) return null;
+  var dob   = draftNormPart((document.getElementById('dob')||{}).value);
+  var phone = draftNormPart((document.getElementById('phone')||{}).value);
+  return name + '|' + dob + '|' + phone;
+}
 
-  function fmtAge(ms){
-    var mins = Math.round((Date.now() - ms) / 60000);
-    if (mins < 1)  return 'just now';
-    if (mins < 60) return mins + ' min ago';
-    var hrs = Math.round(mins / 60);
-    return hrs + ' hr ago';
-  }
+function draftDisplayName(fields){
+  var f = fields.firstName || '', l = fields.lastName || '';
+  if (f || l) return (f + ' ' + l).trim();
+  return fields.memberName || '(No name)';
+}
 
-  function restoreDraft(data){
-    for (var id in data.fields){
-      var el = document.getElementById(id);
-      if (!el) continue;
-      if (el.tagName === 'SELECT'){
-        for (var j = 0; j < el.options.length; j++){
-          if (el.options[j].value === data.fields[id] || el.options[j].text === data.fields[id]){
-            el.selectedIndex = j; break;
+function loadDraftStore(){
+  try {
+    var raw = localStorage.getItem(MULTI_DRAFT_KEY);
+    var obj = raw ? JSON.parse(raw) : {};
+    return (obj && typeof obj === 'object') ? obj : {};
+  } catch(e){ return {}; }
+}
+
+function writeDraftStore(store){
+  try { localStorage.setItem(MULTI_DRAFT_KEY, JSON.stringify(store)); } catch(e){}
+}
+
+function fmtDraftAge(ms){
+  var mins = Math.round((Date.now() - ms) / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return mins + ' min ago';
+  var hrs = Math.round(mins / 60);
+  return hrs + ' hr ago';
+}
+
+function escapeDraftHtml(s){
+  return String(s||'').replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+  });
+}
+
+// One-time migration: fold the old single-draft key into the new store so
+// nobody loses in-flight work when this update ships.
+(function migrateOldSingleDraft(){
+  try {
+    var oldRaw = localStorage.getItem('hsmi_draft_v1');
+    if (oldRaw) {
+      var oldData = JSON.parse(oldRaw);
+      if (oldData && oldData.fields && Object.keys(oldData.fields).length){
+        var f = oldData.fields;
+        var first = draftNormPart(f.firstName), last = draftNormPart(f.lastName);
+        var name = (first || last) ? (last + ', ' + first) : draftNormPart(f.memberName);
+        if (name) {
+          var key = name + '|' + draftNormPart(f.dob) + '|' + draftNormPart(f.phone);
+          var store = loadDraftStore();
+          if (!store[key]) {
+            store[key] = { ts: oldData.ts || Date.now(), fields: f };
+            writeDraftStore(store);
           }
         }
-      } else {
-        el.value = data.fields[id];
       }
-      // trigger change event so the app recalculates
-      try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch(e){}
+      localStorage.removeItem('hsmi_draft_v1');
     }
+  } catch(e){}
+})();
+
+function restoreDraftFields(fields){
+  for (var id in fields){
+    if (!Object.prototype.hasOwnProperty.call(fields, id)) continue;
+    var el = document.getElementById(id);
+    if (!el) continue;
+    if (el.tagName === 'SELECT'){
+      for (var j = 0; j < el.options.length; j++){
+        if (el.options[j].value === fields[id] || el.options[j].text === fields[id]){
+          el.selectedIndex = j; break;
+        }
+      }
+    } else {
+      el.value = fields[id];
+    }
+    try { el.dispatchEvent(new Event('input',  { bubbles: true })); } catch(e){}
+    try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+  }
+}
+
+// Saves (or clears) the draft for whichever member is currently on screen.
+// Called on every input/change and every few seconds.
+function saveDraft(){
+  try {
+    var key = getDraftIdentityKey();
+    if (!key) return; // no name typed yet -- nothing to key a draft to
+
+    if (typeof requiredFilled === 'function' && requiredFilled()) {
+      // VO2 has now been entered and results can be calculated -- this
+      // member's test is complete, so it's no longer a pending draft.
+      var s = loadDraftStore();
+      if (s[key]) { delete s[key]; writeDraftStore(s); }
+      return;
+    }
+
+    var fields = {}, hasAny = false;
+    for (var i = 0; i < DRAFT_IDS.length; i++){
+      var el = document.getElementById(DRAFT_IDS[i]);
+      if (el && el.value && String(el.value).trim() !== '') {
+        fields[DRAFT_IDS[i]] = el.value;
+        hasAny = true;
+      }
+    }
+    if (!hasAny) return;
+
+    var store = loadDraftStore();
+    store[key] = { ts: Date.now(), fields: fields };
+    writeDraftStore(store);
+  } catch(e){}
+}
+
+// Renders every pending draft EXCEPT the member currently on screen (no
+// point telling a tester to "resume" the person they're already looking at).
+function renderDraftList(){
+  var bannerA = document.getElementById('draft-banner-a');
+  var titleEl = document.getElementById('draft-list-title');
+  var listEl  = document.getElementById('draft-list-items');
+  if (!bannerA || !listEl) return;
+
+  var store = loadDraftStore();
+  var currentKey = getDraftIdentityKey();
+  var entries = [];
+  for (var k in store){
+    if (!Object.prototype.hasOwnProperty.call(store, k)) continue;
+    if (k === currentKey) continue;
+    if (!store[k] || !store[k].fields) continue;
+    entries.push({ key: k, ts: store[k].ts || 0, fields: store[k].fields });
+  }
+  entries.sort(function(a,b){ return b.ts - a.ts; });
+
+  if (!entries.length){
+    bannerA.style.display = 'none';
+    listEl.innerHTML = '';
+    return;
   }
 
-  function showBannerA(data){
-    var bannerA = document.getElementById('draft-banner-a');
-    var meta    = document.getElementById('draft-banner-meta');
-    var restoreBtn = document.getElementById('draft-restore-btn');
-    var dismissBtn = document.getElementById('draft-dismiss-btn');
-    if (!bannerA) return;
+  if (titleEl){
+    titleEl.textContent = (entries.length === 1)
+      ? 'Draft found \u2014 restore all fields?'
+      : 'Drafts found \u2014 ' + entries.length + ' members awaiting VO\u2082 max';
+  }
 
-    if (meta) meta.textContent = ' \u2022 saved ' + fmtAge(data.ts);
-    bannerA.style.display = 'flex';
+  listEl.innerHTML = '';
+  entries.forEach(function(entry){
+    var row = document.createElement('div');
+    row.className = 'draft-item';
 
-    restoreBtn.addEventListener('click', function(){
-      restoreDraft(data);
-      bannerA.style.display = 'none';
-      showBannerB();
-      // scroll to VO2 field smoothly
+    var info = document.createElement('div');
+    info.className = 'draft-item-info';
+    info.innerHTML =
+      '<span class="draft-item-name">' + escapeDraftHtml(draftDisplayName(entry.fields)) + '</span>' +
+      '<span class="draft-item-meta">\u2022 saved ' + fmtDraftAge(entry.ts) + '</span>';
+
+    var actions = document.createElement('div');
+    actions.className = 'draft-item-actions';
+
+    var resumeBtn = document.createElement('button');
+    resumeBtn.type = 'button';
+    resumeBtn.textContent = 'Resume';
+    resumeBtn.addEventListener('click', function(){
+      restoreDraftFields(entry.fields);
+      var bannerB = document.getElementById('draft-banner-b');
+      if (bannerB) bannerB.style.display = 'flex';
       var vo2el = document.getElementById('vo2');
       if (vo2el) { setTimeout(function(){ vo2el.scrollIntoView({ behavior: 'smooth', block: 'center' }); vo2el.focus(); }, 150); }
-    }, { once: true });
+      renderDraftList();
+    });
 
-    dismissBtn.addEventListener('click', function(){
-      bannerA.style.display = 'none';
-      clearDraft();
-    }, { once: true });
-  }
+    var discardBtn = document.createElement('button');
+    discardBtn.type = 'button';
+    discardBtn.className = 'secondary draft-dismiss';
+    discardBtn.textContent = 'Discard';
+    discardBtn.addEventListener('click', function(){
+      var s = loadDraftStore();
+      delete s[entry.key];
+      writeDraftStore(s);
+      renderDraftList();
+    });
 
-  function showBannerB(){
-    var bannerB = document.getElementById('draft-banner-b');
-    if (bannerB) bannerB.style.display = 'flex';
-  }
+    actions.appendChild(resumeBtn);
+    actions.appendChild(discardBtn);
+    row.appendChild(info);
+    row.appendChild(actions);
+    listEl.appendChild(row);
+  });
 
-  // Auto-save every 3 seconds while any field has data
-  setInterval(saveDraft, 3000);
+  bannerA.style.display = 'flex';
+}
 
-  // Also save immediately on any input change
-  document.addEventListener('input',  saveDraft);
-  document.addEventListener('change', saveDraft);
+// Auto-save every 3 seconds while any field has data
+setInterval(saveDraft, 3000);
 
-  // When Clear All is pressed, also wipe the draft and hide banners
-  var origClearAll = window.__clearAll;
-  window.__clearAll = function(){
-    origClearAll();
-    clearDraft();
-    var bannerA = document.getElementById('draft-banner-a');
-    var bannerB = document.getElementById('draft-banner-b');
-    if (bannerA) bannerA.style.display = 'none';
-    if (bannerB) bannerB.style.display = 'none';
-  };
+// Also save immediately on any input change
+document.addEventListener('input',  saveDraft);
+document.addEventListener('change', saveDraft);
 
-})();
+// When Clear All is pressed: if the member on screen still has a pending
+// (incomplete) draft, KEEP it -- the tester is very likely moving on to test
+// the next member while this one waits on their vendor VO2 result, and that
+// draft needs to survive so it can be resumed later. Only remove the draft
+// if this member's test was actually completed (VO2 entered/results shown).
+var origClearAll = window.__clearAll;
+window.__clearAll = function(){
+  try {
+    var key = getDraftIdentityKey();
+    if (key && typeof requiredFilled === 'function' && requiredFilled()) {
+      var s = loadDraftStore();
+      if (s[key]) { delete s[key]; writeDraftStore(s); }
+    }
+  } catch(e){}
+
+  origClearAll();
+
+  var bannerB = document.getElementById('draft-banner-b');
+  if (bannerB) bannerB.style.display = 'none';
+
+  renderDraftList();
+};
 // ── End Draft Save / Restore ─────────────────────────────────────────────────
 
 // --- Inline input validation (non-blocking) ----------------------------
@@ -2286,50 +2445,9 @@ var wz = {
     if (td){ try{ td.value = new Date().toISOString().slice(0,10); }catch(e){} }
   }
   startEmpty();
-  // After startEmpty clears the form, check for a saved draft and offer to restore it
-  (function checkDraftAfterStart(){
-    try {
-      var raw = localStorage.getItem('hsmi_draft_v1');
-      if (!raw) return;
-      var data = JSON.parse(raw);
-      if (data && data.fields && Object.keys(data.fields).length > 0){
-        var bannerA   = document.getElementById('draft-banner-a');
-        var meta      = document.getElementById('draft-banner-meta');
-        var restoreBtn= document.getElementById('draft-restore-btn');
-        var dismissBtn= document.getElementById('draft-dismiss-btn');
-        if (!bannerA) return;
-        var mins = Math.round((Date.now() - data.ts) / 60000);
-        var age  = mins < 1 ? 'just now' : mins < 60 ? mins + ' min ago' : Math.round(mins/60) + ' hr ago';
-        if (meta) meta.textContent = ' \u2022 saved ' + age;
-        bannerA.style.display = 'flex';
-        restoreBtn.addEventListener('click', function(){
-          // Restore all saved fields
-          for (var id in data.fields){
-            var el = document.getElementById(id);
-            if (!el) continue;
-            if (el.tagName === 'SELECT'){
-              for (var j = 0; j < el.options.length; j++){
-                if (el.options[j].value === data.fields[id] || el.options[j].text === data.fields[id]){ el.selectedIndex = j; break; }
-              }
-            } else { el.value = data.fields[id]; }
-            try { el.dispatchEvent(new Event('input', { bubbles: true })); } catch(e){}
-            try { el.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
-          }
-          bannerA.style.display = 'none';
-          // Show Banner B above VO2 field
-          var bannerB = document.getElementById('draft-banner-b');
-          if (bannerB) bannerB.style.display = 'flex';
-          // Scroll to and focus VO2 field
-          var vo2el = document.getElementById('vo2');
-          if (vo2el) { setTimeout(function(){ vo2el.scrollIntoView({ behavior:'smooth', block:'center' }); vo2el.focus(); }, 150); }
-        }, { once: true });
-        dismissBtn.addEventListener('click', function(){
-          bannerA.style.display = 'none';
-          try { localStorage.removeItem('hsmi_draft_v1'); } catch(e){}
-        }, { once: true });
-      }
-    } catch(e){}
-  })();
+  // After startEmpty clears the form, show the list of any pending member
+  // drafts (each awaiting its own VO2 max) so the tester can resume one.
+  renderDraftList();
 
   // Render: event-driven (no polling)
   (function wireRenderEvents(){
