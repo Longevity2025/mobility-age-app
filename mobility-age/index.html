@@ -475,6 +475,10 @@ var timer = setInterval(function(){
         </div>
         <div class="row"><label>Date of Birth (mm/dd/yyyy)</label><input id="dob" type="text" placeholder="mm/dd/yyyy" maxlength="10" inputmode="numeric"></div>
         <input id="age" type="hidden">
+        <!-- Stable id for the draft system: minted once per member and kept
+             for that record's whole life, so editing DOB/phone/name doesn't
+             fragment one member's draft into a pile of duplicates. -->
+        <input id="draftRecordId" type="hidden">
         <div class="row"><label>Body Weight (lbs)</label><input id="body_weight_lbs" type="number" step="0.1" min="1" placeholder="lbs"></div>
       </div>
     </div>
@@ -1088,7 +1092,7 @@ function clearAll(){
   // Clear input controls (safe if some IDs don't exist)
   var ids = [
     'tester','location','memberName','firstName','lastName',
-    'phone','dob','age','body_weight_lbs','sit','tug','mtp_raw','mtp','sway_r_raw','sway_r','sway_l_raw','sway_l','grip_r_raw','grip_r','grip_l_raw','grip_l','vo2',
+    'phone','dob','age','draftRecordId','body_weight_lbs','sit','tug','mtp_raw','mtp','sway_r_raw','sway_r','sway_l_raw','sway_l','grip_r_raw','grip_r','grip_l_raw','grip_l','vo2',
     'decl_vo2','decl_tug','decl_sr','decl_end',
     'decl_grip','decl_sway','decl_mtp',
     'decl_scn'
@@ -1143,9 +1147,12 @@ window.__clearAll = clearAll;
 var MULTI_DRAFT_KEY = 'hsmi_drafts_v2';
 
 // All field IDs to save/restore (mirrors clearAll list + testDate + sex)
+// 'draftRecordId' is included so that resuming a draft carries its stable id
+// forward -- further edits keep updating the SAME entry instead of minting
+// a new one.
 var DRAFT_IDS = [
   'tester','testDate','location','memberName','firstName','lastName',
-  'phone','sex','dob','body_weight_lbs',
+  'phone','sex','dob','draftRecordId','body_weight_lbs',
   'sit','tug','mtp_raw','mtp',
   'sway_r_raw','sway_r','sway_l_raw','sway_l',
   'grip_r_raw','grip_r','grip_l_raw','grip_l',
@@ -1154,18 +1161,34 @@ var DRAFT_IDS = [
 
 function draftNormPart(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' '); }
 
-// Identifies which member the on-screen form currently belongs to. Uses
-// name + DOB + phone so that two members with the same name (but different
-// DOB/phone) don't collide; returns null once no name has been typed yet,
-// since there's nothing to key a draft to at that point.
-function getDraftIdentityKey(){
+function draftHasAnyName(){
   var first = draftNormPart((document.getElementById('firstName')||{}).value);
   var last  = draftNormPart((document.getElementById('lastName')||{}).value);
-  var name  = (first || last) ? (last + ', ' + first) : draftNormPart((document.getElementById('memberName')||{}).value);
-  if (!name) return null;
-  var dob   = draftNormPart((document.getElementById('dob')||{}).value);
-  var phone = draftNormPart((document.getElementById('phone')||{}).value);
-  return name + '|' + dob + '|' + phone;
+  var mn    = draftNormPart((document.getElementById('memberName')||{}).value);
+  return !!(first || last || mn);
+}
+
+// Returns the stable id for whichever member is on screen, MINTING one the
+// first time a name is present. Once minted it lives in the hidden
+// #draftRecordId field for the rest of that record's life (through Resume
+// too, since it's part of DRAFT_IDS), so later edits to DOB/phone/name -- or
+// even just typing those fields one character at a time -- keep updating the
+// same draft instead of spawning a new one per keystroke.
+function ensureDraftRecordId(){
+  var idEl = document.getElementById('draftRecordId');
+  if (!idEl) return null;
+  if (idEl.value) return idEl.value;
+  if (!draftHasAnyName()) return null; // nothing identifiable yet
+  var id = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  idEl.value = id;
+  return id;
+}
+
+// Same idea but read-only -- used anywhere we must NOT mint a new id just by
+// looking (e.g. deciding what to exclude from the rendered list).
+function peekDraftRecordId(){
+  var idEl = document.getElementById('draftRecordId');
+  return (idEl && idEl.value) ? idEl.value : null;
 }
 
 function draftDisplayName(fields){
@@ -1212,15 +1235,52 @@ function escapeDraftHtml(s){
         var first = draftNormPart(f.firstName), last = draftNormPart(f.lastName);
         var name = (first || last) ? (last + ', ' + first) : draftNormPart(f.memberName);
         if (name) {
-          var key = name + '|' + draftNormPart(f.dob) + '|' + draftNormPart(f.phone);
+          var id = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
           var store = loadDraftStore();
-          if (!store[key]) {
-            store[key] = { ts: oldData.ts || Date.now(), fields: f };
-            writeDraftStore(store);
-          }
+          store[id] = { ts: oldData.ts || Date.now(), fields: f };
+          writeDraftStore(store);
         }
       }
       localStorage.removeItem('hsmi_draft_v1');
+    }
+  } catch(e){}
+})();
+
+// One-time cleanup: an earlier version of this feature keyed drafts by
+// name+DOB+phone recomputed on every keystroke, which meant typing a DOB or
+// phone number one digit at a time minted a fresh duplicate draft per
+// keystroke instead of updating one record. This collapses any entries that
+// share the same displayed name down to just the most recently saved one
+// (which has the fullest data), and gives the survivor a proper stable id.
+(function dedupeLegacyDraftsByName(){
+  try {
+    var store = loadDraftStore();
+    var byName = {};
+    var changed = false;
+    for (var k in store){
+      if (!Object.prototype.hasOwnProperty.call(store, k)) continue;
+      var entry = store[k];
+      if (!entry || !entry.fields) { delete store[k]; changed = true; continue; }
+      var nameKey = draftNormPart(draftDisplayName(entry.fields));
+      if (!nameKey) continue;
+      if (!byName[nameKey] || (entry.ts||0) > (byName[nameKey].ts||0)) {
+        byName[nameKey] = { key: k, ts: entry.ts||0 };
+      }
+    }
+    // Rebuild the store keeping only the newest entry per name, re-keyed by
+    // a fresh stable id (dropping any stale, keystroke-fragmented id).
+    var rebuilt = {};
+    for (var nk in byName){
+      if (!Object.prototype.hasOwnProperty.call(byName, nk)) continue;
+      var winnerKey = byName[nk].key;
+      var winnerEntry = store[winnerKey];
+      var newId = 'd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+      winnerEntry.fields.draftRecordId = newId;
+      rebuilt[newId] = winnerEntry;
+    }
+    // Only overwrite if we actually found something to collapse or clean.
+    if (changed || Object.keys(rebuilt).length !== Object.keys(store).length) {
+      writeDraftStore(rebuilt);
     }
   } catch(e){}
 })();
@@ -1248,7 +1308,7 @@ function restoreDraftFields(fields){
 // Called on every input/change and every few seconds.
 function saveDraft(){
   try {
-    var key = getDraftIdentityKey();
+    var key = ensureDraftRecordId();
     if (!key) return; // no name typed yet -- nothing to key a draft to
 
     if (typeof requiredFilled === 'function' && requiredFilled()) {
@@ -1284,7 +1344,7 @@ function renderDraftList(){
   if (!bannerA || !listEl) return;
 
   var store = loadDraftStore();
-  var currentKey = getDraftIdentityKey();
+  var currentKey = peekDraftRecordId();
   var entries = [];
   for (var k in store){
     if (!Object.prototype.hasOwnProperty.call(store, k)) continue;
@@ -1368,7 +1428,7 @@ document.addEventListener('change', saveDraft);
 var origClearAll = window.__clearAll;
 window.__clearAll = function(){
   try {
-    var key = getDraftIdentityKey();
+    var key = peekDraftRecordId();
     if (key && typeof requiredFilled === 'function' && requiredFilled()) {
       var s = loadDraftStore();
       if (s[key]) { delete s[key]; writeDraftStore(s); }
