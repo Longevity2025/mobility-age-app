@@ -1766,6 +1766,47 @@ var rateVo2 = readNum(inpVo2, defVo2);
       return { meanAdj: node.mean, sd: node.sd };
     }
 
+    // Loop-invariant raw/ratio setup for Grip, Sway, MTP
+    var gripRawAvg0 = (ctx.raw.grip_r + ctx.raw.grip_l) / 2.0;
+    var bwKg = ctx.raw.body_weight_kg || 0;
+    var gripRatio = (gripRawAvg0 > 0 && bwKg > 0) ? gripRawAvg0 / bwKg : 0;
+    var swayRawAvg0 = (ctx.raw.sway_r + ctx.raw.sway_l) / 2.0;
+    var mtpRatio0 = (ctx.raw.mtp > 0 && bwKg > 0) ? ctx.raw.mtp / bwKg : 0;
+
+    // ANCHOR FIX: the internal age/sex norms tables (GS/SWAY/MTP json) live on a
+    // different scale than the vendor percentiles used for the official Results
+    // panel (ctx.zConst), so re-deriving these 3 z-scores from the norms table at
+    // every age — including "now" — makes the trajectory start from a different
+    // Mobility Age than the one shown at the top of the report. We compute a
+    // one-time offset at t=age0 that reconciles the norms-table z with the true
+    // (percentile-based) baseline z, then carry that same offset through every
+    // projected year so the "now" row matches the Results panel exactly and the
+    // decline shape from the norms table is preserved on top of it.
+    var gripOffset = 0;
+    if (gripRatio > 0) {
+      var gsMSbase = meanSdAtYear(ctx.norms.GS, ctx.age0);
+      if (!isNaN(gsMSbase.meanAdj)) {
+        var zGripBaseRaw = ctx.helpers.zFromRaw(gripRatio, gsMSbase.meanAdj, gsMSbase.sd, false);
+        gripOffset = ctx.zConst.grip - zGripBaseRaw;
+      }
+    }
+    var swayOffset = 0;
+    if (swayRawAvg0 > 0) {
+      var swMSbase = meanSdAtYear(ctx.norms.SWAY, ctx.age0);
+      if (!isNaN(swMSbase.meanAdj)) {
+        var zSwayBaseRaw = ctx.helpers.zFromRaw(swayRawAvg0, swMSbase.meanAdj, swMSbase.sd, true);
+        swayOffset = ctx.zConst.sway - zSwayBaseRaw;
+      }
+    }
+    var mtpOffset = 0;
+    if (mtpRatio0 > 0) {
+      var mtpMSbase = meanSdAtYear(ctx.norms.MTP, ctx.age0);
+      if (!isNaN(mtpMSbase.meanAdj)) {
+        var zMtpBaseRaw = (mtpRatio0 - mtpMSbase.meanAdj) / mtpMSbase.sd;
+        mtpOffset = ctx.zConst.mtp - zMtpBaseRaw;
+      }
+    }
+
     // Compute yearly series
     var series = [];
     for(var t = Math.round(ctx.age0); t <= Math.round(endAge); t++){
@@ -1790,35 +1831,32 @@ var rateVo2 = readNum(inpVo2, defVo2);
       z_v2 = ctx.helpers.capZ(z_v2);
 
       // Grip: convert to peak-force/body-weight ratio, project forward using an
-      // age/sex-banded compounding % decline (see gsProjectRatio above), re-Z-score at age t
-      var gripRawAvg = (ctx.raw.grip_r + ctx.raw.grip_l) / 2.0;
-      var bwKg = ctx.raw.body_weight_kg || 0;
-      var gripRatio = (gripRawAvg > 0 && bwKg > 0) ? gripRawAvg / bwKg : 0;
+      // age/sex-banded compounding % decline (see gsProjectRatio above), re-Z-score at age t,
+      // then reconcile to the official baseline via gripOffset (see anchor fix above).
       var gripRatioProj = (gripRatio > 0) ? gsProjectRatio(gripRatio, ctx.age0, t, ctx.sex, __mult) : 0;
       var gsMS = meanSdAtYear(ctx.norms.GS, t);
       var z_grip = (gripRatio > 0 && !isNaN(gsMS.meanAdj))
-        ? ctx.helpers.zFromRaw(gripRatioProj, gsMS.meanAdj, gsMS.sd, false)
+        ? ctx.helpers.zFromRaw(gripRatioProj, gsMS.meanAdj, gsMS.sd, false) + gripOffset
         : ctx.zConst.grip;
       z_grip = ctx.helpers.capZ(z_grip);
 
-      // Sway: project bilateral avg raw (cm/s) forward — higher = worse so invert
-      var swayRawAvg = (ctx.raw.sway_r + ctx.raw.sway_l) / 2.0;
-      var swayRawProj = (swayRawAvg > 0) ? swayRawAvg + Math.abs(DCL.sway || 0) * dt : 0;
+      // Sway: project bilateral avg raw (cm/s) forward — higher = worse so invert,
+      // then reconcile to the official baseline via swayOffset (see anchor fix above).
+      var swayRawProj = (swayRawAvg0 > 0) ? swayRawAvg0 + Math.abs(DCL.sway || 0) * dt : 0;
       var swMS = meanSdAtYear(ctx.norms.SWAY, t);
-      var z_sway = (swayRawAvg > 0 && !isNaN(swMS.meanAdj))
-        ? ctx.helpers.zFromRaw(swayRawProj, swMS.meanAdj, swMS.sd, true)
+      var z_sway = (swayRawAvg0 > 0 && !isNaN(swMS.meanAdj))
+        ? ctx.helpers.zFromRaw(swayRawProj, swMS.meanAdj, swMS.sd, true) + swayOffset
         : ctx.zConst.sway;
       z_sway = ctx.helpers.capZ(z_sway);
 
       // MTP: convert to peak-force/body-weight ratio, project forward using an
-      // age-banded compounding % decline (see mtpProjectRatio above), re-Z-score at age t
-      var mtpRatio0 = (ctx.raw.mtp > 0 && bwKg > 0) ? ctx.raw.mtp / bwKg : 0;
-      var mtpMS0 = meanSdAtYear(ctx.norms.MTP, ctx.age0);
+      // age-banded compounding % decline (see mtpProjectRatio above), re-Z-score at age t,
+      // then reconcile to the official baseline via mtpOffset (see anchor fix above).
       var mtpMSt = meanSdAtYear(ctx.norms.MTP, t);
       var mtpRatioFut = mtpProjectRatio(mtpRatio0, ctx.age0, t, __mult);
       var z_mtp;
-      if (mtpRatio0 > 0 && !isNaN(mtpMS0.meanAdj) && !isNaN(mtpMSt.meanAdj)) {
-        z_mtp = (mtpRatioFut - mtpMSt.meanAdj) / mtpMSt.sd;
+      if (mtpRatio0 > 0 && !isNaN(mtpMSt.meanAdj)) {
+        z_mtp = (mtpRatioFut - mtpMSt.meanAdj) / mtpMSt.sd + mtpOffset;
       } else {
         z_mtp = ctx.zConst.mtp;
       }
@@ -1966,6 +2004,41 @@ var rateVo2 = readNum(inpVo2, defVo2);
       return { meanAdj: node.mean, sd: node.sd };
     }
 
+    // Loop-invariant raw/ratio setup for Grip, Sway, MTP
+    var gripRawAvg0 = (ctx.raw.grip_r + ctx.raw.grip_l) / 2.0;
+    var bwKg = ctx.raw.body_weight_kg || 0;
+    var gripRatio = (gripRawAvg0 > 0 && bwKg > 0) ? gripRawAvg0 / bwKg : 0;
+    var swayRawAvg0 = (ctx.raw.sway_r + ctx.raw.sway_l) / 2.0;
+    var mtpRatio0 = (ctx.raw.mtp > 0 && bwKg > 0) ? ctx.raw.mtp / bwKg : 0;
+
+    // ANCHOR FIX: see matching comment in renderTrajectory(). Reconcile the
+    // internal norms-table z-scores to the official (percentile-based) baseline
+    // z-scores at t=age0, then carry that offset through every projected year.
+    var gripOffset = 0;
+    if (gripRatio > 0) {
+      var gsMSbase = meanSdAtYear(ctx.norms.GS, ctx.age0);
+      if (!isNaN(gsMSbase.meanAdj)) {
+        var zGripBaseRaw = ctx.helpers.zFromRaw(gripRatio, gsMSbase.meanAdj, gsMSbase.sd, false);
+        gripOffset = ctx.zConst.grip - zGripBaseRaw;
+      }
+    }
+    var swayOffset = 0;
+    if (swayRawAvg0 > 0) {
+      var swMSbase = meanSdAtYear(ctx.norms.SWAY, ctx.age0);
+      if (!isNaN(swMSbase.meanAdj)) {
+        var zSwayBaseRaw = ctx.helpers.zFromRaw(swayRawAvg0, swMSbase.meanAdj, swMSbase.sd, true);
+        swayOffset = ctx.zConst.sway - zSwayBaseRaw;
+      }
+    }
+    var mtpOffset = 0;
+    if (mtpRatio0 > 0) {
+      var mtpMSbase = meanSdAtYear(ctx.norms.MTP, ctx.age0);
+      if (!isNaN(mtpMSbase.meanAdj)) {
+        var zMtpBaseRaw = (mtpRatio0 - mtpMSbase.meanAdj) / mtpMSbase.sd;
+        mtpOffset = ctx.zConst.mtp - zMtpBaseRaw;
+      }
+    }
+
     var series = [];
     for(var t = Math.round(ctx.age0); t <= Math.round(endAge); t++){
       var dt = t - ctx.age0;
@@ -1989,35 +2062,32 @@ var rateVo2 = readNum(inpVo2, defVo2);
       z_v2 = ctx.helpers.capZ(z_v2);
 
       // Grip: convert to peak-force/body-weight ratio, project forward using an
-      // age/sex-banded compounding % decline (see gsProjectRatio above), re-Z-score at age t
-      var gripRawAvg = (ctx.raw.grip_r + ctx.raw.grip_l) / 2.0;
-      var bwKg = ctx.raw.body_weight_kg || 0;
-      var gripRatio = (gripRawAvg > 0 && bwKg > 0) ? gripRawAvg / bwKg : 0;
+      // age/sex-banded compounding % decline (see gsProjectRatio above), re-Z-score at age t,
+      // then reconcile to the official baseline via gripOffset (see anchor fix above).
       var gripRatioProj = (gripRatio > 0) ? gsProjectRatio(gripRatio, ctx.age0, t, ctx.sex, 1) : 0;
       var gsMS = meanSdAtYear(ctx.norms.GS, t);
       var z_grip = (gripRatio > 0 && !isNaN(gsMS.meanAdj))
-        ? ctx.helpers.zFromRaw(gripRatioProj, gsMS.meanAdj, gsMS.sd, false)
+        ? ctx.helpers.zFromRaw(gripRatioProj, gsMS.meanAdj, gsMS.sd, false) + gripOffset
         : ctx.zConst.grip;
       z_grip = ctx.helpers.capZ(z_grip);
 
-      // Sway: project bilateral avg raw (cm/s) forward — higher = worse so invert
-      var swayRawAvg = (ctx.raw.sway_r + ctx.raw.sway_l) / 2.0;
-      var swayRawProj = (swayRawAvg > 0) ? swayRawAvg + Math.abs(DCL_print.sway || 0) * dt : 0;
+      // Sway: project bilateral avg raw (cm/s) forward — higher = worse so invert,
+      // then reconcile to the official baseline via swayOffset (see anchor fix above).
+      var swayRawProj = (swayRawAvg0 > 0) ? swayRawAvg0 + Math.abs(DCL_print.sway || 0) * dt : 0;
       var swMS = meanSdAtYear(ctx.norms.SWAY, t);
-      var z_sway = (swayRawAvg > 0 && !isNaN(swMS.meanAdj))
-        ? ctx.helpers.zFromRaw(swayRawProj, swMS.meanAdj, swMS.sd, true)
+      var z_sway = (swayRawAvg0 > 0 && !isNaN(swMS.meanAdj))
+        ? ctx.helpers.zFromRaw(swayRawProj, swMS.meanAdj, swMS.sd, true) + swayOffset
         : ctx.zConst.sway;
       z_sway = ctx.helpers.capZ(z_sway);
 
       // MTP: convert to peak-force/body-weight ratio, project forward using an
-      // age-banded compounding % decline (see mtpProjectRatio above), re-Z-score at age t
-      var mtpRatio0 = (ctx.raw.mtp > 0 && bwKg > 0) ? ctx.raw.mtp / bwKg : 0;
-      var mtpMS0 = meanSdAtYear(ctx.norms.MTP, ctx.age0);
+      // age-banded compounding % decline (see mtpProjectRatio above), re-Z-score at age t,
+      // then reconcile to the official baseline via mtpOffset (see anchor fix above).
       var mtpMSt = meanSdAtYear(ctx.norms.MTP, t);
       var z_mtp;
-      if (mtpRatio0 > 0 && !isNaN(mtpMS0.meanAdj) && !isNaN(mtpMSt.meanAdj)) {
+      if (mtpRatio0 > 0 && !isNaN(mtpMSt.meanAdj)) {
         var mtpRatioFut = mtpProjectRatio(mtpRatio0, ctx.age0, t, 1);
-        z_mtp = (mtpRatioFut - mtpMSt.meanAdj) / mtpMSt.sd;
+        z_mtp = (mtpRatioFut - mtpMSt.meanAdj) / mtpMSt.sd + mtpOffset;
       } else {
         z_mtp = ctx.zConst.mtp;
       }
