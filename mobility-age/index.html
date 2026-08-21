@@ -2511,7 +2511,7 @@ var z_sit   = zFromRaw(sit,    srMeanAdj, sr.sd, false);
 var z_tug_raw = zFromRaw(tugRaw, tgMeanAdj, tg.sd, true);   // TUG: lower=better handled by helper
 var z_vo2   = zFromRaw(vo2Raw, v2MeanAdj, v2.sd, false);
 var z_mtp   = zFromPct(mtpPct);
-var z_sway  = -zFromPct((sway_r_pct + sway_l_pct)/2.0); // invert: higher sway percentile = worse
+var z_sway  = zFromPct((sway_r_pct + sway_l_pct)/2.0); // sway percentile already runs higher=better, same as grip/MTP — no inversion needed
 var z_grip  = zFromPct((grip_r_pct + grip_l_pct)/2.0);
 
 // 4) apply caps only to TUG and VO2
