@@ -217,7 +217,7 @@ code { background: var(--bg); border: 1px solid var(--border); border-radius: 4p
     <div id="tab-paste" class="tab-pane">
       <textarea id="csv-paste" placeholder="Paste CSV content here (including the header row)…
 
-timestamp_local,app_version,name_full,phone,tester,location,sex,age,body_weight_lbs,..."></textarea>
+timestamp_local,app_version,name_full,phone,tester,location,sex,age,dob,body_weight_lbs,..."></textarea>
       <div class="action-row">
         <button class="btn-primary" id="btn-parse-paste">Parse CSV</button>
         <button class="btn-secondary" id="btn-clear-paste">Clear</button>
@@ -272,13 +272,14 @@ timestamp_local,app_version,name_full,phone,tester,location,sex,age,body_weight_
     <h2>CSV → App field mapping</h2>
     <p class="hint">All fields from the CSV header are recognized.</p>
     <div class="field-map">
-      <div class="fm-row"><span class="k">name_full</span><span class="v">Member Name</span></div>
+      <div class="fm-row"><span class="k">name_full</span><span class="v">First/Last Name (split automatically) + Member Name</span></div>
       <div class="fm-row"><span class="k">timestamp_local</span><span class="v">Test Date (date portion extracted)</span></div>
       <div class="fm-row"><span class="k">tester</span><span class="v">Tester</span></div>
       <div class="fm-row"><span class="k">location</span><span class="v">Location</span></div>
       <div class="fm-row"><span class="k">phone</span><span class="v">Phone</span></div>
       <div class="fm-row"><span class="k">sex</span><span class="v">Sex (select)</span></div>
-      <div class="fm-row"><span class="k">age</span><span class="v">Age</span></div>
+      <div class="fm-row"><span class="k">dob</span><span class="v">Date of Birth (mm/dd/yyyy)</span></div>
+      <div class="fm-row"><span class="k">age</span><span class="v">Age (fallback if DOB absent)</span></div>
       <div class="fm-row"><span class="k">body_weight_lbs</span><span class="v">Body Weight (lbs)</span></div>
       <div class="fm-row"><span class="k">sitreach_in</span><span class="v">Sit &amp; Reach (in)</span></div>
       <div class="fm-row"><span class="k">tug_s</span><span class="v">TUG (sec)</span></div>
@@ -378,14 +379,13 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ─────────────────────────────────────────────────────────────────────────────
 const dropZone  = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-
 dropZone.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('dragover');
-  const f = e.dataTransfer.files[0];
-  if (f) readFile(f);
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);
 });
 fileInput.addEventListener('change', () => {
   if (fileInput.files[0]) readFile(fileInput.files[0]);
@@ -480,6 +480,7 @@ const PREVIEW_FIELDS = [
   ['tester',           'Tester'],
   ['location',         'Location'],
   ['sex',              'Sex'],
+  ['dob',              'Date of Birth'],
   ['age',              'Age'],
   ['body_weight_lbs',  'Body Weight (lbs)'],
   ['sitreach_in',      'Sit & Reach (in)'],
@@ -525,35 +526,9 @@ function selectRow(idx) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  OPEN REPORT
-//  Strategy: encode the row as a URL fragment (JSON, base64) and open index.html.
-//  index.html will detect the fragment on load via a small bootstrap snippet
-//  injected as a URL param — but since we can't modify index.html, we use
-//  a relay approach: open a tiny intermediary page that writes to sessionStorage
-//  then redirects, OR (simpler & self-contained) use window.name to pass data.
-//  window.name persists across navigations within a tab, is string-only,
-//  and is accessible on the target page without any modification to index.html.
-//
-//  On the app side we need ONE small addition. Since we cannot silently modify
-//  a production file, this tool instead opens a relay page it generates inline
-//  as a Blob URL. The relay: stores data in sessionStorage then opens index.html
-//  in the same tab. But sessionStorage is per-origin — Blob URLs are null-origin.
-//
-//  BEST approach with zero modification to index.html:
-//  Use window.name. The relay page sets window.name = JSON data, then navigates
-//  to index.html (same tab). index.html is same-origin, so it can read
-//  window.name. BUT index.html does not read window.name on its own.
-//
-//  CONCLUSION: The cleanest solution that requires NO change to index.html is to
-//  encode all field values in the URL hash and generate a one-time relay page
-//  that uses the Broadcast Channel API or localStorage to pass the payload,
-//  then auto-closes. The target (index.html) would need to listen — which
-//  requires modification.
-//
-//  PRACTICAL DECISION: Generate a self-contained "pre-filled" version of
-//  index.html as a Blob URL with the values hard-coded into a <script> that
-//  runs at DOMContentLoaded and fills all the form fields, exactly mirroring
-//  what a user would type. This works because we read the original file via
-//  fetch (same-origin) and inject a bootstrap script.
+//  Strategy: fetch the original app HTML, inject a bootstrap <script> that
+//  fills all form fields and triggers render(), then open the result as a
+//  Blob URL in a new tab. Requires no modification to the app's source file.
 // ─────────────────────────────────────────────────────────────────────────────
 
 btnOpen.addEventListener('click', openReport);
@@ -614,6 +589,35 @@ async function openReport() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  SPLIT A FULL NAME INTO FIRST / LAST
+//  Mirrors the exact logic used by the app's own "FIRST/LAST PATCH v3" prefill
+//  routine, so a name that round-trips through the CSV splits the same way
+//  it would have if someone had typed it into the app directly:
+//    "Smith, John"  → last="Smith",  first="John"
+//    "John Smith"   → first="John",  last="Smith"
+//    "Cher"         → first="Cher",  last=""
+// ─────────────────────────────────────────────────────────────────────────────
+function splitFullName(nameFull) {
+  const v = (nameFull || '').trim();
+  if (!v) return { first: '', last: '' };
+  let first = '', last = '';
+  if (v.indexOf(',') !== -1) {
+    const p = v.split(',');
+    last  = (p[0] || '').trim();
+    first = (p.slice(1).join(',') || '').trim();
+  } else {
+    const p = v.split(/\s+/);
+    if (p.length === 1) {
+      first = p[0];
+    } else {
+      first = p.slice(0, -1).join(' ');
+      last  = p.slice(-1)[0];
+    }
+  }
+  return { first, last };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  BUILD BOOTSTRAP SCRIPT
 //  Generates a <script> block that, once index.html has loaded and initialised,
 //  sets each form field, fires 'input' events to trigger render(), then
@@ -627,8 +631,20 @@ function buildBootstrapScript(row) {
     if (m) testDate = m[1];
   }
 
-  // member name: the CSV stores "W, M" style; pass as-is to memberName
+  // member name: the CSV stores "Last, First" style; pass as-is to memberName
+  // (the app's own First/Last patch keeps this hidden field in sync once
+  // firstName/lastName are set below — but we also set it directly here as
+  // a fallback in case the app doesn't have the First/Last patch installed).
   const memberName = row.name_full || '';
+
+  // Split into first/last the same way the app's own code does, so the
+  // visible First Name / Last Name fields actually get populated — setting
+  // the hidden memberName field alone does NOT flow back into them.
+  const { first: firstName, last: lastName } = splitFullName(row.name_full);
+
+  // DOB: the app derives Age from this field on 'input'/'change'. The CSV's
+  // dob column is already zero-padded mm/dd/yyyy, matching what #dob expects.
+  const dob = row.dob || '';
 
   // Sex: ensure it's exactly "Male" or "Female"
   const sex = (row.sex || '').trim();
@@ -638,7 +654,10 @@ function buildBootstrapScript(row) {
     ['tester',          row.tester          || ''],
     ['location',        row.location        || ''],
     ['memberName',      memberName],
+    ['firstName',       firstName],
+    ['lastName',        lastName],
     ['phone',           row.phone           || ''],
+    ['dob',             dob],
     ['age',             row.age             || ''],
     ['body_weight_lbs', row.body_weight_lbs || ''],
     ['sit',             row.sitreach_in     || ''],
@@ -684,7 +703,10 @@ function buildBootstrapScript(row) {
       });
     }
 
-    // Set all text/number inputs
+    // Set all text/number inputs. Order matters a little here: firstName and
+    // lastName are set AFTER memberName so the app's own First/Last→memberName
+    // sync (triggered by firstName/lastName's input events) has the final
+    // say and produces a correctly combined "Last, First" memberName.
     fieldMap.forEach(function(pair){ set(pair[0], pair[1]); });
 
     // Set select (sex)
@@ -730,7 +752,11 @@ function buildBootstrapScript(row) {
   }
 
   // Run after the app has fully initialised (it wires render() on DOMContentLoaded
-  // and calls render() + startEmpty() at the end of its init block)
+  // and calls render() + startEmpty() at the end of its init block, and the
+  // First/Last Name patch also builds its inputs on DOMContentLoaded — since
+  // that patch's <script> appears earlier in the document than this one, its
+  // DOMContentLoaded listener fires first, so #firstName/#lastName already
+  // exist in the DOM by the time our extra delay below elapses).
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function(){
       // Extra delay: let the app's own DOMContentLoaded handlers run first
