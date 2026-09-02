@@ -980,6 +980,75 @@ window.computeAgeFromDob = computeAgeFromDob;
     return r;
   }
 
+  // ── TUG (Timed Up and Go) trajectory: age-thresholded change rate ──
+  // Replaces the old single flat "sec/year" constant (which applied the same
+  // rate at every age, including ages where TUG doesn't actually change yet).
+  // Svinøy et al., "Timed Up and Go: Reference Values for Community-Dwelling
+  // Older Adults..." Clin Interv Aging 2021;16:335-343 (Tromsø Study, n=5,400,
+  // ages 60-84): median TUG is stable from age 60-65, then increases by
+  // 0.14 sec per year of age thereafter (p<0.001, both sexes). No established
+  // longitudinal rate exists below 60, so that range is treated as flat too,
+  // pending better data — this is a threshold model, not a proxy or a guess.
+  function tugAnnualDeclineRate(age){
+    if (age < 65) return 0;
+    return 0.14;
+  }
+  function tugProjectRaw(raw0, age0, ageT, mult){
+    if (!Number.isFinite(raw0)) return raw0;
+    var m = Number.isFinite(mult) ? mult : 1;
+    var a0 = Math.round(age0), aT = Math.round(ageT);
+    if (aT <= a0) return raw0;
+    var r = raw0;
+    for (var y = a0; y < aT; y++){
+      var rate = tugAnnualDeclineRate(y) * m;
+      if (rate < 0) rate = 0; // TUG should not "improve" under any positive scenario multiplier
+      r += rate;
+    }
+    return r;
+  }
+
+  // ── VO2 max trajectory: age-banded, accelerating % decline ──
+  // Replaces the old single flat "mL/kg/min/year" constant. Fleg et al.,
+  // "Accelerated Longitudinal Decline of Aerobic Capacity in Healthy Older
+  // Adults," Circulation 2005;112:674-682 (BLSA, longitudinal, n=810): decline
+  // accelerates from ~3-6%/decade in the 20s-30s to >20%/decade past 70,
+  // steeper in men from the 40s on. Corroborated by Letnes et al. (HUNT Study,
+  // ~1,500 retested): ~3%/decade in the 20s-30s rising to ~20%/decade by the
+  // 70s-80s. The bands below are our own interpolation from those published
+  // decade-level figures to annual percentages (not a number reported
+  // directly in either paper), applied as a compounding % of the member's
+  // own projected value each year — same pattern as gsAnnualDeclineRate above.
+  function vo2AnnualDeclinePct(age){
+    if (age < 40) return 0.004;   // ~4%/decade (20s-30s)
+    if (age < 50) return 0.010;   // ~10%/decade
+    if (age < 60) return 0.013;   // ~13%/decade
+    if (age < 70) return 0.0175;  // ~17.5%/decade
+    return 0.0225;                // >20%/decade (70+)
+  }
+  function vo2ProjectRaw(raw0, age0, ageT, mult){
+    if (!(raw0 > 0)) return raw0;
+    var m = Number.isFinite(mult) ? mult : 1;
+    var a0 = Math.round(age0), aT = Math.round(ageT);
+    if (aT <= a0) return raw0;
+    var r = raw0;
+    for (var y = a0; y < aT; y++){
+      var rate = vo2AnnualDeclinePct(y) * m;
+      if (rate > 0.95) rate = 0.95;
+      if (rate < 0) rate = 0;
+      r *= (1 - rate);
+    }
+    return r;
+  }
+
+  // Sit & Reach is intentionally left as a flat linear rate (raw + rate*dt).
+  // Tonight's research found no peer-reviewed longitudinal cohort supporting
+  // a piecewise/accelerating model the way TUG and VO2 have — the best
+  // repeated-measures figure (Gando et al., Front Physiol 2017;8:454, n=305,
+  // 5-yr) found a near-zero, non-significant change (~-0.09 cm/yr, close to
+  // this app's existing -0.05 in/yr default). Forcing a threshold model onto
+  // weak evidence would fabricate precision that doesn't exist, so the
+  // default rate and its user-override behavior are unchanged.
+
   function getAutoDeclines(sex, age){
     // Age-specific default "expected change per year" derived from norms means,
     // separately by sex, at the user's current age.
@@ -1740,6 +1809,14 @@ var rateVo2 = readNum(inpVo2, defVo2);
     var endAge  = readNum(inpEnd, defEnd);
     if(!Number.isFinite(endAge) || endAge < ctx.age0) endAge = ctx.age0;
 
+    // Auto vs manual-override: reuses the __AUTO_SET__ flag updateTrajectoryPanel
+    // already maintains (true = still showing the auto-derived default; false =
+    // user has typed their own value). When auto, use the new age-banded/
+    // threshold models below; when overridden, honor the user's flat rate
+    // exactly as before — same override contract as always.
+    var vo2IsAuto = !!(inpVo2 && inpVo2.__AUTO_SET__);
+    var tugIsAuto = !!(inpTug && inpTug.__AUTO_SET__);
+
     // Helpers to get adjusted mean/sd for future age t
     function meanSdAt(testKey, mapBySex, t){
       var map = (mapBySex && mapBySex[ctx.sex]) ? mapBySex[ctx.sex] : null;
@@ -1813,9 +1890,12 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var dt = t - ctx.age0;
 
       // Projected raw values (Path B)
-      var vo2Raw = ctx.raw.vo2 + rateVo2 * dt;
-      var tugRaw = ctx.raw.tug + rateTug * dt;
-      var srRaw  = ctx.raw.sr  + rateSr  * dt;
+      // VO2 and TUG: use the age-banded/threshold model when the field is
+      // still on its auto default; fall back to flat linear extrapolation
+      // when the user has manually overridden the rate (unchanged behavior).
+      var vo2Raw = vo2IsAuto ? vo2ProjectRaw(ctx.raw.vo2, ctx.age0, t, __mult) : (ctx.raw.vo2 + rateVo2 * dt);
+      var tugRaw = tugIsAuto ? tugProjectRaw(ctx.raw.tug, ctx.age0, t, __mult) : (ctx.raw.tug + rateTug * dt);
+      var srRaw  = ctx.raw.sr  + rateSr  * dt; // unchanged — see Sit & Reach note above
 
       // Z for the 3 raw-score tests using future-age norms (with within-bin smoothing)
       var srMS = meanSdAt('sit_reach', ctx.norms.SIT, t);
@@ -1975,7 +2055,13 @@ var rateVo2 = readNum(inpVo2, defVo2);
   // Print helper: render 3 trajectories
   // (slower / average / faster) on the SVG
   // ---------------------------------
-  function computeTrajectorySeriesWithRates(ctx, rateVo2, rateTug, rateSr, endAge){
+  function computeTrajectorySeriesWithRates(ctx, rateVo2, rateTug, rateSr, endAge, mult, vo2IsAuto, tugIsAuto){
+    // mult/vo2IsAuto/tugIsAuto are optional (default to 1/false/false) so any
+    // existing caller that only passes the first 5 args keeps working exactly
+    // as before, using flat rateVo2/rateTug as a straight linear rate.
+    var __m = Number.isFinite(mult) ? mult : 1;
+    var _vo2Auto = !!vo2IsAuto;
+    var _tugAuto = !!tugIsAuto;
     // Derive grip/sway/mtp decline slopes from norms (same logic as renderTrajectory)
     var _fnDecl = (typeof getAutoDeclines === 'function') ? getAutoDeclines : null;
     var DCL_print = (_fnDecl && ctx.sex) ? _fnDecl(ctx.sex, ctx.age0) : {};
@@ -2044,9 +2130,11 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var dt = t - ctx.age0;
 
       // Projected raw values (Path B)
-      var vo2Raw = ctx.raw.vo2 + rateVo2 * dt;
-      var tugRaw = ctx.raw.tug + rateTug * dt;
-      var srRaw  = ctx.raw.sr  + rateSr  * dt;
+      // VO2/TUG: piecewise model when auto (scaled by this scenario's __m),
+      // else the flat rate already pre-scaled by the caller (rateVo2/rateTug).
+      var vo2Raw = _vo2Auto ? vo2ProjectRaw(ctx.raw.vo2, ctx.age0, t, __m) : (ctx.raw.vo2 + rateVo2 * dt);
+      var tugRaw = _tugAuto ? tugProjectRaw(ctx.raw.tug, ctx.age0, t, __m) : (ctx.raw.tug + rateTug * dt);
+      var srRaw  = ctx.raw.sr  + rateSr  * dt; // unchanged — see Sit & Reach note above
 
       // Z for the 3 raw-score tests using future-age norms (with within-bin smoothing)
       var srMS = meanSdAt('sit_reach', ctx.norms.SIT, t);
@@ -2328,10 +2416,19 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var endAge  = readNum('decl_end', 85);
       if(!Number.isFinite(endAge) || endAge < ctx.age0) endAge = ctx.age0;
 
+      // Read the same __AUTO_SET__ flags renderTrajectory() uses, right after
+      // updateTrajectoryPanel(ctx) above refreshed them for the Average
+      // scenario — so all 3 printed trajectories use the piecewise VO2/TUG
+      // model when auto, matching the live single-scenario view exactly.
+      var _inpVo2 = document.getElementById('decl_vo2');
+      var _inpTug = document.getElementById('decl_tug');
+      var vo2IsAutoPrint = !!(_inpVo2 && _inpVo2.__AUTO_SET__);
+      var tugIsAutoPrint = !!(_inpTug && _inpTug.__AUTO_SET__);
+
       var mults  = [0.5, 1.0, 1.5];
       var labels = ['Slower (0.5×)', 'Average (1.0×)', 'Faster (1.5×)'];
       var seriesList = mults.map(function(m){
-        return computeTrajectorySeriesWithRates(ctx, baseVo2*m, baseTug*m, baseSr*m, endAge);
+        return computeTrajectorySeriesWithRates(ctx, baseVo2*m, baseTug*m, baseSr*m, endAge, m, vo2IsAutoPrint, tugIsAutoPrint);
       });
 
       drawTrajectorySVGMulti(seriesList, ctx.age0, endAge, labels);
