@@ -533,8 +533,8 @@ var timer = setInterval(function(){
           <label class="muted">Multiplier scenario</label>
           <select id="decl_scn">
             <option value="1" selected>Average decline (1.0×)</option>
-            <option value="0.5">Slower-than-average (0.5×)</option>
-            <option value="1.5">Faster-than-average (1.5×)</option>
+            <option value="0.75">Slower-than-average (0.75×)</option>
+            <option value="1.25">Faster-than-average (1.25×)</option>
           </select>
         </div>
         <div class="muted" style="font-size:13px;line-height:1.35;">
@@ -2442,8 +2442,8 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var vo2IsAutoPrint = !!(_inpVo2 && _inpVo2.__AUTO_SET__);
       var tugIsAutoPrint = !!(_inpTug && _inpTug.__AUTO_SET__);
 
-      var mults  = [0.5, 1.0, 1.5];
-      var labels = ['Slower (0.5×)', 'Average (1.0×)', 'Faster (1.5×)'];
+      var mults  = [0.75, 1.0, 1.25];
+      var labels = ['Slower (0.75×)', 'Average (1.0×)', 'Faster (1.25×)'];
       var seriesList = mults.map(function(m){
         return computeTrajectorySeriesWithRates(ctx, baseVo2*m, baseTug*m, baseSr*m, endAge, m, vo2IsAutoPrint, tugIsAutoPrint);
       });
