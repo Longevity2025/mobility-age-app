@@ -1964,14 +1964,16 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var sumW = w.sit + w.tug + w.mtp + w.sway + w.grip + w.vo2;
       var compZ = (z_sr*w.sit + z_tg*w.tug + z_mtp*w.mtp + z_sway*w.sway + z_grip*w.grip + z_v2*w.vo2) / sumW;
 
-      // Mobility Age at age t using the same MAE method (and same caps >=21 for SR/TUG/VO2)
-      var mae_sit = Math.max(21, t - 15*(z_sr*w.sit));
-      var mae_tug = Math.max(21, t - 15*(z_tg*w.tug));
+      // Raw (unfloored) per-test contribution feeds mobAge (matches the
+      // Results-panel fix); nothing per-test is displayed in this table, so
+      // only the blended mobAge itself needs a floor.
+      var mae_sit = t - 15*(z_sr*w.sit);
+      var mae_tug = t - 15*(z_tg*w.tug);
       var mae_mtp = t - 15*(z_mtp*w.mtp);
-      var mae_swy = Math.max(21, t - 15*(z_sway*w.sway));
+      var mae_swy = t - 15*(z_sway*w.sway);
       var mae_grp = t - 15*(z_grip*w.grip);
-      var mae_vo2 = Math.max(21, t - 15*(z_v2*w.vo2));
-      var mobAge  = (mae_sit*w.sit + mae_tug*w.tug + mae_mtp*w.mtp + mae_swy*w.sway + mae_grp*w.grip + mae_vo2*w.vo2) / sumW;
+      var mae_vo2 = t - 15*(z_v2*w.vo2);
+      var mobAge  = Math.max(21, (mae_sit*w.sit + mae_tug*w.tug + mae_mtp*w.mtp + mae_swy*w.sway + mae_grp*w.grip + mae_vo2*w.vo2) / sumW);
 
       series.push({
         age: t,
@@ -2203,14 +2205,16 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var sumW = w.sit + w.tug + w.mtp + w.sway + w.grip + w.vo2;
       var compZ = (z_sr*w.sit + z_tg*w.tug + z_mtp*w.mtp + z_sway*w.sway + z_grip*w.grip + z_v2*w.vo2) / sumW;
 
-      // Mobility Age at age t using the same MAE method (and same caps >=21 for SR/TUG/VO2)
-      var mae_sit = Math.max(21, t - 15*(z_sr*w.sit));
-      var mae_tug = Math.max(21, t - 15*(z_tg*w.tug));
+      // Raw (unfloored) per-test contribution feeds mobAge (matches the
+      // Results-panel fix); nothing per-test is displayed in this table, so
+      // only the blended mobAge itself needs a floor.
+      var mae_sit = t - 15*(z_sr*w.sit);
+      var mae_tug = t - 15*(z_tg*w.tug);
       var mae_mtp = t - 15*(z_mtp*w.mtp);
-      var mae_swy = Math.max(21, t - 15*(z_sway*w.sway));
+      var mae_swy = t - 15*(z_sway*w.sway);
       var mae_grp = t - 15*(z_grip*w.grip);
-      var mae_vo2 = Math.max(21, t - 15*(z_v2*w.vo2));
-      var mobAge  = (mae_sit*w.sit + mae_tug*w.tug + mae_mtp*w.mtp + mae_swy*w.sway + mae_grp*w.grip + mae_vo2*w.vo2) / sumW;
+      var mae_vo2 = t - 15*(z_v2*w.vo2);
+      var mobAge  = Math.max(21, (mae_sit*w.sit + mae_tug*w.tug + mae_mtp*w.mtp + mae_swy*w.sway + mae_grp*w.grip + mae_vo2*w.vo2) / sumW);
 
       series.push({
         age: t,
@@ -2646,18 +2650,33 @@ var wz = {
 };
 
 
-      // Apply MAE caps (>=21) for Sit & Reach, TUG, and VO2
-      var mae={ 
-        sit:Math.max(21, age-15*wz.sit), 
-        tug:Math.max(21, age-15*wz.tug), 
-        mtp:age-15*wz.mtp, 
-        sway:Math.max(21, age-15*wz.sway), 
-        grip:age-15*wz.grip, 
-        vo2:Math.max(21, age-15*wz.vo2) 
+      // Raw (unfloored) per-test MAE — feeds the final blended Mobility Age so a
+      // strong score on one test isn't wasted before it can offset a weak score
+      // on another (see floor-clipping writeup). Never shown directly.
+      var maeRaw = {
+        sit:  age-15*wz.sit,
+        tug:  age-15*wz.tug,
+        mtp:  age-15*wz.mtp,
+        sway: age-15*wz.sway,
+        grip: age-15*wz.grip,
+        vo2:  age-15*wz.vo2
+      };
+
+      // Display-only MAE — floor of 21 applied per test (now including MTP and
+      // Grip) so no individual row ever shows an implausible sub-21 value.
+      // These are for the results-table rows only; the blend above uses maeRaw.
+      var mae={
+        sit:  Math.max(21, maeRaw.sit),
+        tug:  Math.max(21, maeRaw.tug),
+        mtp:  Math.max(21, maeRaw.mtp),
+        sway: Math.max(21, maeRaw.sway),
+        grip: Math.max(21, maeRaw.grip),
+        vo2:  Math.max(21, maeRaw.vo2)
       };
 
       var sumW = w.sit + w.tug + w.mtp + w.sway + w.grip + w.vo2;
-      var final = (mae.sit*w.sit + mae.tug*w.tug + mae.mtp*w.mtp + mae.sway*w.sway + mae.grip*w.grip + mae.vo2*w.vo2) / sumW;
+      // Blend the unfloored values, then floor only the final result.
+      var final = Math.max(21, (maeRaw.sit*w.sit + maeRaw.tug*w.tug + maeRaw.mtp*w.mtp + maeRaw.sway*w.sway + maeRaw.grip*w.grip + maeRaw.vo2*w.vo2) / sumW);
 
       var who = document.getElementById('who');
       if(who){
@@ -2686,9 +2705,9 @@ var wz = {
         tbody.innerHTML = ''
           + rowHtml('Sit & Reach (in) (MAE floor ≥21)', z_sit, mae.sit)
           + rowHtml('TUG (MAE floor ≥21; z capped ±'+ZCAP+')', z_tug, mae.tug)
-          + rowHtml('Mid-Thigh Pull', z_mtp, mae.mtp)
+          + rowHtml('Mid-Thigh Pull (MAE floor ≥21)', z_mtp, mae.mtp)
           + rowHtml('Postural Sway (avg R/L pct; MAE floor ≥21)', z_sway, mae.sway)
-          + rowHtml('Grip Strength (avg R/L pct)', z_grip, mae.grip)
+          + rowHtml('Grip Strength (avg R/L pct; MAE floor ≥21)', z_grip, mae.grip)
           + rowHtml('VO₂ Max (MAE floor ≥21)', z_vo2, mae.vo2);
       }
       if(fin){ fin.textContent = final.toFixed(2); }
