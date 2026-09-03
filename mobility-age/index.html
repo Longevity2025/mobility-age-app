@@ -4226,7 +4226,7 @@ function syncControlValues(clone){
 
         summaryHtml += '<div class="summary-text">';
         summaryHtml +=   '<p>Taken together, your Mobility Age and the six Mobility Age Equivalents (MAEs) give us a snapshot of how your strength, balance, flexibility and endurance are supporting your long-term health and independence.</p>';
-        summaryHtml +=   '<p>Your SENS Health Coach will use this profile—along with your medical history, goals and preferences—to design a practical, personalized plan to improve or maintain your mobility, fitness and healthspan.</p>';
+        summaryHtml +=   '<p>Your Ovation Performance Health Coach or Exercise Physiologist will use this profile—along with your medical history, goals and preferences—to design a practical, personalized plan to improve or maintain your mobility, fitness and healthspan.</p>';
         summaryHtml +=   '<p>Over the next 3–6 months, we will focus on the building blocks of healthy aging: aerobic capacity, strength, balance, flexibility, sleep, nutrition and stress management.</p>';
         summaryHtml += '</div>';
 
@@ -4265,7 +4265,7 @@ function syncControlValues(clone){
         if (resultsSection && resultsSection.parentNode){
           var p = document.createElement('p');
           p.className = 'report-body';
-          p.textContent = 'Your six Mobility Age Equivalent (MAE) scores and your overall Mobility Age are shown below. We standardize your six test results against a large database of people your age and gender and then apply research-based weights to each test to derive your MAEs. Your final Mobility Age is the average of those six weighted MAEs. Your SENS Health Coach will walk you through how you performed on each MAE and what your overall Mobility Age means for your healthspan and mobility goals.';
+          p.textContent = 'Your six Mobility Age Equivalent (MAE) scores and your overall Mobility Age are shown below. We standardize your six test results against a large database of people your age and gender and then apply research-based weights to each test to derive your MAEs. Your final Mobility Age is the average of those six weighted MAEs. Your Ovation Performance Health Coach or Exercise Physiologist will walk you through how you performed on each MAE and what your overall Mobility Age means for your healthspan and mobility goals.';
           resultsSection.parentNode.insertBefore(p, resultsSection);
           var legend = document.createElement('p');
           legend.className = 'results-legend';
@@ -4355,7 +4355,7 @@ function syncControlValues(clone){
       +   '</div>'
       + '</div>'
       + '<div class="report-intro-block">'
-+   '<p class="report-intro">The SENS Solution Wellness Program includes CCPHP’s Longevity Program, designed to support your health and wellbeing by testing and using your personal fitness and mobility metrics in conjunction with expert health coaching on holistic lifestyle factors of sleep, nutrition, and stress management. Our Longevity program offers a dimension that takes your specific data to a new level: longevity coaching built around a patent-pending mobility assessment called the Health Span Mobility Index<sup>™</sup> (HSMI).</p>'
++   '<p class="report-intro">The Ovation Performance Health Wellness Program includes CCPHP’s Longevity Program, designed to support your health and wellbeing by testing and using your personal fitness and mobility metrics in conjunction with expert health coaching on holistic lifestyle factors of sleep, nutrition, and stress management. Our Longevity program offers a dimension that takes your specific data to a new level: longevity coaching built around a patent-pending mobility assessment called the Health Span Mobility Index<sup>™</sup> (HSMI).</p>'
 + '</div>';
 
     return '<!doctype html><html><head><meta charset="utf-8">'+css+'</head><body>'+header+frag.innerHTML+'</body></html>';
