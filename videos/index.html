@@ -124,6 +124,37 @@
     width: 100%; height: 100%;
     border: 0;
   }
+  .video-embed {
+    background: #111;
+    cursor: pointer;
+  }
+  .video-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform .15s ease, background .15s ease;
+  }
+  .video-embed:hover .video-play-btn {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: #fff;
+  }
+  .video-play-btn::after {
+    content: "";
+    border-left: 20px solid #222;
+    border-top: 12px solid transparent;
+    border-bottom: 12px solid transparent;
+    margin-left: 4px;
+  }
 
   .empty-note {
     color: var(--muted);
@@ -159,7 +190,7 @@
 </header>
 
 <main>
-  <p class="intro">Watch these videos to learn how to use the HSMI app; download and upload member csv files after their test visits; and regenerate reports at a future date. They were recorded in Loom, but no Loom subscription or account is needed to watch them — just press play. Ignore the suggested 1.2x speed; these will play at 1.0 (regular speed). Questions? Email Dr. Michael Wolf at <a href="mailto:mdwolf@ccphp.net">mdwolf@ccphp.net</a>.</p>
+  <p class="intro">Watch these videos to learn about the landing page and how to (1) use the HSMI app; (2) download and upload member csv files after their test visits; (3) how to interpret a member's print report; and (4) how to regenerate reports at a future date. The videos were recorded in Loom, but no Loom subscription or account is needed to watch them — just press play. Ignore the suggested 1.2x speed; these will play at 1.0 (regular speed). Questions? Email Dr. Michael Wolf at <a href="mailto:mdwolf@ccphp.net">mdwolf@ccphp.net</a>.</p>
 
   <div class="video-list">
 
@@ -173,29 +204,32 @@
          https://www.loom.com/embed/3f7a1c9d8e2b4a6f9c0d1e2f3a4b5c6d
                                     -> id is 3f7a1c9d8e2b4a6f9c0d1e2f3a4b5c6d
       3. Duplicate one <div class="video-card">...</div> block below,
-         update the title, description, and the iframe src ID.
+         update the title, description, and the data-loom-src ID.
+         (Videos now load lazily — nothing calls out to Loom until a
+         teammate clicks the play button, so page load stays fast no
+         matter how many videos are on this list.)
       4. Keep newest videos at the top of the list.
     -->
 
 <div class="video-card">
   <p class="video-title">The Health Span Mobility Index Landing Page and Tiles</p>
   <p class="video-desc">Guide to the HSMI app, the YMCA 3-min test app, the Report Regenerator and Team Training Videos.</p>
-  <div class="video-embed">
-    <iframe src="https://www.loom.com/embed/37dac078a7c44081aba8850fe16f240a" allowfullscreen></iframe>
+  <div class="video-embed" data-loom-src="https://www.loom.com/embed/37dac078a7c44081aba8850fe16f240a">
+    <button class="video-play-btn" aria-label="Play video"></button>
   </div>
 </div>
 <div class="video-card">
   <p class="video-title">Uploading csv files to https://datawarehouse.ccphp.net/#/hsmi-upload</p>
   <p class="video-desc">How to download member csv files to your PC or Mac then upload to our Data Warehouse.</p>
-  <div class="video-embed">
-    <iframe src="https://www.loom.com/embed/0818a8b5e4f6421ab96faab426b77c43" allowfullscreen></iframe>
+  <div class="video-embed" data-loom-src="https://www.loom.com/embed/0818a8b5e4f6421ab96faab426b77c43">
+    <button class="video-play-btn" aria-label="Play video"></button>
   </div>
 </div>
 <div class="video-card">
   <p class="video-title">Using the HSMI Report Regenerator</p>
   <p class="video-desc">See how to use a previously-run member csv file to regenerate the full report.</p>
-  <div class="video-embed">
-    <iframe src="https://www.loom.com/embed/42058800aa7d43d3b04d82ea013e13a2" allowfullscreen></iframe>
+  <div class="video-embed" data-loom-src="https://www.loom.com/embed/42058800aa7d43d3b04d82ea013e13a2">
+    <button class="video-play-btn" aria-label="Play video"></button>
   </div>
 </div>
 </div>
@@ -252,6 +286,23 @@
     }
   }, 200);
 })();
+</script>
+
+<!-- Lazy-load Loom videos: nothing loads from Loom until a video is clicked -->
+<script>
+  document.querySelectorAll('.video-embed[data-loom-src]').forEach(function (embed) {
+    function loadVideo() {
+      var src = embed.getAttribute('data-loom-src');
+      var iframe = document.createElement('iframe');
+      iframe.src = src + (src.indexOf('?') > -1 ? '&' : '?') + 'autoplay=1';
+      iframe.allow = 'autoplay; fullscreen';
+      iframe.allowFullscreen = true;
+      embed.innerHTML = '';
+      embed.appendChild(iframe);
+      embed.removeEventListener('click', loadVideo);
+    }
+    embed.addEventListener('click', loadVideo, { once: true });
+  });
 </script>
 
 </body>
