@@ -1049,6 +1049,23 @@ window.computeAgeFromDob = computeAgeFromDob;
   // weak evidence would fabricate precision that doesn't exist, so the
   // default rate and its user-override behavior are unchanged.
 
+  // Postural Sway is also intentionally left on the flat/frozen local-slope
+  // approach (one slope derived from the norm table at the member's current
+  // age via localSlopeFromYearMap, then held constant for the whole
+  // projection) rather than given a piecewise model like Grip/MTP/TUG/VO2.
+  // This app's Sway norms (BTrackS Balance Test, Goble et al., Phys Ther
+  // 2018;98(9):779-786, n=16,357; companion n=6,280 study) are CROSS-
+  // SECTIONAL — different people measured once, stratified by age — not
+  // evidence of how an individual's sway changes over time. The genuine
+  // longitudinal (repeated-measures) studies found instead argue AGAINST a
+  // decline model: a 5-year study (Sci Rep 2026) found balance confidence
+  // (ABC score) significantly increased and concluded "the age-related
+  // decline in postural control is not entirely clear"; a 10-year, n=198
+  // study (J Clin Med 2024;13(4):1081, PMC10889802) found sway area did NOT
+  // increase for 187 of 198 participants (94%). Postural sway's longitudinal
+  // literature is weaker than even Sit & Reach's on this point, so it stays
+  // unmodeled rather than have a false precision imposed on it.
+
   function getAutoDeclines(sex, age){
     // Age-specific default "expected change per year" derived from norms means,
     // separately by sex, at the user's current age.
