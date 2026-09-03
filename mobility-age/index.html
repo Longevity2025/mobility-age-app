@@ -516,6 +516,9 @@ var timer = setInterval(function(){
       <tbody id="rows"></tbody>
       <tfoot><tr><th colspan="2">Final Mobility Age</th><th id="final"></th></tr></tfoot>
     </table>
+    <div id="mae_floor_note" class="muted" style="margin-top:8px; font-size:12.5px; line-height:1.4;">
+      Individual test scores below age 21 are shown as 21 to keep results realistic &mdash; a score that strong doesn't need a lower number to prove it. Your Final Mobility Age above uses your complete, unrounded results, so it may reflect an even younger score than the individual rows alone suggest.
+    </div>
   </div>
   
   <div id="trajectory" class="card" style="margin-top:14px;">
@@ -585,7 +588,11 @@ var timer = setInterval(function(){
         <div id="traj_summary" class="muted" style="margin-top:8px; font-size:12.5px; line-height:1.4;"></div>
       </div>
 
-      <div id="traj_decade_checkpoints" style="margin-top:14px;">
+      <!-- Decade checkpoints table: hidden per product decision (Sept 2026) — colleagues
+           found it wasn't landing with members in reports. renderTrajectoryTable() still
+           runs and populates #traj_rows normally; only the display is suppressed. Remove
+           the inline style below to bring it back on screen and in printed reports. -->
+      <div id="traj_decade_checkpoints" style="margin-top:14px; display:none;">
         <div class="muted" style="margin-bottom:6px;"><strong>Decade checkpoints</strong></div>
         <div style="overflow:auto;border:1px solid rgba(0,0,0,.08); border-radius:12px;">
           <table style="min-width:760px;">
@@ -1071,13 +1078,30 @@ window.computeAgeFromDob = computeAgeFromDob;
     // separately by sex, at the user's current age.
     var s0 = (sex==null?'':String(sex).trim().toLowerCase());
     var s = (s0==='female' || s0==='f' || s0.indexOf('f')===0) ? 'Female' : 'Male';
-    return {
+    var raw = {
       vo2:       localSlopeFromBins((VO2||{})[s], age),
       tug:       localSlopeFromBins((TUG||{})[s], age),
       sit_reach: localSlopeFromBins((SIT||{})[s], age),
       grip:      localSlopeFromYearMap((GS||{})[s],   age),
       sway:      localSlopeFromYearMap((SWAY||{})[s], age),
-      mtp:       localSlopeFromYearMap((MTP||{})[s],  age),
+      mtp:       localSlopeFromYearMap((MTP||{})[s],  age)
+    };
+    // Floor at 0% change: "Average" decline should never imply improvement,
+    // even where the norm table's own local trend technically dips that way
+    // (e.g. GS's slight uptick through the 70s). Direction depends on which
+    // way is "better" for that test: vo2/sit_reach/grip/mtp are higher=better
+    // (floor slope at <=0); tug is higher=worse (floor slope at >=0).
+    function floorAtZero(v, higherIsBetter){
+      if (!Number.isFinite(v)) return v;
+      return higherIsBetter ? Math.min(0, v) : Math.max(0, v);
+    }
+    return {
+      vo2:       floorAtZero(raw.vo2, true),
+      tug:       floorAtZero(raw.tug, false),
+      sit_reach: floorAtZero(raw.sit_reach, true),
+      grip:      floorAtZero(raw.grip, true),
+      sway:      raw.sway, // unaffected by this fix — see Sway note above; already forced non-improving via Math.abs() at point of use
+      mtp:       floorAtZero(raw.mtp, true),
       end_age: 85
     };
   }
@@ -1901,17 +1925,22 @@ var rateVo2 = readNum(inpVo2, defVo2);
       }
     }
 
+    // VO2 and TUG: "Average" now uses the population-derived flat rate (same
+    // mechanism Sit & Reach already used) via rateVo2/rateTug, which already
+    // resolves to either the auto-derived, floored default or the member's
+    // manual override — no separate auto/override branch needed anymore.
+    // The literature age-banded curves (vo2ProjectRaw/tugProjectRaw, defined
+    // above) are no longer used here; kept in place pending a decision on
+    // whether to repurpose them as a "Faster than average" reference curve.
+
     // Compute yearly series
     var series = [];
     for(var t = Math.round(ctx.age0); t <= Math.round(endAge); t++){
       var dt = t - ctx.age0;
 
       // Projected raw values (Path B)
-      // VO2 and TUG: use the age-banded/threshold model when the field is
-      // still on its auto default; fall back to flat linear extrapolation
-      // when the user has manually overridden the rate (unchanged behavior).
-      var vo2Raw = vo2IsAuto ? vo2ProjectRaw(ctx.raw.vo2, ctx.age0, t, __mult) : (ctx.raw.vo2 + rateVo2 * dt);
-      var tugRaw = tugIsAuto ? tugProjectRaw(ctx.raw.tug, ctx.age0, t, __mult) : (ctx.raw.tug + rateTug * dt);
+      var vo2Raw = ctx.raw.vo2 + rateVo2 * dt;
+      var tugRaw = ctx.raw.tug + rateTug * dt;
       var srRaw  = ctx.raw.sr  + rateSr  * dt; // unchanged — see Sit & Reach note above
 
       // Z for the 3 raw-score tests using future-age norms (with within-bin smoothing)
@@ -1927,10 +1956,24 @@ var rateVo2 = readNum(inpVo2, defVo2);
       z_tg = ctx.helpers.capZ(z_tg);
       z_v2 = ctx.helpers.capZ(z_v2);
 
-      // Grip: convert to peak-force/body-weight ratio, project forward using an
-      // age/sex-banded compounding % decline (see gsProjectRatio above), re-Z-score at age t,
-      // then reconcile to the official baseline via gripOffset (see anchor fix above).
-      var gripRatioProj = (gripRatio > 0) ? gsProjectRatio(gripRatio, ctx.age0, t, ctx.sex, __mult) : 0;
+      // Grip: population-derived flat ratio-slope (DCL.grip, floored at 0%) for
+      // Average/Slower — same local-slope-from-norms machinery as Sit & Reach/
+      // Sway. For Faster-than-average specifically, GS's population-derived
+      // rate floors to 0% for this member (this app's own GS norm table shows
+      // little/no cross-sectional decline in this range), which would make
+      // "Faster than average" show zero GS movement too — not useful. So
+      // Faster-than-average falls back to the literature-sourced curve
+      // (gsAnnualDeclineRate/gsProjectRatio) instead, used at its own rate
+      // (not further scaled by __mult, since it's already the accelerated
+      // reference point) rather than the recalibrated population rate.
+      var gripRatioProj;
+      if (gripRatio > 0) {
+        gripRatioProj = (__mult > 1)
+          ? gsProjectRatio(gripRatio, ctx.age0, t, ctx.sex, 1)
+          : gripRatio + (DCL.grip || 0) * dt;
+      } else {
+        gripRatioProj = 0;
+      }
       var gsMS = meanSdAtYear(ctx.norms.GS, t);
       var z_grip = (gripRatio > 0 && !isNaN(gsMS.meanAdj))
         ? ctx.helpers.zFromRaw(gripRatioProj, gsMS.meanAdj, gsMS.sd, false) + gripOffset
@@ -1946,11 +1989,13 @@ var rateVo2 = readNum(inpVo2, defVo2);
         : ctx.zConst.sway;
       z_sway = ctx.helpers.capZ(z_sway);
 
-      // MTP: convert to peak-force/body-weight ratio, project forward using an
-      // age-banded compounding % decline (see mtpProjectRatio above), re-Z-score at age t,
-      // then reconcile to the official baseline via mtpOffset (see anchor fix above).
+      // MTP: convert to peak-force/body-weight ratio, project forward using the
+      // population-derived flat ratio-slope (DCL.mtp — floored at 0%), re-Z-score
+      // at age t, then reconcile to the official baseline via mtpOffset (see
+      // anchor fix above). mtpProjectRatio's literature curve (defined above)
+      // is no longer used here.
       var mtpMSt = meanSdAtYear(ctx.norms.MTP, t);
-      var mtpRatioFut = mtpProjectRatio(mtpRatio0, ctx.age0, t, __mult);
+      var mtpRatioFut = mtpRatio0 + (DCL.mtp || 0) * dt;
       var z_mtp;
       if (mtpRatio0 > 0 && !isNaN(mtpMSt.meanAdj)) {
         z_mtp = (mtpRatioFut - mtpMSt.meanAdj) / mtpMSt.sd + mtpOffset;
@@ -2084,6 +2129,13 @@ var rateVo2 = readNum(inpVo2, defVo2);
     // Derive grip/sway/mtp decline slopes from norms (same logic as renderTrajectory)
     var _fnDecl = (typeof getAutoDeclines === 'function') ? getAutoDeclines : null;
     var DCL_print = (_fnDecl && ctx.sex) ? _fnDecl(ctx.sex, ctx.age0) : {};
+    // Apply scenario multiplier here too — previously only VO2/TUG respected __m
+    // in this function (via the caller pre-scaling rateVo2/rateTug); GS/MTP/Sway
+    // were hardcoded to a 1x multiplier regardless of scenario. Fixed alongside
+    // the recalibration below since it touches the same lines.
+    if (Number.isFinite(DCL_print.grip)) DCL_print.grip = DCL_print.grip * __m;
+    if (Number.isFinite(DCL_print.sway)) DCL_print.sway = DCL_print.sway * __m;
+    if (Number.isFinite(DCL_print.mtp))  DCL_print.mtp  = DCL_print.mtp  * __m;
 
     function meanSdAt(testKey, mapBySex, t){
       var map = (mapBySex && mapBySex[ctx.sex]) ? mapBySex[ctx.sex] : null;
@@ -2149,10 +2201,11 @@ var rateVo2 = readNum(inpVo2, defVo2);
       var dt = t - ctx.age0;
 
       // Projected raw values (Path B)
-      // VO2/TUG: piecewise model when auto (scaled by this scenario's __m),
-      // else the flat rate already pre-scaled by the caller (rateVo2/rateTug).
-      var vo2Raw = _vo2Auto ? vo2ProjectRaw(ctx.raw.vo2, ctx.age0, t, __m) : (ctx.raw.vo2 + rateVo2 * dt);
-      var tugRaw = _tugAuto ? tugProjectRaw(ctx.raw.tug, ctx.age0, t, __m) : (ctx.raw.tug + rateTug * dt);
+      // VO2/TUG: population-derived flat rate (same mechanism Sit & Reach
+      // already used) — rateVo2/rateTug already carry either the auto-derived,
+      // floored default or the caller's override, pre-scaled by this scenario.
+      var vo2Raw = ctx.raw.vo2 + rateVo2 * dt;
+      var tugRaw = ctx.raw.tug + rateTug * dt;
       var srRaw  = ctx.raw.sr  + rateSr  * dt; // unchanged — see Sit & Reach note above
 
       // Z for the 3 raw-score tests using future-age norms (with within-bin smoothing)
@@ -2168,10 +2221,18 @@ var rateVo2 = readNum(inpVo2, defVo2);
       z_tg = ctx.helpers.capZ(z_tg);
       z_v2 = ctx.helpers.capZ(z_v2);
 
-      // Grip: convert to peak-force/body-weight ratio, project forward using an
-      // age/sex-banded compounding % decline (see gsProjectRatio above), re-Z-score at age t,
-      // then reconcile to the official baseline via gripOffset (see anchor fix above).
-      var gripRatioProj = (gripRatio > 0) ? gsProjectRatio(gripRatio, ctx.age0, t, ctx.sex, 1) : 0;
+      // Grip: population-derived flat ratio-slope (DCL_print.grip, floored at
+      // 0%) for Average/Slower. Faster-than-average falls back to the
+      // literature-sourced curve when the population rate floors to 0 — see
+      // matching comment in renderTrajectory() for the full rationale.
+      var gripRatioProj;
+      if (gripRatio > 0) {
+        gripRatioProj = (__m > 1)
+          ? gsProjectRatio(gripRatio, ctx.age0, t, ctx.sex, 1)
+          : gripRatio + (DCL_print.grip || 0) * dt;
+      } else {
+        gripRatioProj = 0;
+      }
       var gsMS = meanSdAtYear(ctx.norms.GS, t);
       var z_grip = (gripRatio > 0 && !isNaN(gsMS.meanAdj))
         ? ctx.helpers.zFromRaw(gripRatioProj, gsMS.meanAdj, gsMS.sd, false) + gripOffset
@@ -2187,13 +2248,13 @@ var rateVo2 = readNum(inpVo2, defVo2);
         : ctx.zConst.sway;
       z_sway = ctx.helpers.capZ(z_sway);
 
-      // MTP: convert to peak-force/body-weight ratio, project forward using an
-      // age-banded compounding % decline (see mtpProjectRatio above), re-Z-score at age t,
-      // then reconcile to the official baseline via mtpOffset (see anchor fix above).
+      // MTP: convert to peak-force/body-weight ratio, project forward using the
+      // population-derived flat ratio-slope (DCL_print.mtp, floored at 0%),
+      // re-Z-score at age t, then reconcile via mtpOffset (see anchor fix above).
       var mtpMSt = meanSdAtYear(ctx.norms.MTP, t);
       var z_mtp;
       if (mtpRatio0 > 0 && !isNaN(mtpMSt.meanAdj)) {
-        var mtpRatioFut = mtpProjectRatio(mtpRatio0, ctx.age0, t, 1);
+        var mtpRatioFut = mtpRatio0 + (DCL_print.mtp || 0) * dt;
         z_mtp = (mtpRatioFut - mtpMSt.meanAdj) / mtpMSt.sd + mtpOffset;
       } else {
         z_mtp = ctx.zConst.mtp;
@@ -3927,6 +3988,17 @@ function wireCsvExports() {
     // Clone cards/sections
     var host = document.querySelector('.wrap')||document.querySelector('main')||document.body;
     var nodes = Array.prototype.slice.call(host.children).filter(function(n){ return (/^(SECTION|FIELDSET)$/i.test(n.tagName) || (n.classList && n.classList.contains('card'))); }).map(function(n){ return n.cloneNode(true); });
+
+    // Swap the short in-app MAE-floor note for the more formal report wording
+    // (same underlying fact, phrased for a printed/exported handout). Done here
+    // so it applies to every print/export path that goes through this function.
+    for (var __ni=0; __ni<nodes.length; __ni++){
+      var __noteEl = nodes[__ni].querySelector && nodes[__ni].querySelector('#mae_floor_note');
+      if (__noteEl){
+        __noteEl.textContent = 'Methodology note: To keep each test result within a realistic range, any single test score that would imply a Mobility Age Equivalent below 21 years is displayed as 21. This applies only to the test-by-test breakdown above. Your Final Mobility Age is calculated from your complete, unrounded results across all six tests, so it may be younger than the individual rows alone would indicate.';
+        break;
+      }
+    }
 
 // Copy current control values into the cloned markup so the print iframe shows them
 function syncControlValues(clone){
