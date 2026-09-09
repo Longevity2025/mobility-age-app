@@ -309,7 +309,7 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
 <!-- Netlify Identity: gate the app behind login -->
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
-<body data-v='v10' data-app-version="2026.09.03">
+<body data-v='v10' data-app-version="2026.09.09">
 
 
 <!-- print cover (print-only) -->
@@ -489,7 +489,8 @@ var timer = setInterval(function(){
         <div class="row"><label>Sit &amp; Reach (in)</label><input id="sit" type="number" step="0.01" placeholder="inches"></div>
         <div class="row"><label>TUG (sec)</label><input id="tug" type="number" step="0.01" placeholder="seconds"></div>
         <div class="row"><label>Mid-Thigh Pull (kg)</label><input id="mtp_raw" type="number" step="0.1" placeholder="kg"></div>
-        <div class="row"><label>Mid-Thigh Pull (percentile)</label><input id="mtp" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
+        <div class="row"><label>Mid-Thigh Pull Right (percentile)</label><input id="mtp_r" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
+        <div class="row"><label>Mid-Thigh Pull Left (percentile)</label><input id="mtp_l" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
       </div>
       <div>
         <div class="row"><label>Postural Sway Right (cm/s)</label><input id="sway_r_raw" type="number" step="0.01" placeholder="cm/s"></div>
@@ -1196,7 +1197,7 @@ window.computeAgeFromDob = computeAgeFromDob;
     var ageNum = (typeof computeAgeFromDob === 'function') ? computeAgeFromDob(dobRaw) : NaN;
     var age = (Number.isFinite(ageNum) && ageNum > 0) ? String(ageNum) : '';
     var sex = document.getElementById('sex').value.trim();
-    var ids = ['sit','tug','mtp','sway_r','sway_l','grip_r','grip_l','vo2'];
+    var ids = ['sit','tug','mtp_r','mtp_l','sway_r','sway_l','grip_r','grip_l','vo2'];
     if(!(age && sex)) return false;
     for(var i=0;i<ids.length;i++){
       var v = document.getElementById(ids[i]).value.trim();
@@ -1210,7 +1211,7 @@ function clearAll(){
   // Clear input controls (safe if some IDs don't exist)
   var ids = [
     'tester','location','memberName','firstName','lastName',
-    'phone','sex','dob','age','draftRecordId','body_weight_lbs','sit','tug','mtp_raw','mtp','sway_r_raw','sway_r','sway_l_raw','sway_l','grip_r_raw','grip_r','grip_l_raw','grip_l','vo2',
+    'phone','sex','dob','age','draftRecordId','body_weight_lbs','sit','tug','mtp_raw','mtp_r','mtp_l','sway_r_raw','sway_r','sway_l_raw','sway_l','grip_r_raw','grip_r','grip_l_raw','grip_l','vo2',
     'decl_vo2','decl_tug','decl_sr','decl_end',
     'decl_grip','decl_sway','decl_mtp',
     'decl_scn'
@@ -1271,7 +1272,7 @@ var MULTI_DRAFT_KEY = 'hsmi_drafts_v2';
 var DRAFT_IDS = [
   'tester','testDate','location','memberName','firstName','lastName',
   'phone','sex','dob','draftRecordId','body_weight_lbs',
-  'sit','tug','mtp_raw','mtp',
+  'sit','tug','mtp_raw','mtp_r','mtp_l',
   'sway_r_raw','sway_r','sway_l_raw','sway_l',
   'grip_r_raw','grip_r','grip_l_raw','grip_l',
   'vo2'
@@ -1647,7 +1648,8 @@ var VALIDATION_RULES = {
   tug:   { min: 4,   max: 60,   label: "TUG (sec)" },
   sit:   { min: 4,   max: 30,   label: "Sit & Reach (in)" },
   vo2:   { min: 10,  max: 80,   label: "VO₂ Max (ml/kg/min)" },
-  mtp:   { min: 1,   max: 99,   label: "Mid-Thigh Pull percentile" },
+  mtp_l: { min: 1,   max: 99,   label: "Mid-Thigh Pull percentile (Left)" },
+  mtp_r: { min: 1,   max: 99,   label: "Mid-Thigh Pull percentile (Right)" },
   grip_l:{ min: 1,   max: 99,   label: "Grip percentile (Left)" },
   grip_r:{ min: 1,   max: 99,   label: "Grip percentile (Right)" },
   sway_l:{ min: 1,   max: 99,   label: "Sway percentile (Left)" },
@@ -2639,7 +2641,8 @@ function renderTrajectoryTable(series, age0, endAge){
         return 0;
       })();
       function num(id){ var v = Number(document.getElementById(id).value); return isFinite(v)?v:0; }
-      var sit=num('sit'), tugRaw=num('tug'), mtpPct=num('mtp'), vo2Raw=num('vo2');
+      var sit=num('sit'), tugRaw=num('tug'), vo2Raw=num('vo2');
+      var mtp_r_pct=clamp(num('mtp_r'),0.0001,99.9999), mtp_l_pct=clamp(num('mtp_l'),0.0001,99.9999);
       var sway_r_pct=clamp(num('sway_r'),0.0001,99.9999), sway_l_pct=clamp(num('sway_l'),0.0001,99.9999);
       var grip_r_pct=clamp(num('grip_r'),0.0001,99.9999), grip_l_pct=clamp(num('grip_l'),0.0001,99.9999);
       var grip_r_raw=num('grip_r_raw'), grip_l_raw=num('grip_l_raw');
@@ -2735,7 +2738,7 @@ function capZ(z, cap = ZCAP){ return Math.max(-cap, Math.min(z, cap)); }
 var z_sit   = zFromRaw(sit,    srMeanAdj, sr.sd, false);
 var z_tug_raw = zFromRaw(tugRaw, tgMeanAdj, tg.sd, true);   // TUG: lower=better handled by helper
 var z_vo2   = zFromRaw(vo2Raw, v2MeanAdj, v2.sd, false);
-var z_mtp   = zFromPct(mtpPct);
+var z_mtp   = zFromPct((mtp_r_pct + mtp_l_pct)/2.0); // MTP percentile already runs higher=better, same as grip/sway — no inversion needed
 var z_sway  = zFromPct((sway_r_pct + sway_l_pct)/2.0); // sway percentile already runs higher=better, same as grip/MTP — no inversion needed
 var z_grip  = zFromPct((grip_r_pct + grip_l_pct)/2.0);
 
@@ -2819,7 +2822,7 @@ var wz = {
         tbody.innerHTML = ''
           + rowHtml('Sit & Reach (in) (MAE floor ≥21)', z_sit, mae.sit)
           + rowHtml('TUG (MAE floor ≥21; z capped ±'+ZCAP+')', z_tug, mae.tug)
-          + rowHtml('Mid-Thigh Pull (MAE floor ≥21)', z_mtp, mae.mtp)
+          + rowHtml('Mid-Thigh Pull (avg R/L pct; MAE floor ≥21)', z_mtp, mae.mtp)
           + rowHtml('Postural Sway (avg R/L pct; MAE floor ≥21)', z_sway, mae.sway)
           + rowHtml('Grip Strength (avg R/L pct; MAE floor ≥21)', z_grip, mae.grip)
           + rowHtml('VO₂ Max (MAE floor ≥21)', z_vo2, mae.vo2);
@@ -2848,7 +2851,7 @@ var wz = {
                  mtp: mtp_raw_kg,
                  body_weight_kg: body_weight_kg },
           pct: {
-            mtp: mtpPct,
+            mtp: (mtp_r_pct + mtp_l_pct)/2.0,
             sway: (sway_r_pct + sway_l_pct)/2.0,
             grip: (grip_r_pct + grip_l_pct)/2.0
           },
@@ -2992,9 +2995,13 @@ Drop this whole block just before
     "type": "id",
     "value": "vo2"
   },
-  "mtp_pct": {
+  "mtp_r_pct": {
     "type": "id",
-    "value": "mtp"
+    "value": "mtp_r"
+  },
+  "mtp_l_pct": {
+    "type": "id",
+    "value": "mtp_l"
   },
   "grip_r_pct": {
     "type": "id",
@@ -3054,13 +3061,12 @@ Drop this whole block just before
     'timestamp_local','app_version','name_full','phone','tester','location','sex','age','dob',
     'body_weight_lbs','body_weight_kg',
     'tug_s','vo2_mlkgmin','sitreach_in',
-    'mtp_kg','mtp_pct',
+    'mtp_kg','mtp_r_pct','mtp_l_pct',
     'sway_r_cms','sway_r_pct','sway_l_cms','sway_l_pct',
     'grip_r_kg','grip_r_pct','grip_l_kg','grip_l_pct',
     'mae_sitreach','mae_tug','mae_mtp','mae_sway','mae_grip','mae_vo2',
     'mobility_age'
   ];
-  const MAP_KEYS_ORDER = ['age','sex','tester','location','vo2_mlkgmin','mtp_pct','grip_r_pct','grip_l_pct','sway_r_pct','sway_l_pct','sitreach_in'];
 
   // ===== EMBEDDED MAP =====
   function getEmbeddedMap(){
@@ -3092,11 +3098,8 @@ Drop this whole block just before
 
   function readJSON(id){ try{ const el=document.getElementById(id); if(!el) return null; return JSON.parse(el.textContent||''); }catch(e){ return null; } }
   function loadLocalMap(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); }catch(e){ return {}; } }
-  function saveLocalMap(map){ localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); }
-  function clearLocalMap(){ localStorage.removeItem(STORAGE_KEY); alert('HSMI: local mapping cleared.'); }
 
   function getMappedEl(entry){ if(!entry) return null; if(entry.type==='id') return document.getElementById(entry.value)||null; if(entry.type==='selector') return document.querySelector(entry.value)||null; if(entry.type==='xpath'){ try{ const r=document.evaluate(entry.value, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null); return r.singleNodeValue; }catch(e){ return null; } } return null; }
-  function buildRef(el){ if(!el) return null; if(el.id) return {type:'id',value:el.id}; const cls=(el.className||'').split(/\s+/).filter(Boolean).slice(0,2).join('.'); if(cls){ const sel=`${el.tagName.toLowerCase()}.${cls}`; try{ const found=document.querySelector(sel); if(found===el) return {type:'selector',value:sel}; }catch(e){} } const parts=[]; let n=el; while(n && n.nodeType===1 && n!==document.documentElement){ const tag=n.nodeName.toLowerCase(); const sibs=[...n.parentNode?.children||[]].filter(x=>x.nodeName===n.nodeName); const idx=sibs.indexOf(n)+1; parts.unshift(`${tag}[${idx}]`); if(tag==='table') break; n=n.parentNode; } return {type:'xpath', value:'/'+parts.join('/')}; }
 
   const getMobilityAge=()=>{ const v=numFrom(document.querySelector('#final')); return v!==''? v:''; };
 
@@ -3120,7 +3123,8 @@ Drop this whole block just before
   const LABEL_MAP=[
     {key:'vo2_mlkgmin', re:/vo\s*2|v[\.\u0307]?o\s*2|oxygen|ml\s*\/\s*kg\s*\/\s*min/i},
     {key:'sitreach_in', re:/sit\s*&?\s*reach|sit.?and.?reach|reach\s*\((in|cm)\)/i},
-    {key:'mtp_pct',     re:/\bmtp\b|metatars|toe\s*-?\s*press|toe\s*-?\s*flex/i},
+    {key:'mtp_r_pct',   re:/(\bmtp\b|metatars|toe\s*-?\s*press|toe\s*-?\s*flex)[^a-z0-9]*(right|\br\b)/i},
+    {key:'mtp_l_pct',   re:/(\bmtp\b|metatars|toe\s*-?\s*press|toe\s*-?\s*flex)[^a-z0-9]*(left|\bl\b)/i},
     {key:'grip_r_pct',  re:/grip[^a-z0-9]*(right|\br\b)/i},
     {key:'grip_l_pct',  re:/grip[^a-z0-9]*(left|\bl\b)/i},
     {key:'sway_r_pct',  re:/sway[^a-z0-9]*(right|\br\b)/i},
@@ -3163,7 +3167,8 @@ Drop this whole block just before
       vo2_mlkgmin: getValFromMap('vo2_mlkgmin') || (vo2J && (vo2J.value||vo2J.vo2)) || labels.vo2_mlkgmin || '',
       sitreach_in: getValFromMap('sitreach_in') || (srJ && (srJ.value||srJ.sit_reach)) || labels.sitreach_in || '',
       mtp_kg:     (document.getElementById('mtp_raw')||{}).value || '',
-      mtp_pct: getValFromMap('mtp_pct') || labels.mtp_pct || '',
+      mtp_r_pct: getValFromMap('mtp_r_pct') || labels.mtp_r_pct || '',
+      mtp_l_pct: getValFromMap('mtp_l_pct') || labels.mtp_l_pct || '',
       sway_r_cms: (document.getElementById('sway_r_raw')||{}).value || '',
       sway_r_pct: getValFromMap('sway_r_pct') || labels.sway_r_pct || '',
       sway_l_cms: (document.getElementById('sway_l_raw')||{}).value || '',
@@ -3180,50 +3185,11 @@ Drop this whole block just before
     return rec;
   }
 
-  function startMap(){
-    const steps=[
-      ['age','Click the **Age** NUMBER'],
-      ['sex','Click the **Sex/Gender** TEXT'],
-      ['tester','Click the **Tester** TEXT'],
-      ['location','Click the **Location** TEXT'],
-      ['vo2_mlkgmin','Click the **VO₂ (ml/kg/min)** NUMBER'],
-      ['mtp_pct','Click the **MTP (%)** NUMBER'],
-      ['grip_r_pct','Click the **Grip Right (%)** NUMBER'],
-      ['grip_l_pct','Click the **Grip Left (%)** NUMBER'],
-      ['sway_r_pct','Click the **Sway Right** NUMBER'],
-      ['sway_l_pct','Click the **Sway Left** NUMBER'],
-      ['sitreach_in','Click the **Sit & Reach** NUMBER']
-    ];
-    let i=0; let overlay, tip, hl;
-    function showTip(msg){ if(!overlay){ overlay=document.createElement('div'); overlay.style.cssText='position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.06);pointer-events:none'; document.body.appendChild(overlay); tip=document.createElement('div'); tip.style.cssText='position:fixed;z-index:99998;left:50%;top:20px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 14px;border-radius:10px;font:14px system-ui;box-shadow:0 6px 14px rgba(0,0,0,.2)'; document.body.appendChild(tip); document.addEventListener('click', onClick, true); document.addEventListener('keydown', onKey, true);} tip.innerHTML='HSMI map: '+msg+' <span style="opacity:.75">(Esc to cancel)</span>'; }
-    function highlight(el){ if(hl) hl.remove(); if(!el) return; const r=el.getBoundingClientRect(); hl=document.createElement('div'); hl.style.cssText=`position:fixed;z-index:99999;border:2px solid #0a84ff;border-radius:6px;pointer-events:none;left:${r.left-4}px;top:${r.top-4}px;width:${r.width+8}px;height:${r.height+8}px`; document.body.appendChild(hl); }
-    function onClick(e){ const el=document.elementFromPoint(e.clientX,e.clientY); if(!el) return; e.preventDefault(); e.stopPropagation(); const key=steps[i][0]; const ref=buildRef(el); if(!ref){ alert('Could not identify that element. Click the digits/text.'); return; } const map=loadLocalMap(); map[key]=ref; saveLocalMap(map); highlight(el); i++; if(i<steps.length){ showTip(steps[i][1]); } else { cleanup(); alert('HSMI: mapping saved. Use **Copy mapping JSON** to embed.'); } }
-    function onKey(e){ if(e.key==='Escape'){ cleanup(); alert('HSMI: mapping cancelled.'); } }
-    function cleanup(){ if(hl) hl.remove(); if(tip) tip.remove(); if(overlay) overlay.remove(); document.removeEventListener('click', onClick, true); document.removeEventListener('keydown', onKey, true); }
-    showTip(steps[i][1]);
-  }
-
-  function onProbe(){ const rec=collect(); alert('Capture preview:\n\n'+JSON.stringify(rec,null,2)); }
   function onExportCSV(){ const rec=collect(); const f=buildFilename(rec)+'.csv'; const csv=toCSV([rec]); downloadBlob(csv,'text/csv;charset=utf-8',f); }
-  function onExportJSON(){ const rec=collect(); const f=buildFilename(rec)+'.json'; downloadBlob(JSON.stringify(rec,null,2),'application/json',f); }
-  function onAudit(){ const rec=collect(); const lines=HEADERS.map(h=>`${h}: ${rec[h] === '' ? '(blank)' : rec[h]}`); const usingEmbedded = Object.keys(EMBEDDED_MAP).length>0; lines.push('\nMapping source: '+(usingEmbedded?'EMBEDDED (all devices)':'localStorage (this device only)')); alert('HSMI audit (v5.2.1)\n\n'+lines.join('\n')); }
-  function onAuditMap(){ const local=loadLocalMap(); const use=Object.assign({}, EMBEDDED_MAP, local); const lines=['HSMI mapping refs:']; for(const k of MAP_KEYS_ORDER){ const m=use[k]; const el=getMappedEl(m); const val=el? text(el) : '(no element)'; lines.push(`${k}: ${m? m.type+'→'+m.value : '(none)'}  | text: ${val || '(empty)'}`); } alert(lines.join('\n')); }
-  function onCopyMap(){ const local=loadLocalMap(); const json=JSON.stringify(local, null, 2); try{ navigator.clipboard.writeText(json).then(()=>alert('HSMI: mapping copied. Paste into the hsmi_embedded_map <script> block, then commit.')); }catch(e){ prompt('Copy this JSON and paste into hsmi_embedded_map:', json); } }
-
-  function hideMappingButtonsIfEmbedded(){ if(Object.keys(EMBEDDED_MAP).length>0){ ['btnMap','btnClearMap','btnAuditMap','btnCopyMap'].forEach(id=>{ const b=document.getElementById(id); if(b) b.style.display='none'; }); } }
 
   // Wire safely
   function wire(){ try{
     document.getElementById('btnExportCSV')?.addEventListener('click', onExportCSV);
-    document.getElementById('btnExportJSON')?.addEventListener('click', onExportJSON);
-    document.getElementById('btnProbe')?.addEventListener('click', onProbe);
-    document.getElementById('btnAudit')?.addEventListener('click', onAudit);
-    document.getElementById('btnAuditMap')?.addEventListener('click', onAuditMap);
-    document.getElementById('btnCopyMap')?.addEventListener('click', onCopyMap);
-    document.getElementById('btnMap')?.addEventListener('click', startMap);
-    document.getElementById('btnClearMap')?.addEventListener('click', clearLocalMap);
-
-    hideMappingButtonsIfEmbedded();
 
     // --- FORCE LOCAL DATE for <input id="testDate" type="date"> ---
     const zone = CONFIG.timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
