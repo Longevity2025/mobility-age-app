@@ -4767,5 +4767,24 @@ if (btn) btn.addEventListener('click', function(e){
     }, 200);
   })();
 </script>
+
+<!-- ── Scroll-wheel guard for number inputs ──────────────────────────────
+     Fix for: typing a value like 43 into a number field (e.g. Sit & Reach,
+     TUG, VO2, MTP/Sway/Grip percentile fields), then scrolling the page
+     while the field still has focus, silently decrementing it by one
+     `step` (e.g. 43 -> 42.99). This is default browser behavior for
+     <input type="number"> — the mouse wheel acts like the spinner arrows
+     when the field is focused. Blurring the field on wheel-scroll makes
+     the page scroll normally without touching the value. -->
+<script>
+(function(){
+  document.addEventListener('wheel', function(e){
+    var el = document.activeElement;
+    if (el && el.tagName === 'INPUT' && el.type === 'number') {
+      el.blur();
+    }
+  }, { passive: true });
+})();
+</script>
 </body>
 </html>
