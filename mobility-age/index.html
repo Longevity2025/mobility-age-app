@@ -657,7 +657,61 @@ var timer = setInterval(function(){
 
 </div>
 
-<script id="sr_json" type="application/json">{"Male": {"20-29": {"mean": 15.0, "sd": 3.0, "mid": 24.5}, "30-39": {"mean": 14.0, "sd": 3.0, "mid": 34.5}, "40-49": {"mean": 13.0, "sd": 3.0, "mid": 44.5}, "50-59": {"mean": 12.0, "sd": 3.0, "mid": 54.5}, "60-69": {"mean": 11.0, "sd": 3.0, "mid": 64.5}, "70-79": {"mean": 10.0, "sd": 3.0, "mid": 74.5}, "80-89": {"mean": 9.0, "sd": 3.0, "mid": 84.5}}, "Female": {"20-29": {"mean": 17.0, "sd": 3.0, "mid": 24.5}, "30-39": {"mean": 16.0, "sd": 3.0, "mid": 34.5}, "40-49": {"mean": 15.0, "sd": 3.0, "mid": 44.5}, "50-59": {"mean": 14.0, "sd": 3.0, "mid": 54.5}, "60-69": {"mean": 13.0, "sd": 3.0, "mid": 64.5}, "70-79": {"mean": 12.0, "sd": 3.0, "mid": 74.5}, "80-89": {"mean": 11.0, "sd": 3.0, "mid": 84.5}}}</script>
+<!--
+  Sit & Reach norms (sr_json) — SOURCED, replacing the prior unattributed
+  placeholder table (flat sd=3.0, round mean numbers every decade).
+
+  Primary source: Statistics Canada, Canadian Health Measures Survey (CHMS)
+  Cycle 5 (2016-2017), n=5,188, nationally representative. "Normative-
+  referenced percentile values for physical fitness among Canadians,"
+  Health Reports 30(10):14-22, Oct 2019, Table 3 (StatCan Catalogue
+  82-003-X). Full table: https://www150.statcan.gc.ca/n1/pub/82-003-x/
+  2019010/article/00002/tbl/tbl03-eng.htm — 5-year age bands, P5-P95,
+  ages 6-69, both sexes.
+
+  Zero-point conversion: CHMS uses the CSEP/CPAFLA "Canadian Trunk Forward
+  Flexion" box, zero point at the 26 cm mark. This app's box has the YMCA
+  scale (zero at 15 in = 38.1 cm) per the member's own equipment. Per the
+  standard exercise-testing conversion (ACSM Guidelines; add the box-zero
+  difference to every value when moving between zero-point conventions —
+  see e.g. ACSM's own note for 23cm/26cm-zero boxes), each CHMS value was
+  shifted by +12.1 cm (38.1 - 26) before converting to inches. This offset
+  only shifts the mean; it does not affect sd (sd is derived from percentile
+  spread, which is offset-invariant).
+  mean: P50 (median) of each 5-yr band, offset-adjusted, in inches.
+  sd: averaged from four percentile-pair estimators assuming approx.
+  normality — (P90-P10)/2.56, (P80-P20)/1.68, (P75-P25)/1.35 [P25/P75
+  interpolated as midpoints of P20/P30 and P70/P80], (P95-P5)/3.29 — then
+  converted to inches. Two adjacent 5-yr CHMS bands were averaged into each
+  decade bucket to match this table's existing bucket structure.
+
+  70-79 and 80-89: NOT measured by CHMS (which tops out at 65-69). These
+  two buckets are a linear extrapolation of the 40-49/50-59/60-69 decade
+  means (male slope ~ -0.048 in/decade-adjusted... i.e. per-year ~-0.0475;
+  female ~-0.021 in/yr — both close in order of magnitude to the Gando et
+  al. 2017 finding already cited below and to this file's prior -0.05
+  in/yr default, which is reassuring but doesn't make the extrapolation
+  measured data). sd for these two buckets is held at the last-observed
+  (60-69) value rather than extrapolated, consistent with this file's
+  existing policy elsewhere of not fabricating precision beyond the
+  evidence (see the Sway note below).
+
+  Known discrepancy to flag: the named "YMCA Trunk Flexion Test" norms
+  themselves (Golding, YMCA Fitness Testing and Assessment Manual, 4th
+  ed. 2000; reproduced in Morrow, Mood, Disch & Kang, Measurement and
+  Evaluation in Human Performance, 6th ed. 2015, p.222) show a
+  substantially steeper age-related decline in their own "Average" band
+  (e.g. male 18-25 avg ~16.5in down to 66+ avg ~10.5in) than this
+  CHMS-derived table does. CHMS's flatter trend is consistent with the
+  broader longitudinal literature already cited below (Gando et al. found
+  near-zero change), and CHMS is a large modern probability sample vs.
+  the YMCA manual's older convenience-sample data, so CHMS was used as
+  the primary source here — but this means members near the "Average"
+  line, especially younger adults, may now be classified slightly
+  differently than the box's own printed YMCA category table would put
+  them. Revisit if that turns out to matter operationally.
+-->
+<script id="sr_json" type="application/json">{"Male": {"20-29": {"mean": 14.4, "sd": 4.0, "mid": 24.5}, "30-39": {"mean": 14.2, "sd": 3.9, "mid": 34.5}, "40-49": {"mean": 13.8, "sd": 3.7, "mid": 44.5}, "50-59": {"mean": 13.3, "sd": 3.5, "mid": 54.5}, "60-69": {"mean": 12.9, "sd": 3.2, "mid": 64.5}, "70-79": {"mean": 12.4, "sd": 3.2, "mid": 74.5}, "80-89": {"mean": 12.0, "sd": 3.2, "mid": 84.5}}, "Female": {"20-29": {"mean": 17.0, "sd": 3.8, "mid": 24.5}, "30-39": {"mean": 16.9, "sd": 4.0, "mid": 34.5}, "40-49": {"mean": 16.5, "sd": 4.1, "mid": 44.5}, "50-59": {"mean": 16.2, "sd": 4.1, "mid": 54.5}, "60-69": {"mean": 16.1, "sd": 4.2, "mid": 64.5}, "70-79": {"mean": 15.9, "sd": 4.2, "mid": 74.5}, "80-89": {"mean": 15.7, "sd": 4.2, "mid": 84.5}}}</script>
 <script id="tug_json" type="application/json">{"Male": {"20-29": {"mean": 6.0, "sd": 1.0, "mid": 24.5}, "30-39": {"mean": 7.0, "sd": 1.0, "mid": 34.5}, "40-49": {"mean": 8.0, "sd": 1.0, "mid": 44.5}, "50-59": {"mean": 9.0, "sd": 1.0, "mid": 54.5}, "60-69": {"mean": 10.0, "sd": 1.0, "mid": 64.5}, "70-79": {"mean": 11.0, "sd": 1.0, "mid": 74.5}, "80-89": {"mean": 12.0, "sd": 1.0, "mid": 84.5}}, "Female": {"20-29": {"mean": 6.5, "sd": 1.0, "mid": 24.5}, "30-39": {"mean": 7.5, "sd": 1.0, "mid": 34.5}, "40-49": {"mean": 8.5, "sd": 1.0, "mid": 44.5}, "50-59": {"mean": 9.5, "sd": 1.0, "mid": 54.5}, "60-69": {"mean": 10.5, "sd": 1.0, "mid": 64.5}, "70-79": {"mean": 11.5, "sd": 1.0, "mid": 74.5}, "80-89": {"mean": 12.5, "sd": 1.0, "mid": 84.5}}}</script>
 <script id="vo2_json" type="application/json">{"Male": {"20-29": {"mean": 50.0, "sd": 5.0, "mid": 24.5}, "30-39": {"mean": 46.0, "sd": 5.0, "mid": 34.5}, "40-49": {"mean": 42.0, "sd": 5.0, "mid": 44.5}, "50-59": {"mean": 38.0, "sd": 5.0, "mid": 54.5}, "60-69": {"mean": 34.0, "sd": 5.0, "mid": 64.5}, "70-79": {"mean": 30.0, "sd": 5.0, "mid": 74.5}, "80-89": {"mean": 26.0, "sd": 5.0, "mid": 84.5}}, "Female": {"20-29": {"mean": 40.0, "sd": 4.5, "mid": 24.5}, "30-39": {"mean": 36.5, "sd": 4.5, "mid": 34.5}, "40-49": {"mean": 33.0, "sd": 4.5, "mid": 44.5}, "50-59": {"mean": 29.5, "sd": 4.5, "mid": 54.5}, "60-69": {"mean": 26.0, "sd": 4.5, "mid": 64.5}, "70-79": {"mean": 22.5, "sd": 4.5, "mid": 74.5}, "80-89": {"mean": 19.0, "sd": 4.5, "mid": 84.5}}}</script>
 <script id="slopes_json" type="application/json">{"sit_reach": 0.0, "tug": 0.0, "vo2": 0.0}</script>
@@ -1055,6 +1109,9 @@ window.computeAgeFromDob = computeAgeFromDob;
     return r;
   }
 
+  // (See the sr_json comment near the top of the file for the sourcing and
+  // zero-point conversion behind the Sit & Reach mean/sd norm table itself,
+  // as distinct from the decline-rate-shape decision documented below.)
   // Sit & Reach is intentionally left as a flat linear rate (raw + rate*dt).
   // Tonight's research found no peer-reviewed longitudinal cohort supporting
   // a piecewise/accelerating model the way TUG and VO2 have — the best
