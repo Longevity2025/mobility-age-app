@@ -455,7 +455,7 @@ var timer = setInterval(function(){
   <div id="dbg"></div>
   <div id="err"></div>
   <h1>Mobility Age</h1>
-  <p class="note">Capped MAEs: Sit &amp; Reach ≥ 21, TUG ≥ 21, VO₂ ≥ 21, Postural Sway ≥ 21. Auto-calc every 0.5s after all fields are filled.</p>
+  <p class="note">Capped MAEs (21–95): Sit &amp; Reach, TUG, VO₂, Postural Sway, Mid-Thigh Pull, Grip Strength. Auto-calc every 0.5s after all fields are filled.</p>
   <div class="card">
     <h2>Inputs</h2>
     <div class="grid-2">
@@ -487,7 +487,7 @@ var timer = setInterval(function(){
     <div class="grid-2">
       <div>
         <div class="row"><label>Sit &amp; Reach (in)</label><input id="sit" type="number" step="0.01" placeholder="inches"></div>
-        <div class="row"><label>TUG (sec)</label><input id="tug" type="number" step="0.01" placeholder="seconds"></div>
+        <div class="row"><label>TUG (sec)</label><input id="tug" type="number" step="0.01" min="4" max="15" placeholder="seconds (max 15)"></div>
         <div class="row"><label>Mid-Thigh Pull (kg)</label><input id="mtp_raw" type="number" step="0.1" placeholder="kg"></div>
         <div class="row"><label>Mid-Thigh Pull Right (percentile)</label><input id="mtp_r" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
         <div class="row"><label>Mid-Thigh Pull Left (percentile)</label><input id="mtp_l" type="number" min="0.01" max="99.99" step="0.01" placeholder="0.01–99.99"></div>
@@ -518,7 +518,7 @@ var timer = setInterval(function(){
       <tfoot><tr><th colspan="2">Final Mobility Age</th><th id="final"></th></tr></tfoot>
     </table>
     <div id="mae_floor_note" class="muted" style="margin-top:8px; font-size:12.5px; line-height:1.4;">
-      Individual test scores below age 21 are shown as 21 to keep results realistic &mdash; a score that strong doesn't need a lower number to prove it. Your Final Mobility Age above uses your complete, unrounded results, so it may reflect an even younger score than the individual rows alone suggest.
+      Individual test scores below age 21 are shown as 21 to keep results realistic &mdash; a score that strong doesn't need a lower number to prove it. Scores above age 95 are shown as 95 for the same reason. Your Final Mobility Age above uses your complete, unrounded results, so it may reflect an even younger or older score than the individual rows alone suggest.
     </div>
   </div>
   
@@ -1702,7 +1702,7 @@ window.__clearAll = function(){
 
 // --- Inline input validation (non-blocking) ----------------------------
 var VALIDATION_RULES = {
-  tug:   { min: 4,   max: 60,   label: "TUG (sec)" },
+  tug:   { min: 4,   max: 15,   label: "TUG (sec)" },
   sit:   { min: 4,   max: 30,   label: "Sit & Reach (in)" },
   vo2:   { min: 10,  max: 80,   label: "VO₂ Max (ml/kg/min)" },
   mtp_l: { min: 1,   max: 99,   label: "Mid-Thigh Pull percentile (Left)" },
@@ -1765,6 +1765,26 @@ function validateAll(){
   });
   return ok; // currently non-blocking
 }
+
+// --- Hard data-entry safeguard: TUG must never exceed 15 sec -----------
+// Unlike the soft (non-blocking) range check above, this actively rewrites
+// the field the moment a value over 15 is entered, so an out-of-range TUG
+// reading can never be typed in, saved to a draft, fed into the MAE/report
+// calculations, or printed.
+(function(){
+  var tugEl = document.getElementById('tug');
+  if (!tugEl) return;
+  function enforceTugCeiling(){
+    var v = Number(tugEl.value);
+    if (Number.isFinite(v) && v > 15) {
+      tugEl.value = '15';
+      try { validateFieldById('tug'); } catch(e){}
+    }
+  }
+  tugEl.addEventListener('input', enforceTugCeiling);
+  tugEl.addEventListener('change', enforceTugCeiling);
+  tugEl.addEventListener('blur', enforceTugCeiling);
+})();
 
 
 // ...
@@ -2829,16 +2849,17 @@ var wz = {
         vo2:  age-15*wz.vo2
       };
 
-      // Display-only MAE — floor of 21 applied per test (now including MTP and
-      // Grip) so no individual row ever shows an implausible sub-21 value.
-      // These are for the results-table rows only; the blend above uses maeRaw.
+      // Display-only MAE — floor of 21 and ceiling of 95 applied per test (now
+      // including MTP and Grip) so no individual row ever shows an implausible
+      // sub-21 or over-95 value. These are for the results-table rows only;
+      // the blend above uses maeRaw.
       var mae={
-        sit:  Math.max(21, maeRaw.sit),
-        tug:  Math.max(21, maeRaw.tug),
-        mtp:  Math.max(21, maeRaw.mtp),
-        sway: Math.max(21, maeRaw.sway),
-        grip: Math.max(21, maeRaw.grip),
-        vo2:  Math.max(21, maeRaw.vo2)
+        sit:  Math.min(95, Math.max(21, maeRaw.sit)),
+        tug:  Math.min(95, Math.max(21, maeRaw.tug)),
+        mtp:  Math.min(95, Math.max(21, maeRaw.mtp)),
+        sway: Math.min(95, Math.max(21, maeRaw.sway)),
+        grip: Math.min(95, Math.max(21, maeRaw.grip)),
+        vo2:  Math.min(95, Math.max(21, maeRaw.vo2))
       };
 
       var sumW = w.sit + w.tug + w.mtp + w.sway + w.grip + w.vo2;
@@ -2877,12 +2898,12 @@ var wz = {
         }
 
         tbody.innerHTML = ''
-          + rowHtml('Sit & Reach (in) (MAE floor ≥21)', z_sit, mae.sit)
-          + rowHtml('TUG (MAE floor ≥21; z capped ±'+ZCAP+')', z_tug, mae.tug)
-          + rowHtml('Mid-Thigh Pull (avg R/L pct; MAE floor ≥21)', z_mtp, mae.mtp)
-          + rowHtml('Postural Sway (avg R/L pct; MAE floor ≥21)', z_sway, mae.sway)
-          + rowHtml('Grip Strength (avg R/L pct; MAE floor ≥21)', z_grip, mae.grip)
-          + rowHtml('VO₂ Max (MAE floor ≥21)', z_vo2, mae.vo2);
+          + rowHtml('Sit & Reach (in) (MAE capped 21–95)', z_sit, mae.sit)
+          + rowHtml('TUG (MAE capped 21–95; z capped ±'+ZCAP+')', z_tug, mae.tug)
+          + rowHtml('Mid-Thigh Pull (avg R/L pct; MAE capped 21–95)', z_mtp, mae.mtp)
+          + rowHtml('Postural Sway (avg R/L pct; MAE capped 21–95)', z_sway, mae.sway)
+          + rowHtml('Grip Strength (avg R/L pct; MAE capped 21–95)', z_grip, mae.grip)
+          + rowHtml('VO₂ Max (MAE capped 21–95)', z_vo2, mae.vo2);
       }
       if(fin){ fin.textContent = final.toFixed(2); }
 
@@ -4071,7 +4092,7 @@ function wireCsvExports() {
     for (var __ni=0; __ni<nodes.length; __ni++){
       var __noteEl = nodes[__ni].querySelector && nodes[__ni].querySelector('#mae_floor_note');
       if (__noteEl){
-        __noteEl.textContent = 'Methodology note: To keep each test result within a realistic range, any single test score that would imply a Mobility Age Equivalent below 21 years is displayed as 21. This applies only to the test-by-test breakdown above. Your Final Mobility Age is calculated from your complete, unrounded results across all six tests, so it may be younger than the individual rows alone would indicate.';
+        __noteEl.textContent = 'Methodology note: To keep each test result within a realistic range, any single test score that would imply a Mobility Age Equivalent below 21 years is displayed as 21, and any that would imply a Mobility Age Equivalent above 95 years is displayed as 95. This applies only to the test-by-test breakdown above. Your Final Mobility Age is calculated from your complete, unrounded results across all six tests, so it may be younger or older than the individual rows alone would indicate.';
         break;
       }
     }
