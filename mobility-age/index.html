@@ -255,7 +255,7 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
   main > section:first-of-type, fieldset:first-of-type { break-before: avoid-page !important; page-break-before: avoid !important; margin-top: 0 !important; }
 
   /* Print cover */
-  #print-cover { display: block !important; margin: 0 0 8mm !important; color: #000 !important; padding: 0 0 4mm !important; }
+  #print-cover { display: block !important; margin: 0 0 6mm !important; color: #000 !important; padding: 0 0 4mm !important; }
   #print-cover .print-title   { font-size: 18pt !important; font-weight: 900 !important; margin: 0 0 2mm !important; }
   #print-cover .print-company { font-size: 11pt !important; font-weight: 700 !important; }
   #print-cover .print-cover-brand  { display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; margin: 0 0 4mm !important; }
@@ -264,7 +264,8 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
   #print-cover .print-meta { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 2mm 8mm !important; font-size: 10pt !important; margin: 0 0 3mm !important; }
   #print-cover .print-meta .k { display: inline-block; min-width: 70px; color: #6b7280; font-weight: 700; }
   #print-cover .print-meta .v { color: #111827; font-weight: 600; }
-  #print-cover .print-intro { margin: 0 !important; font-size: 10.5pt !important; line-height: 1.5 !important; color: #374151 !important; }
+  #print-cover .print-intro { margin: 0 !important; font-size: 10pt !important; line-height: 1.4 !important; color: #374151 !important; }
+  #print-cover .print-intro + .print-intro { margin-top: 5px !important; }
 
   /* Page breaks */
   #results {
@@ -333,6 +334,9 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
   <p class="print-intro">
     The Healthspan Mobility Index combines six mobility-related tests into a single calculated mobility age score, your HSMI.
     It answers the question: “How does my calculated Mobility Age compare to my actual age and the mobility of many thousands of others of my age and gender?”
+  </p>
+  <p class="print-intro">
+    Imagine your body has two ages: your birthday age (how many years you’ve been alive) and your Mobility Age (how “old” your body actually moves). Our HSMI (Health Span Mobility Index™) figures out your Mobility Age by giving you six quick physical tests including balance, muscular strength, cardiovascular capacity, and how fast you can get up and walk, then comparing your scores to many thousands of other people your age and gender. If you do better than average, your Mobility Age comes out younger than your real age (great news!); if you do worse, it comes out older, which is a friendly nudge to work on endurance, strength, flexibility and balance. It’s basically a fun, science-based report card that turns “how mobile are you for your age?” into one single, easy-to-understand number and six individual, component numbers.
   </p>
 </div>
 
@@ -4327,13 +4331,13 @@ function syncControlValues(clone){
       'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;color:#1f2933;background:#ffffff;}' +
       '@page{size:Letter portrait;margin:14mm;}' +
       '*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
-      '.report-header{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:10mm;border-bottom:2px solid #004080;padding-bottom:10px;background:#f3f7ff;}' +
+      '.report-header{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:8mm;border-bottom:2px solid #004080;padding-bottom:8px;background:#f3f7ff;}' +
       '.report-logo img{height:76px;width:auto;display:block;}' +
       '.report-title-block{display:flex;flex-direction:column;gap:2px;}' +
       '.report-company{font-size:11pt;font-weight:600;color:#004080;text-transform:uppercase;letter-spacing:.10em;}' +
       '.report-title{font-size:20pt;font-weight:800;margin:0;color:#004080;}' +
       '.report-title sup{font-size:60%;font-weight:700;vertical-align:super;}' +
-      '.report-intro{font-size:9.5pt;line-height:1.3;margin:0 0 8pt 0;color:#374151;}.report-intro-block .report-intro:last-child{margin-bottom:0;}' +
+      '.report-intro{font-size:9pt;line-height:1.25;margin:0 0 6pt 0;color:#374151;}.report-intro-block .report-intro:last-child{margin-bottom:0;}' +
       '.report-intro-block{margin:6px 0 3mm;}' +
       '.report-body{font-size:10.5pt;line-height:1.5;margin:6mm 0 4mm;color:#374151;}' +
       '.inputs-legend{font-size:9pt;margin-top:6px;color:#6b7280;font-style:italic;}' +
@@ -4399,6 +4403,7 @@ function syncControlValues(clone){
       + '</div>'
       + '<div class="report-intro-block">'
 +   '<p class="report-intro">The Ovation Performance Health Wellness Program includes CCPHP’s Longevity Program, designed to support your health and wellbeing by testing and using your personal fitness and mobility metrics in conjunction with expert health coaching on holistic lifestyle factors of sleep, nutrition, and stress management. Our Longevity program offers a dimension that takes your specific data to a new level: longevity coaching built around a patent-pending mobility assessment called the Health Span Mobility Index<sup>™</sup> (HSMI).</p>'
++   '<p class="report-intro">Imagine your body has two ages: your birthday age (how many years you\u2019ve been alive) and your Mobility Age (how \u201Cold\u201D your body actually moves). Our HSMI (Health Span Mobility Index<sup>™</sup>) figures out your Mobility Age by giving you six quick physical tests including balance, muscular strength, cardiovascular capacity, and how fast you can get up and walk, then comparing your scores to many thousands of other people your age and gender. If you do better than average, your Mobility Age comes out younger than your real age (great news!); if you do worse, it comes out older, which is a friendly nudge to work on endurance, strength, flexibility and balance. It\u2019s basically a fun, science-based report card that turns \u201Chow mobile are you for your age?\u201D into one single, easy-to-understand number and six individual, component numbers.</p>'
 + '</div>';
 
     return '<!doctype html><html><head><meta charset="utf-8">'+css+'</head><body>'+header+frag.innerHTML+'</body></html>';
