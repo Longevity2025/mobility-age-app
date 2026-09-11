@@ -4377,6 +4377,7 @@ function syncControlValues(clone){
       'th,td{border:1px solid #e5e7eb;padding:5px 6px;text-align:left;vertical-align:top;}' +
       'th{background:#d9e8ff;color:#102a43;font-weight:600;}' +
       '.inputs-table th{width:38%;}' +
+      '.traj-plot-title{break-before:page !important;page-break-before:always !important;}' +
       '#report-inputs{break-before:page !important;page-break-before:always !important;}' +
       '' +
       '@media print{#traj_decade_checkpoints > div:nth-of-type(2){overflow:visible !important;}}' +
@@ -4641,9 +4642,8 @@ function hideLegacyPrintButtons(){
     // --- Step 2: Move Inputs card to the very end ---
     var inputsCard = doc2.getElementById('report-inputs');
     if (inputsCard) {
-      // Clear the forced page-break so Inputs flows naturally after Decade Checkpoints
-      inputsCard.style.breakBefore = 'auto';
-      inputsCard.style.pageBreakBefore = 'auto';
+      // Keep the forced page-break so Inputs still lands on its own page
+      // even after being relocated to the end of the document.
       // Remove from current position and append at end of body
       inputsCard.parentNode.removeChild(inputsCard);
       doc2.body.appendChild(inputsCard);
@@ -4652,8 +4652,9 @@ function hideLegacyPrintButtons(){
     // --- Step 3: In the Trajectory card, strip ONLY the controls ---
     // Remove: (a) the multiplier scenario grid (contains #decl_scn)
     //         (b) the traj-inputs grid (contains #decl_vo2, #decl_grip, etc.)
-    //         (c) the .print-only page-break div (was between controls and chart;
-    //             now orphaned after controls are removed, would push chart to new page)
+    //         (c) the .print-only page-break div (previously sat between controls
+    //             and chart; now redundant since .traj-plot-title itself forces a
+    //             page break, so it's just removed to avoid leaving an empty node)
     // Keep:   the "Scenario forecast…" <p>, the SVG chart, and the decade checkpoints table.
     var decl_scn = doc2.getElementById('decl_scn');
     if (decl_scn) {
@@ -4662,7 +4663,7 @@ function hideLegacyPrintButtons(){
     }
     var trajInputsGrid = doc2.querySelector('.traj-inputs');
     if (trajInputsGrid && trajInputsGrid.parentNode) { trajInputsGrid.parentNode.removeChild(trajInputsGrid); }
-    // Remove the orphaned page-break div so the chart stays on page 2
+    // Remove the now-empty page-break div (the .traj-plot-title rule forces the break instead)
     doc2.querySelectorAll('.print-only').forEach(function(el){ el.parentNode && el.parentNode.removeChild(el); });
 
     // --- Step 4: Trim the Inputs table for member copy ---
@@ -4684,10 +4685,8 @@ function hideLegacyPrintButtons(){
       });
     }
 
-    // --- Step 5: Cancel the stylesheet's forced page-break on #report-inputs ---
-    var overrideStyle = doc2.createElement('style');
-    overrideStyle.textContent = '#report-inputs{break-before:auto !important;page-break-before:auto !important;}';
-    doc2.head.appendChild(overrideStyle);
+    // --- Step 5: (removed) Inputs keeps the base stylesheet's forced page-break,
+    // so it lands on its own page at the end of the report.
 
     // --- Step 6: Serialise back to an HTML string ---
     return '<!doctype html>' + doc2.documentElement.outerHTML;
