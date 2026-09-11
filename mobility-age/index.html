@@ -4311,8 +4311,13 @@ function syncControlValues(clone){
         if (resultsSection && resultsSection.parentNode){
           var p = document.createElement('p');
           p.className = 'report-body';
-          p.textContent = 'Your six Mobility Age Equivalent (MAE) scores and your overall Mobility Age are shown below. We standardize your six test results against a large database of people your age and gender and then apply research-based weights to each test to derive your MAEs. Your final Mobility Age is the average of those six weighted MAEs. Your Ovation Performance Health Coach or Exercise Physiologist will walk you through how you performed on each MAE and what your overall Mobility Age means for your healthspan and mobility goals.';
-          resultsSection.parentNode.insertBefore(p, resultsSection);
+          p.textContent = 'Your six Mobility Age Equivalent (MAE) scores and your overall Mobility Age are shown above. We standardize your six test results against a large database of people your age and gender and then apply research-based weights to each test to derive your MAEs. Your final Mobility Age is the average of those six weighted MAEs. Your Ovation Performance Health Coach or Exercise Physiologist will walk you through how you performed on each MAE and what your overall Mobility Age means for your healthspan and mobility goals.';
+          var table = resultsSection.querySelector('table');
+          if (table && table.parentNode){
+            table.parentNode.insertBefore(p, table.nextSibling);
+          } else {
+            resultsSection.appendChild(p);
+          }
           var legend = document.createElement('p');
           legend.className = 'results-legend';
           legend.textContent = 'Your Z score compares your performance to thousands of people your age and gender. A positive Z score (above 0.0) means you outperformed that group, while a negative score (below 0.0) means you underperformed. Each Z score is multiplied by a weight that reflects its contribution to longevity. The highest weight is assigned to your aerobic capacity (VO₂ max), because it has the strongest association with long-term health and survival.';
@@ -4337,7 +4342,7 @@ function syncControlValues(clone){
       '.report-title sup{font-size:60%;font-weight:700;vertical-align:super;}' +
       '.report-intro{font-size:9pt;line-height:1.25;margin:0 0 6pt 0;color:#374151;}.report-intro-block .report-intro:last-child{margin-bottom:0;}' +
       '.report-intro-block{margin:6px 0 3mm;}' +
-      '.report-body{font-size:10.5pt;line-height:1.5;margin:6mm 0 4mm;color:#374151;}' +
+      '.report-body{font-size:12pt;line-height:1.45;margin:8pt 0 10pt;color:#374151;}' +
       '.inputs-legend{font-size:9pt;margin-top:6px;color:#6b7280;font-style:italic;}' +
       '.results-legend{font-size:9pt;margin-top:6px;color:#6b7280;font-style:italic;}' +
       '.summary-card{border:1px solid #cbd5e1;border-radius:12px;padding:14px 16px;margin:4px 0 10px;background:#f8fafc;}' +
@@ -4400,7 +4405,7 @@ function syncControlValues(clone){
       +   '</div>'
       + '</div>'
       + '<div class="report-intro-block">'
-+   '<p class="report-intro">The Ovation Performance Health Wellness Program includes CCPHP’s Longevity Program, designed to support your health and wellbeing by testing and using your personal fitness and mobility metrics in conjunction with expert health coaching on holistic lifestyle factors of sleep, nutrition, and stress management. Our Longevity program offers a dimension that takes your specific data to a new level: longevity coaching built around a patent-pending mobility assessment called the Health Span Mobility Index<sup>™</sup> (HSMI).</p>'
++   '<p class="report-intro">The Ovation Performance Health Wellness Program includes CCPHP’s Longevity Program, designed to support your health and wellbeing by testing and using your personal fitness and mobility metrics in conjunction with expert health coaching on holistic lifestyle factors of sleep, nutrition, and stress management. Our Longevity program offers a dimension that takes your specific data to a new level: longevity coaching built around a patent-pending mobility assessment called the Health Span Mobility Index<sup>™</sup>.</p>'
 +   '<p class="report-intro">Imagine your body has two ages: your birthday age (how many years you\u2019ve been alive) and your Mobility Age (how \u201Cold\u201D your body actually moves). Our HSMI (Health Span Mobility Index<sup>™</sup>) figures out your Mobility Age by giving you six quick physical tests including balance, muscular strength, cardiovascular capacity, and how fast you can get up and walk, then comparing your scores to many thousands of other people your age and gender. If you do better than average, your Mobility Age comes out younger than your real age (great news!); if you do worse, it comes out older, which is a friendly nudge to work on endurance, strength, flexibility and balance. It\u2019s basically a fun, science-based report card that turns \u201Chow mobile are you for your age?\u201D into one single, easy-to-understand number and six individual, component numbers.</p>'
 + '</div>';
 
