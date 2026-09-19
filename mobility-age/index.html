@@ -222,7 +222,6 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
   /* Hide UI chrome */
   .no-print, .toolbar, .toolbar *, button, .btn,
   #dbg, #err, .note, .field-error,
-  #print-reliable-btn,
   #batchcsv-panel, #hsmi-export-controls { display: none !important; visibility: hidden !important; }
 
   /* Hide floating elements */
@@ -310,7 +309,7 @@ tr.mae-row.mae-older-row   td { background: rgba(239,68,68,.07); }
 <!-- Netlify Identity: gate the app behind login -->
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 </head>
-<body data-v='v10' data-app-version="2026.09.10">
+<body data-v='v10' data-app-version="2026.09.19">
 
 
 <!-- print cover (print-only) -->
@@ -4026,20 +4025,11 @@ function wireCsvExports() {
     // CSS
     var style = document.createElement('style');
     style.textContent =
-      '#print-reliable-btn{position:fixed;bottom:18px;left:18px;z-index:2147483647;padding:.9rem 1.25rem;border-radius:999px;border:0;background:#2563eb;color:#fff;font-weight:900;font-size:15px;box-shadow:0 10px 24px rgba(0,0,0,.22)}' +
       '#print-alt-btn{position:fixed;bottom:18px;left:210px;z-index:2147483647;padding:.9rem 1.25rem;border-radius:999px;border:0;background:#0e7490;color:#fff;font-weight:900;font-size:15px;box-shadow:0 10px 24px rgba(0,0,0,.22)}' +
-      '@media print{#print-reliable-btn,#print-alt-btn{display:none!important}}';
+      '@media print{#print-alt-btn{display:none!important}}';
     document.head.appendChild(style);
 
-    // Button
-    if (!document.getElementById('print-reliable-btn')){
-      var btn = document.createElement('button');
-      btn.id = 'print-reliable-btn'; btn.type='button';
-      btn.title='Prints via hidden iframe'; btn.textContent='Print 4-pg report';
-      btn.style.display = 'none'; // suppressed: 4-page report button hidden from app screen
-      document.body.appendChild(btn);
-    }
-    // Alternate print button (member copy)
+    // Print button (member copy)
     if (!document.getElementById('print-alt-btn')){
       var btnAlt = document.createElement('button');
       btnAlt.id = 'print-alt-btn'; btnAlt.type='button';
@@ -4559,56 +4549,10 @@ function syncControlValues(clone){
     return true;
   }
 
-  // ---- Print via hidden iframe (single, robust) ----
-  function iframePrint(){
-    if (window.__PRINT_LOCK__) return;
-    if (!checkForBadNumberInputs()) return;
-    if (!checkFieldParityBeforePrint()) return;
-
-    // Force a fresh calculation pass now, using the current field values --
-    // catches a required field that's blank/invalid right now, independent
-    // of whatever render() last did (which could have succeeded several
-    // edits ago, or failed silently since).
-    try{ if (typeof render === 'function') { render(); } }catch(e){}
-    if (!checkResultsCalculatedBeforePrint()) return;
-
-    window.__PRINT_LOCK__ = true; setTimeout(function(){ window.__PRINT_LOCK__ = false; }, 2500);
-
-// Ensure latest trajectory inputs are in place before cloning
-try{
-  var __ctx = window.__LAST_TRAJ_CTX__;
-  if (__ctx && typeof updateTrajectoryPanel === 'function') { updateTrajectoryPanel(__ctx); }
-}catch(e){}
-try{ if (window.__HSMI_RENDER_TRAJ_PRINT_ALL__) { window.__HSMI_RENDER_TRAJ_PRINT_ALL__(); } }catch(e){}
-
-// Force trajectory body visible so it gets included in the cloned HTML
-try{
-  var __trajBody = document.getElementById('traj_body');
-  var __trajToggle = document.getElementById('traj_toggle');
-  if (__trajBody) { __trajBody.style.display = 'block'; }
-  if (__trajToggle) { __trajToggle.textContent = 'Hide'; }
-  var __ctx2 = window.__LAST_TRAJ_CTX__;
-  if (__ctx2 && typeof renderTrajectory === 'function') { renderTrajectory(__ctx2); }
-}catch(e){}
-
-    var sandbox = document.getElementById('print-sandbox');
-    if (!sandbox){ injectPrintUI(); sandbox = document.getElementById('print-sandbox'); }
-    var doc = sandbox && (sandbox.contentDocument || (sandbox.contentWindow && sandbox.contentWindow.document));
-    if (!doc){ alert('Print sandbox not available'); return; }
-
-    var html = buildPrintableHTML();
-    doc.open(); doc.write(html); doc.close();
-
-    setTimeout(function(){
-      try{ if (sandbox.contentWindow){ sandbox.contentWindow.focus(); sandbox.contentWindow.print(); } }catch(e){}
-    }, 220);
-  }
-
- // ---- Hide legacy print buttons (keep only our reliable one) ----
+ // ---- Hide legacy print buttons (keep only the member-copy one) ----
 function hideLegacyPrintButtons(){
   var nodes = document.querySelectorAll('button, a, [role="button"]');
   nodes.forEach(function(el){
-    if (el.id === 'print-reliable-btn') return; // keep the good one
     if (el.id === 'print-alt-btn') return;       // keep the member copy button
     var text = (el.textContent||'').trim().toLowerCase();
     var id   = (el.id||'').toLowerCase();
@@ -4733,15 +4677,6 @@ function hideLegacyPrintButtons(){
 // ---- Wire up ----
 injectPrintUI();
 hideLegacyPrintButtons();
-
-var btn = document.getElementById('print-reliable-btn');
-if (btn) btn.addEventListener('click', function(e){
-  e.preventDefault(); e.stopPropagation(); iframePrint();
-}, {capture:true});
-
-  window.addEventListener('keydown', function(e){
-    if (e.altKey && (e.key==='P' || e.key==='p')){ e.preventDefault(); e.stopImmediatePropagation(); iframePrint(); }
-  }, {capture:true});
 
   var btnAlt2 = document.getElementById('print-alt-btn');
   if (btnAlt2) btnAlt2.addEventListener('click', function(e){
