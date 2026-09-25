@@ -4590,6 +4590,14 @@ function syncControlValues(clone){
       // tables themselves (and the strengths callout / scenario list) get
       // break-avoid treatment.
       '.appendix-card table,.reference-card table{break-inside:avoid;page-break-inside:avoid;}' +
+      // The Assessment Inputs table is long (13 rows) and, unlike the short
+      // VO2 category tables above, has no visual elements that look bad split
+      // across a page — the docx itself lets it run onto a second page. Let it
+      // break between rows instead of being deferred whole to the next page,
+      // which otherwise leaves a large blank gap under its heading.
+      '.reference-card table.inputs-table{break-inside:auto;page-break-inside:auto;}' +
+      '.reference-card table.inputs-table tr{break-inside:avoid;page-break-inside:avoid;}' +
+      '.reference-card table.inputs-table thead{display:table-header-group;}' +
       '.strengths-box{break-inside:avoid;page-break-inside:avoid;}' +
       '.traj-scenarios{break-inside:avoid;page-break-inside:avoid;}' +
       '.reference-card table{font-size:8.5pt;}' +
