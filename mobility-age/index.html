@@ -2500,10 +2500,11 @@ var rateVo2 = readNum(inpVo2, defVo2);
     svg.appendChild(yLabR);
 
     // Color-code by outcome (in addition to dash pattern, so lines stay
-    // distinguishable even on a black-and-white printout): green = slower
-    // decline (favorable/younger), blue = average, orange = faster decline
-    // (unfavorable/older).
-    var colors = ['#16a34a', '#2563eb', '#ea580c'];
+    // distinguishable even on a black-and-white printout): brand green =
+    // slower decline (favorable/younger), dark/near-black = average,
+    // magenta = faster decline (unfavorable/older). Matches the report's
+    // brand palette (logo wordmark colors + a magenta accent for "faster").
+    var colors = ['#306e5b', '#2e1426', '#792960'];
     var dash = ['4 3', '', '1 4']; // slower, average, faster
 
     // mobility age lines
@@ -2587,9 +2588,9 @@ var rateVo2 = readNum(inpVo2, defVo2);
           var loIsSlow = slowLast.mobAge <= fastLast.mobAge;
           var spread = hi - lo;
           summaryEl.innerHTML =
-            'At age <strong>' + Math.round(maxA) + '</strong>, projected Mobility Age ranges from <strong style="color:' + (loIsSlow?colors[0]:colors[2]) + '">' + lo.toFixed(1) + '</strong> (' + (loIsSlow?'slower':'faster') + ' decline) ' +
-            'to <strong style="color:' + (loIsSlow?colors[2]:colors[0]) + '">' + hi.toFixed(1) + '</strong> (' + (loIsSlow?'faster':'slower') + ' decline) &mdash; ' +
-            'a difference of <strong>' + spread.toFixed(1) + ' years</strong> depending on how consistently current gains are maintained.';
+            'At age <strong>' + Math.round(maxA) + '</strong>, your projected Mobility Age ranges from <strong>' + lo.toFixed(1) + '</strong> (' + (loIsSlow?'slower':'faster') + ' decline) ' +
+            'to <strong>' + hi.toFixed(1) + '</strong> (' + (loIsSlow?'faster':'slower') + ' decline), ' +
+            'a difference of <strong>' + spread.toFixed(1) + ' years</strong> depending on which modeled rate of decline applies over time.';
         }
       }
     }catch(e){}
@@ -4154,15 +4155,72 @@ function syncControlValues(clone){
     // Sync any live input/select/textarea values into the clones (e.g., Trajectory forecast fields)
     try{ nodes.forEach(syncControlValues); }catch(e){}
 
-    // Build compact Inputs table
-    var intro = document.createElement('section'); intro.className='card inputs-card'; intro.id='report-inputs';
-    var html = '<h2>Inputs</h2><table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';
-    for (var k=0;k<pairs.length;k++){ html += '<tr><td>'+esc(pairs[k][0])+'</td><td>'+esc(pairs[k][1])+'</td></tr>'; }
-    html += '</tbody></table>';
-    html += '<p class="inputs-legend">Units: Sit &amp; Reach (inches), TUG (seconds), Mid-Thigh Pull (kg and percentile), Postural Sway (cm/s and percentile), Grip Strength (kg and percentile), VO₂ Max (ml/kg/min).</p>';
-    intro.innerHTML = html;
+    // ---- Merge paired L/R Assessment Inputs rows and fold units into the value
+    // (e.g. "Body Weight: 162 lbs" instead of "Body Weight (lbs): 162", and
+    // "Postural Sway Right (cm/s, percentile): 4 / 30" instead of two rows).
+    // This feeds the combined "Reference Tables & Assessment Inputs" section
+    // built later in this function.
+    function buildAssessmentInputsRows(pairs){
+      var map = {};
+      for (var i=0;i<pairs.length;i++){ map[pairs[i][0]] = pairs[i][1]; }
+      var used = {};
+      function take(label){ used[label] = true; return map[label]; }
+      var rows = [];
+      if (map['Tester'] != null) rows.push(['Tester', take('Tester')]);
+      if (map['Test Date'] != null) rows.push(['Test Date', take('Test Date')]);
+      ['Location','Member Name','Phone (xxx-xxx-xxxx)','Sex'].forEach(function(lbl){
+        if (map[lbl] != null) rows.push([lbl === 'Phone (xxx-xxx-xxxx)' ? 'Phone' : lbl, take(lbl)]);
+      });
+      if (map['Date of Birth (mm/dd/yyyy)'] != null) rows.push(['Date of Birth', take('Date of Birth (mm/dd/yyyy)')]);
+      if (map['Body Weight (lbs)'] != null) rows.push(['Body Weight', take('Body Weight (lbs)') + ' lbs']);
+      if (map['Sit & Reach (in)'] != null) rows.push(['Sit & Reach', take('Sit & Reach (in)') + ' in']);
+      if (map['TUG (sec)'] != null) rows.push(['TUG', take('TUG (sec)') + ' sec']);
+      if (map['Mid-Thigh Pull (kg)'] != null) rows.push(['Mid-Thigh Pull', take('Mid-Thigh Pull (kg)') + ' kg']);
+      if (map['Mid-Thigh Pull Right (percentile)'] != null && map['Mid-Thigh Pull Left (percentile)'] != null){
+        rows.push(['Mid-Thigh Pull Right / Left (percentile)', take('Mid-Thigh Pull Right (percentile)') + ' / ' + take('Mid-Thigh Pull Left (percentile)')]);
+      }
+      if (map['Postural Sway Right (cm/s)'] != null && map['Postural Sway Right (percentile)'] != null){
+        rows.push(['Postural Sway Right (cm/s, percentile)', take('Postural Sway Right (cm/s)') + ' / ' + take('Postural Sway Right (percentile)')]);
+      }
+      if (map['Postural Sway Left (cm/s)'] != null && map['Postural Sway Left (percentile)'] != null){
+        rows.push(['Postural Sway Left (cm/s, percentile)', take('Postural Sway Left (cm/s)') + ' / ' + take('Postural Sway Left (percentile)')]);
+      }
+      if (map['Grip Strength Right (kg)'] != null && map['Grip Strength Right (percentile)'] != null){
+        rows.push(['Grip Strength Right (kg, percentile)', take('Grip Strength Right (kg)') + ' / ' + take('Grip Strength Right (percentile)')]);
+      }
+      if (map['Grip Strength Left (kg)'] != null && map['Grip Strength Left (percentile)'] != null){
+        rows.push(['Grip Strength Left (kg, percentile)', take('Grip Strength Left (kg)') + ' / ' + take('Grip Strength Left (percentile)')]);
+      }
+      if (map['VO₂ Max (mL/kg/min)'] != null) rows.push(['VO₂ Max', take('VO₂ Max (mL/kg/min)') + ' mL/kg/min']);
+      // Anything not explicitly mapped above still shows up (unmerged) rather
+      // than silently vanishing if the form ever grows a new field.
+      for (var j=0;j<pairs.length;j++){ if (!used[pairs[j][0]]) rows.push(pairs[j]); }
+      return rows;
+    }
+    var assessmentInputsRows = buildAssessmentInputsRows(pairs);
 
-    // Build patient-facing summary card (if age and Mobility Age are available)
+    // ---- Shared per-test metadata: raw table label -> clean display names +
+    // a plain-language "dimension" phrase used by the strengths/opportunities
+    // callout (e.g. "flexibility (Sit & Reach)"). ----
+    function testInfo(rawName){
+      if (/^Sit\s*&\s*Reach/i.test(rawName)) return { resultsName:'Sit & Reach', appendixName:'Sit & Reach (in)', phrase:'flexibility (Sit & Reach)' };
+      if (/^TUG/i.test(rawName)) return { resultsName:'Timed Up & Go (TUG)', appendixName:'TUG (sec)', phrase:'functional mobility (TUG)' };
+      if (/^Mid-Thigh Pull/i.test(rawName)) return { resultsName:'Mid-Thigh Pull', appendixName:'Mid-Thigh Pull (avg R/L pct)', phrase:'muscular strength (Mid-Thigh Pull)' };
+      if (/^Postural Sway/i.test(rawName)) return { resultsName:'Postural Sway', appendixName:'Postural Sway (avg R/L pct)', phrase:'balance (Postural Sway)' };
+      if (/^Grip Strength/i.test(rawName)) return { resultsName:'Grip Strength', appendixName:'Grip Strength (avg R/L pct)', phrase:'grip strength' };
+      if (/^VO/i.test(rawName)) return { resultsName:'VO₂ Max', appendixName:'VO₂ Max', phrase:'aerobic capacity (VO₂ Max)' };
+      return { resultsName: rawName, appendixName: rawName, phrase: rawName };
+    }
+    function joinPhraseList(items){
+      if (!items.length) return '';
+      if (items.length === 1) return items[0];
+      if (items.length === 2) return items[0] + ' and ' + items[1];
+      return items.slice(0, -1).join(', ') + ', and ' + items[items.length - 1];
+    }
+    function capitalizeFirst(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+    // Build patient-facing summary card: "Your Mobility Age" / "Your Results" /
+    // "What Happens Next" (if age and Mobility Age are available)
     var summaryCard = null;
     try {
       var ageEl  = document.getElementById('age');
@@ -4173,14 +4231,6 @@ function syncControlValues(clone){
       if (isFinite(ageVal) && isFinite(mobVal)) {
         var delta   = mobVal - ageVal;
         var deltaAbs = Math.abs(delta);
-        var summaryMessage = '';
-        if (delta < -0.25) {
-          summaryMessage = 'Your Mobility Age is younger than your actual age. This suggests that your current mobility profile supports healthy aging and independence. Let\'s build on that strength.';
-        } else if (delta > 0.25) {
-          summaryMessage = 'Your Mobility Age is higher than your actual age. That\'s a signal we can improve your strength, balance and endurance to support healthier, more independent years.';
-        } else {
-          summaryMessage = 'Your Mobility Age is very close to your actual age. This is a solid starting point, and we can work together to keep you strong, mobile, and independent as you age.';
-        }
 
         // Collect MAE data from the Results table
         var resultsTable = document.querySelector('#results tbody#rows') || document.querySelector('#rows');
@@ -4202,69 +4252,82 @@ function syncControlValues(clone){
         }
 
         function classifyDelta(d){
-          if (!isFinite(d)) return { label: '', cls: 'badge-neutral' };
-          if (d <= -5) return { label: 'Younger', cls: 'badge-good' };
-          if (d >=  5) return { label: 'Older', cls: 'badge-focus' };
-          return { label: 'On track', cls: 'badge-neutral' };
+          if (!isFinite(d)) return { label: '', key: 'ontrack' };
+          if (d <= -5) return { label: 'Younger', key: 'younger' };
+          if (d >=  5) return { label: 'Older', key: 'older' };
+          return { label: 'On Track', key: 'ontrack' };
         }
 
-        var testsHtml = '';
-        if (tests.length){
-          for (var i=0;i<tests.length;i++){
-            var t = tests[i];
-            var cls = classifyDelta(t.delta);
-            var label = cls.label;
-            var badgeCls = 'summary-badge ' + cls.cls;
-            var maeText = isFinite(t.mae) ? t.mae.toFixed(1) : '';
-            testsHtml += '<li>';
-            testsHtml +=   '<div class="test-line-main"><span class="test-name">'+esc(t.name)+'</span><span class="test-mae">MAE: '+esc(maeText)+'</span></div>';
-            if (label){
-              testsHtml += '<div class="test-line-status"><span class="'+badgeCls+'">'+esc(label)+'</span></div>';
-            }
-            testsHtml += '</li>';
-          }
+        // ---- Six-test results table + auto-generated strengths/opportunities ----
+        var testsRowsHtml = '';
+        var strengths = [], opportunities = [];
+        for (var i=0;i<tests.length;i++){
+          var t = tests[i];
+          var cls = classifyDelta(t.delta);
+          var info = testInfo(t.name);
+          var maeText = isFinite(t.mae) ? t.mae.toFixed(1) : '';
+          testsRowsHtml += '<tr><td class="rt-test">'+esc(info.resultsName)+'</td><td class="rt-mae">'+esc(maeText)+'</td><td class="rt-result rt-'+cls.key+'">'+esc(cls.label)+'</td></tr>';
+          if (cls.label === 'Younger') strengths.push(info.phrase);
+          else if (cls.label === 'Older') opportunities.push(info.phrase);
         }
 
-        // Build summary HTML
+        var strengthsText, opportunitiesText;
+        if (strengths.length){
+          var vWord = strengths.length === 1 ? 'reflects' : 'reflect';
+          strengthsText = capitalizeFirst(joinPhraseList(strengths)) + ' ' + vWord + ' a younger mobility profile than your chronological age.';
+        } else {
+          strengthsText = 'None of your six tests came back meaningfully younger than your chronological age this time — your Ovation Performance team can help identify where to build first.';
+        }
+        if (opportunities.length){
+          var vWord2 = opportunities.length === 1 ? 'shows' : 'show';
+          opportunitiesText = capitalizeFirst(joinPhraseList(opportunities)) + ' ' + vWord2 + ' room to improve and thus protect long-term functional independence.';
+        } else {
+          opportunitiesText = 'All six of your tests are on track or better for your age and gender — keep up the great work.';
+        }
+
+        // ---- Chronological age / delta / sex line ----
         var sexText = sexEl && sexEl.value ? sexEl.value : '';
         var deltaText = '';
         if (isFinite(delta)){
           var yrs = deltaAbs.toFixed(1).replace(/\.0$/,'');
           if (yrs && yrs !== '0') {
-            if (delta < 0) deltaText = yrs + ' year' + (yrs==='1'?'':'s') + ' younger than your age';
-            else if (delta > 0) deltaText = yrs + ' year' + (yrs==='1'?'':'s') + ' older than your age';
+            if (delta < 0) deltaText = yrs + ' year' + (yrs==='1'?'':'s') + ' younger than your chronological age of ' + ageVal.toFixed(0);
+            else if (delta > 0) deltaText = yrs + ' year' + (yrs==='1'?'':'s') + ' older than your chronological age of ' + ageVal.toFixed(0);
           }
         }
 
-        var summaryHtml = '<h2>Your Mobility Age Summary</h2>';
-        summaryHtml += '<div class="summary-hero">';
-        summaryHtml +=   '<div class="summary-hero-main">';
-        summaryHtml +=     '<div class="summary-label">Mobility Age</div>';
-        summaryHtml +=     '<div class="summary-value">'+esc(mobVal.toFixed(1).replace(/\.0$/,""))+'</div>';
-        summaryHtml +=   '</div>';
-        summaryHtml +=   '<div class="summary-hero-side">';
-        summaryHtml +=     '<div class="summary-age-line"><span class="summary-label">Chronological age</span>: <span class="summary-age-value">'+esc(ageVal.toFixed(0))+'</span></div>';
+        var summaryHtml = '';
+
+        // ---- YOUR MOBILITY AGE ----
+        summaryHtml += '<h2 class="section-heading">Your Mobility Age</h2>';
+        summaryHtml += '<div class="mobility-age-value">'+esc(mobVal.toFixed(1).replace(/\.0$/,""))+'</div>';
         if (deltaText){
-          summaryHtml +=   '<div class="summary-delta">'+esc(deltaText)+'</div>';
+          summaryHtml +=   '<div class="mobility-age-delta">'+esc(deltaText)+'</div>';
+        } else {
+          summaryHtml +=   '<div class="mobility-age-delta mobility-age-delta-muted">Chronological age: '+esc(ageVal.toFixed(0))+'</div>';
         }
         if (sexText){
-          summaryHtml +=   '<div class="summary-sex">Sex: '+esc(sexText)+'</div>';
+          summaryHtml +=   '<div class="mobility-age-sex">Sex: '+esc(sexText)+'</div>';
         }
-        summaryHtml +=   '</div>';
-        summaryHtml += '</div>';
-        summaryHtml += '<p class="summary-message">'+esc(summaryMessage)+'</p>';
+        summaryHtml += '<p class="summary-message">Performing above average on these tests results in a Mobility Age younger than your chronological age. Performing below average results in an older Mobility Age, highlighting specific areas, such as endurance, strength, flexibility, or balance, that may benefit from additional focus. In effect, the Health Span Mobility Index™ translates the question “how mobile are you for your age?” into one overall score, along with six individual component scores.</p>';
 
-        if (testsHtml){
-          summaryHtml += '<div class="summary-tests">';
-          summaryHtml +=   '<div class="summary-tests-heading">How your six tests compare</div>';
-          summaryHtml +=   '<ul>'+testsHtml+'</ul>';
-          summaryHtml +=   '<p class="summary-tests-note">“Younger” means this area is a relative strength compared with people your age and gender. “Older” highlights opportunities to improve and protect your future mobility and independence.</p>';
+        // ---- YOUR RESULTS ----
+        summaryHtml += '<h2 class="section-heading" style="margin-top:14px;">Your Results</h2>';
+        summaryHtml += '<div class="summary-sub">How your six tests compare to others your age and gender</div>';
+        summaryHtml += '<p class="summary-text-block">Each test produces its own Mobility Age Equivalent (MAE), an estimate of how old your body performs on that specific measure, compared to thousands of others of your age and gender. Comparing your six MAEs with those of similar individuals—and with your chronological age—reveals where your performance is younger than, on track with, or older than expected for your age.</p>';
+        if (testsRowsHtml){
+          summaryHtml += '<table class="results-summary-table"><thead><tr><th>Test</th><th>Mobility Age Equivalent</th><th>Result</th></tr></thead><tbody>'+testsRowsHtml+'</tbody></table>';
+          summaryHtml += '<div class="strengths-box">';
+          summaryHtml +=   '<div class="strengths-col strengths-col-good"><div class="strengths-col-heading">Your strengths</div><p>'+esc(strengthsText)+'</p></div>';
+          summaryHtml +=   '<div class="strengths-col strengths-col-focus"><div class="strengths-col-heading">Opportunities to focus on</div><p>'+esc(opportunitiesText)+'</p></div>';
           summaryHtml += '</div>';
         }
 
-        summaryHtml += '<div class="summary-text">';
-        summaryHtml +=   '<p>Your Mobility Age and the six Mobility Age Equivalents (MAEs) give us a snapshot of how your strength, balance, flexibility and endurance are supporting your long-term health and independence. Your Ovation Performance Health Coach or Exercise Physiologist will use this profile, along with your medical history, goals and preferences, to design a practical, personalized plan to improve or maintain your mobility, fitness and health span. Over the next months, we will focus on the building blocks of healthy aging: aerobic capacity, strength, balance, flexibility, sleep, nutrition and stress management.</p>';
-        summaryHtml += '</div>';
+        // ---- WHAT HAPPENS NEXT ----
+        summaryHtml += '<hr class="section-divider">';
+        summaryHtml += '<h2 class="section-heading" style="margin-top:14px;">What Happens Next</h2>';
+        summaryHtml += '<p class="summary-text-block">Your results help identify areas of strength and opportunities to support your mobility and physical performance. An Ovation Performance Exercise Physiologist will review your assessment results with you and provide personalized exercise guidance focused on areas such as strength, balance, flexibility, and aerobic fitness.</p>';
+        summaryHtml += '<p class="summary-text-block">If you choose to work with an Ovation Performance Health Coach, your coach can provide additional support around lifestyle factors such as sleep, nutrition, stress management, and connection, helping you set goals, build sustainable habits, and stay accountable over time.</p>';
 
         summaryCard = document.createElement('section');
         summaryCard.className = 'card summary-card';
@@ -4272,118 +4335,276 @@ function syncControlValues(clone){
       }
     } catch(e){}
 
-    if (summaryCard) {
-      nodes.unshift(intro);
-      nodes.unshift(summaryCard);
-    } else {
-      nodes.unshift(intro); // place on page 1
-    }
-
-    // Strip interactive controls in clones
+    // Strip interactive controls in clones (before we search them by heading)
     nodes.forEach(function(el){
       Array.prototype.slice.call(el.querySelectorAll('button,.toolbar,.btn,[role="button"],#csv-batch,.csv-batch,#dbg,#err')).forEach(function(x){ x.remove(); });
     });
 
-    // Compose doc
-    var frag = document.createElement('div'); nodes.forEach(function(n){ frag.appendChild(n); });
-    // Insert explanatory paragraph between Inputs and Results
+    // ---- Locate the cloned Results / Trajectory / VO2-norms cards by heading,
+    // before summaryCard (which also contains an h2 saying "Your Results") is
+    // added to the list. ----
+    function findCardByHeading(re){
+      for (var i=0;i<nodes.length;i++){
+        var h2 = nodes[i].querySelector && nodes[i].querySelector('h2');
+        if (h2 && re.test((h2.textContent||''))) return nodes[i];
+      }
+      return null;
+    }
+    var resultsCard = findCardByHeading(/^results$/i);
+    var trajectoryCard = findCardByHeading(/^trajectory/i);
+    var vo2Card = findCardByHeading(/max fitness categories/i);
+
+    // ---- APPENDIX / Methodology & full results ----
     (function(){
-      try {
-        var resultsSection = null;
-        var cards = frag.querySelectorAll('section,fieldset,.card');
-        for (var i=0;i<cards.length;i++){
-          var h2 = cards[i].querySelector('h2');
-          if (h2 && /results/i.test((h2.textContent||''))){
-            resultsSection = cards[i];
-            break;
-          }
-        }
-        if (resultsSection && resultsSection.parentNode){
-          var p = document.createElement('p');
-          p.className = 'report-body';
-          p.textContent = 'Your six Mobility Age Equivalent (MAE) scores and your overall Mobility Age are shown above. We standardize your six test results against a large database of people your age and gender and then apply research-based weights to each test to derive your MAEs. Your final Mobility Age is the average of those six weighted MAEs. Your Ovation Performance Health Coach or Exercise Physiologist will walk you through how you performed on each MAE and what your overall Mobility Age means for your healthspan and mobility goals.';
-          var table = resultsSection.querySelector('table');
-          if (table && table.parentNode){
-            table.parentNode.insertBefore(p, table.nextSibling);
-          } else {
-            resultsSection.appendChild(p);
-          }
-          var legend = document.createElement('p');
-          legend.className = 'results-legend';
-          legend.textContent = 'Your Z score compares your performance to thousands of people your age and gender. A positive Z score (above 0.0) means you outperformed that group, while a negative score (below 0.0) means you underperformed. Each Z score is multiplied by a weight that reflects its contribution to longevity. The highest weight is assigned to your aerobic capacity (VO₂ max), because it has the strongest association with long-term health and survival.';
-          resultsSection.appendChild(legend);
-        }
-      } catch (e) {}
+      if (!resultsCard) return;
+      var srcRows = resultsCard.querySelectorAll('tbody#rows tr');
+      var rowsHtml = '';
+      for (var i=0;i<srcRows.length;i++){
+        var tds = srcRows[i].querySelectorAll('td');
+        if (tds.length < 3) continue;
+        var rawName = (tds[0].textContent||'').trim();
+        var zText = (tds[1].textContent||'').trim();
+        var maeCellText = (tds[2].textContent||'').trim();
+        var maeMatch = maeCellText.match(/[\d.\-]+\s*$/);
+        var maeText = maeMatch ? maeMatch[0].trim() : '';
+        var resultLabel = 'On Track';
+        if (/younger/i.test(maeCellText)) resultLabel = 'Younger';
+        else if (/older/i.test(maeCellText)) resultLabel = 'Older';
+        var info = testInfo(rawName);
+        rowsHtml += '<tr><td>'+esc(info.appendixName)+'</td><td>'+esc(zText)+'</td><td>'+esc(maeText)+'</td><td>'+esc(resultLabel)+'</td></tr>';
+      }
+      var finalMaeEl = resultsCard.querySelector('#final');
+      var finalMae = finalMaeEl ? (finalMaeEl.textContent||'') : '';
+      var noteEl = resultsCard.querySelector('#mae_floor_note');
+      var methodologyNoteHtml = noteEl ? noteEl.innerHTML : '';
+
+      var html = '';
+      html += '<h2 class="section-heading">Appendix</h2>';
+      html += '<div class="summary-sub">Methodology &amp; full results</div>';
+      html += '<p class="summary-text-block">Your six test results are standardized against a large database of people your age and gender. We then calculate a “Z score” for each test. Z-score transformation lets us compare results across the six tests, in disparate units of measure including seconds, kilograms, inches, cm/sec, and mL/kg/min, on one uniform scale.</p>';
+      html += '<p class="summary-text-block">A positive Z score below means you outperformed your age/gender group; a negative score means you underperformed. Each Z score is weighted according to its association with mobility and longevity. VO₂ Max carries the highest weight as it has the strongest correlation with both. Your Mobility Age Equivalents (MAEs) are derived from these weighted scores, and your Final Mobility Age is the average of all six.</p>';
+      html += '<div id="mae_floor_note" class="mae-floor-note">'+methodologyNoteHtml+'</div>';
+      html += '<table class="results-appendix-table"><thead><tr><th>Test</th><th>Z Score</th><th>MAE</th><th>Result</th></tr></thead><tbody>'+rowsHtml+'<tr><th colspan="2">Final Mobility Age</th><th>'+esc(finalMae)+'</th><th></th></tr></tbody></table>';
+      html += '<p class="summary-text-block">Your Ovation Performance Health Coach or Exercise Physiologist will walk you through how you performed on each test and what your overall Mobility Age means for your health span and mobility goals.</p>';
+
+      resultsCard.innerHTML = html;
+      resultsCard.className = 'card appendix-card';
     })();
+
+    // ---- LOOKING AHEAD (trajectory): disclaimer, spread callout, scenario
+    // bullets, and the "race" analogy now come before the chart, not after. ----
+    (function(){
+      if (!trajectoryCard) return;
+      var summaryEl = trajectoryCard.querySelector('#traj_summary');
+      var summaryHtmlInner = summaryEl ? summaryEl.innerHTML : '';
+      var plotTitleEl = trajectoryCard.querySelector('.traj-plot-title');
+      var chartWrapEl = plotTitleEl ? plotTitleEl.nextElementSibling : null;
+      // The live app boxes the chart in a subtle bordered card; the docx shows
+      // the chart borderless, so drop that inline styling for print.
+      if (chartWrapEl) chartWrapEl.removeAttribute('style');
+      var chartHtml = '<div class="traj-chart-block">';
+      if (plotTitleEl) chartHtml += plotTitleEl.outerHTML;
+      if (chartWrapEl) chartHtml += chartWrapEl.outerHTML;
+      chartHtml += '</div>';
+
+      var html = '';
+      html += '<h2 class="section-heading" style="margin:0;">Looking Ahead</h2>';
+      html += '<div class="summary-sub">Your trajectory</div>';
+      html += '<p class="summary-text-block">These are modeled Mobility Age trajectories illustrating how different rates of functional decline could affect your projected Mobility Age over time, not predictions of your actual rate of biological aging or a guarantee of future results.</p>';
+      if (summaryHtmlInner){
+        html += '<div class="traj-summary-block">'+summaryHtmlInner+'</div>';
+      }
+      html += '<ul class="traj-scenarios">';
+      html += '<li><strong>Average:</strong> In this scenario, your modeled rate of functional decline matches the average pace observed in others. Projected forward, the difference between your Mobility Age and your chronological age would be maintained over time.</li>';
+      html += '<li><strong>Slower than average:</strong> This scenario models a rate of functional decline slower than average, consistent with sustained higher levels of training, nutrition, and recovery. Projected forward, the difference between your Mobility Age and your chronological age could continue to widen over time.</li>';
+      html += '<li><strong>Faster than average:</strong> This scenario models a rate of functional decline faster than average, which could occur with reduced activity, injury, or other setbacks. Projected forward, the current difference between your Mobility Age and your chronological age could narrow, or close entirely, over time.</li>';
+      html += '</ul>';
+      html += '<p class="summary-text-block">Think of these scenarios as a hypothetical race where you begin with a head start. In the average scenario, your functional decline matches the comparison group, so the gap stays the same. In the slower-than-average scenario, your decline is slower, so your head start grows. In the faster-than-average scenario, your decline is faster, so the group gradually closes the gap.</p>';
+      html += chartHtml;
+
+      trajectoryCard.innerHTML = html;
+    })();
+
+    // ---- REFERENCE TABLES & ASSESSMENT INPUTS: VO2 norms + the merged
+    // Assessment Inputs table, combined into one section (matches new report). ----
+    (function(){
+      if (!vo2Card) return;
+      var menTable = vo2Card.querySelector('#vo2-norms-male');
+      var womenTable = vo2Card.querySelector('#vo2-norms-female');
+
+      // The live on-screen tables color each cell inline per fitness category
+      // (green/amber/red). The printed report instead uses a flat dark header
+      // row plus simple two-tone zebra striping, so strip the inline styling
+      // and let the new .vo2-table CSS classes take over.
+      [menTable, womenTable].forEach(function(tbl){
+        if (!tbl) return;
+        tbl.removeAttribute('style');
+        tbl.classList.add('vo2-table');
+        var cells = tbl.querySelectorAll('td,th');
+        for (var ci=0; ci<cells.length; ci++){ cells[ci].removeAttribute('style'); }
+      });
+
+      var inputsRowsHtml = '';
+      for (var i=0;i<assessmentInputsRows.length;i++){
+        inputsRowsHtml += '<tr><td>'+esc(assessmentInputsRows[i][0])+'</td><td>'+esc(assessmentInputsRows[i][1])+'</td></tr>';
+      }
+
+      var html = '';
+      html += '<h2 class="section-heading">Reference Tables &amp; Assessment Inputs</h2>';
+      html += '<div class="summary-sub">VO₂ Max Fitness Categories</div>';
+      html += '<p class="summary-text-block">Category bands are derived from each age group’s mean and standard deviation (±0.5 SD and ±1.5 SD cutoffs). Values in mL/kg/min.</p>';
+      html += '<p class="summary-text-block">VO₂ Max is the gold standard for measuring your cardiovascular (aerobic) capacity. Its unit of measurement, milliliters of oxygen per kilogram of body weight per minute, tells you how much oxygen your muscles can extract from circulating blood during exercise to use in burning fuel.</p>';
+      html += '<div class="table-label" style="margin-top:12px;">Men</div>';
+      if (menTable) html += menTable.outerHTML;
+      html += '<div class="table-label" style="margin-top:12px;">Women</div>';
+      if (womenTable) html += womenTable.outerHTML;
+      html += '<div class="summary-sub" style="margin-top:14px;">Assessment Inputs <span class="muted" style="font-weight:400;">(Raw values recorded at the time of testing.)</span></div>';
+      html += '<table id="assessment-inputs-table" class="inputs-table"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>'+inputsRowsHtml+'</tbody></table>';
+
+      vo2Card.innerHTML = html;
+      vo2Card.className = 'card reference-card';
+    })();
+
+    // ---- Final section order: Your Mobility Age/Results/What Happens Next,
+    // Looking Ahead, Appendix, then Reference Tables & Assessment Inputs. ----
+    var orderedNodes = [];
+    if (summaryCard) orderedNodes.push(summaryCard);
+    if (trajectoryCard) orderedNodes.push(trajectoryCard);
+    if (resultsCard) orderedNodes.push(resultsCard);
+    if (vo2Card) orderedNodes.push(vo2Card);
+    // Anything not explicitly placed above still gets included, so content
+    // is never silently dropped if the live page's structure changes later.
+    nodes.forEach(function(n){ if (orderedNodes.indexOf(n) === -1) orderedNodes.push(n); });
+
+    // Compose doc
+    var frag = document.createElement('div'); orderedNodes.forEach(function(n){ frag.appendChild(n); });
 
     var logoSrc = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllciAxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MDAgMjc4Ij4KICA8ZGVmcz4KICAgIDxzdHlsZT4KICAgICAgLmNscy0xIHsKICAgICAgICBmaWxsOiAjMmUxNDI2OwogICAgICB9CgogICAgICAuY2xzLTIgewogICAgICAgIGZpbGw6ICMzMDZlNWI7CiAgICAgIH0KICAgIDwvc3R5bGU+CiAgPC9kZWZzPgogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTc2LjU1LDE2Ni4yNWM4LjY3LDAsMTUuNjktMi4zMywyMS4wNi02Ljk4LDUuMzYtNC42NSw5LjI3LTEyLjYyLDExLjcyLTIzLjksMi40NC0xMS4yOCwzLjY3LTI2Ljc4LDMuNjctNDYuNTFzLTEuMjMtMzUuNDYtMy42Ny00Ni43NGMtMi40NS0xMS4yOC02LjM1LTE5LjI1LTExLjcyLTIzLjktNS4zNy00LjY1LTEyLjM5LTYuOTgtMjEuMDYtNi45OHMtMTUuNDcsMi4zMy0yMC44Myw2Ljk4Yy01LjM3LDQuNjYtOS4yNywxMi42Mi0xMS43MSwyMy45LTIuNDUsMTEuMjgtMy42NywyNi44Ni0zLjY3LDQ2Ljc0czEuMjIsMzUuMjMsMy42Nyw0Ni41MWMyLjQ0LDExLjI4LDYuMzUsMTkuMjUsMTEuNzEsMjMuOSw1LjM2LDQuNjYsMTIuMzEsNi45OCwyMC44Myw2Ljk4TTc2LjU1LDE3MS4yMWMtOS42MywwLTE4LjktMS43NC0yNy44MS01LjIxLTguOTEtMy40Ny0xNi44OC04LjY0LTIzLjktMTUuNS03LjAyLTYuODctMTIuNTgtMTUuNDItMTYuNjgtMjUuNjgtNC4xMS0xMC4yNS02LjE2LTIyLjI1LTYuMTYtMzUuOThzMi4wNS0yNS40OCw2LjE2LTM1LjczYzQuMS0xMC4yNiw5LjctMTguODIsMTYuOC0yNS42OCw3LjEtNi44NiwxNS4xMS0xMi4wNywyNC4wMi0xNS42Miw4LjkxLTMuNTUsMTguMTEtNS4zMiwyNy41Ny01LjMyczE4Ljg5LDEuNywyNy44MSw1LjA5YzguOTEsMy4zOSwxNi44OCw4LjUyLDIzLjksMTUuMzgsNy4wMSw2Ljg3LDEyLjU4LDE1LjQ3LDE2LjY4LDI1LjgsNC4xLDEwLjM0LDYuMTYsMjIuMzcsNi4xNiwzNi4wOXMtMi4wNSwyNS4yOS02LjE2LDM1LjYyYy00LjExLDEwLjMzLTkuNjcsMTguOTMtMTYuNjgsMjUuOC03LjAzLDYuODYtMTUsMTIuMDctMjMuOSwxNS42Mi04LjkyLDMuNTUtMTguMTksNS4zMi0yNy44MSw1LjMyIi8+CiAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMTkzLjM5LDE2OS4wOWwtMi4zNy0xLjljLTEuNDItMTcuMzUtMi45Mi0zMy40OS00LjUtNDguNC0xLjU4LTE0LjkxLTMuMTYtMjkuNTQtNC43My00My45LS4zMi0zLjYzLTEuMDMtNS45NS0yLjEzLTYuOTgtMS4xLTEuMDItMi4zNy0xLjUzLTMuNzktMS41My0yLjg0LDAtNi43OCwyLjk5LTExLjgzLDguOTlsLTIuODQtMi44NWM1LjUyLTcuNTcsMTAuODUtMTMuMjksMTUuOTgtMTcuMTUsNS4xMi0zLjg3LDEwLjM3LTUuOCwxNS43NC01LjgsMTEuMDQsMCwxNy4yOCw3LjM0LDE4LjY5LDIyLjAxLjk1LDExLjIsMS45MywyMy4yNywyLjk2LDM2LjIxLDEuMDIsMTIuOTQsMi4wMSwyNi43NCwyLjk2LDQxLjQyLDYtNy4yNiwxMS42NC0xNC4yMywxNi45Mi0yMC45NCw1LjI4LTYuNzEsMTAuMjktMTMuNjgsMTUuMDItMjAuOTQsMi42OC00LjEsNC4xOC04LjA4LDQuNS0xMS45NS4zMi0zLjg2LS4zOS04LjAxLTIuMTMtMTIuNDJsLTQuMDItMTEuMTJjLTIuMDUtNi4xNi0xLjctMTEuNTEsMS4wNi0xNi4wOSwyLjc2LTQuNTgsNi44My02Ljg2LDEyLjE5LTYuODZzOS40MiwxLjY1LDExLjcxLDQuOTdjMi4yOSwzLjMxLDMuNDMsNy4yNiwzLjQzLDExLjgzLDAsMy4xNi0uODMsNy4wMy0yLjQ4LDExLjYtMS42Niw0LjU4LTQuNzcsMTAuNzMtOS4zNSwxOC40Ni02LjE2LDEwLjI2LTE0LjA1LDIxLjY5LTIzLjY3LDM0LjMyLTkuNjMsMTIuNjItMjAuNTEsMjUuMDktMzIuNjYsMzcuMzlsLTE0LjY4LDEuNjZaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNMzI3LjQ3LDE1Ni4wN2MzLjE1LDAsNi4xMS0uNzUsOC44Ny0yLjI0LDIuNzYtMS41LDYuMDQtMy44Myw5LjgyLTYuOTh2LTM5Ljc2Yy0xLjU4LjMyLTMuMTYuNjMtNC43My45NXMtMy40LjYzLTUuNDQuOTVjLTcuMjYsMS44OS0xMy4wNiw1LjA5LTE3LjQsOS41OC00LjM0LDQuNS02LjUxLDEwLjUzLTYuNTEsMTguMTEsMCw2LjQ3LDEuNSwxMS4zMiw0LjUsMTQuNTUsMi45OSwzLjI0LDYuNjIsNC44NSwxMC44OSw0Ljg1TTMxMy4wMywxNzAuNWMtOS4xNSwwLTE2Ljg0LTIuNi0yMy4wOC03LjgxLTYuMjMtNS4yMS05LjM0LTEyLjctOS4zNC0yMi40OCwwLTcuNDEsMy43OS0xNC4yMywxMS4zNi0yMC40Nyw3LjU3LTYuMjMsMTkuNDgtMTAuOTIsMzUuNzMtMTQuMDgsMi41My0uNDcsNS4zNi0uOTgsOC41Mi0xLjUzLDMuMTUtLjU1LDYuNDctMS4xNSw5Ljk0LTEuNzh2LTE4LjdjMC0xMC43My0xLjMtMTguMjYtMy45LTIyLjYtMi42LTQuMzQtNi42Ny02LjUxLTEyLjE5LTYuNTEtMy43OSwwLTYuNzgsMS4yMy04Ljk5LDMuNjctMi4yMSwyLjQ1LTMuNjMsNi42Ni00LjI2LDEyLjY2bC0uNDgsMi42Yy0uMzIsNi43OS0xLjk3LDExLjc2LTQuOTcsMTQuOTEtMywzLjE2LTYuNzEsNC43My0xMS4xMiw0LjczLTQuMTEsMC03LjQ5LTEuMjYtMTAuMTgtMy43OS0yLjY5LTIuNTItNC4wMi01LjkyLTQuMDItMTAuMTgsMC02LjQ2LDIuMjUtMTEuOTEsNi43NC0xNi4zMyw0LjUtNC40MiwxMC40NS03LjczLDE3Ljg3LTkuOTQsNy40Mi0yLjIxLDE1LjQ2LTMuMzEsMjQuMTQtMy4zMSwxNC4wNCwwLDI0Ljg5LDMuNDMsMzIuNTQsMTAuMyw3LjY1LDYuODYsMTEuNDgsMTguMDMsMTEuNDgsMzMuNDl2NTIuM2MwLDcuMSwzLjMxLDEwLjY1LDkuOTQsMTAuNjVoNS4yMWwyLjEzLDEuODljLTIuOTksMy43OS02LjI3LDYuNzEtOS44Miw4Ljc2LTMuNTUsMi4wNS04LjU2LDMuMDgtMTUuMDMsMy4wOC02Ljk0LDAtMTIuNDItMS42Mi0xNi40NS00Ljg1LTQuMDItMy4yMy02LjY2LTcuNTMtNy45My0xMi45LTQuNzMsNS4wNS05LjU5LDkuMzUtMTQuNTUsMTIuOS00Ljk3LDMuNTUtMTEuNCw1LjMyLTE5LjI5LDUuMzIiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik01MzMuNTYsMTYzLjg4Yy0zLS45NS01LjA5LTIuMzctNi4yNy00LjI2LTEuMTktMS45LTEuNzgtNC40Mi0xLjc4LTcuNThWNTMuMTJoLTg0LjAybC43MS0zMy4xM2gtMi4zN2wtMTkuNDEsMjEuNTRjLTMuNDcsMy40Ny02Ljk4LDYuMjQtMTAuNTMsOC4yOC0zLjU1LDIuMDUtNy43NywzLjYzLTEyLjY2LDQuNzNsLTUuNjguOTV2Mi4zN2gxNi4zM3Y4MC45NGMwLDExLjA1LDIuOCwxOS4wOSw4LjQsMjQuMTQsNS42LDUuMDUsMTMuNDUsNy41NywyMy41NSw3LjU3LDcuODksMCwxNC41OS0xLjU4LDIwLjEyLTQuNzMsNS41Mi0zLjE1LDkuODYtNy40MSwxMy4wMi0xMi43OGwtMi4zNy0yLjM2Yy0yLjUzLDIuODQtNS4wNSw1LjA4LTcuNTgsNi43NC0yLjUzLDEuNjYtNS40NCwyLjQ5LTguNzUsMi40OS0zLjc5LDAtNi45LTEuNDItOS4zNS00LjI2LTIuNDUtMi44NC0zLjY3LTcuMDEtMy42Ny0xMi41NFY1Ny44NWg1MC44OXY5My45NWMwLDMuMTYtLjU5LDUuNjgtMS43Nyw3LjU4LTEuMTksMS44OS0zLjM2LDMuMzEtNi41MSw0LjI2bC0zLjMxLjk1djIuMzdoNTUuMzh2LTIuMzdsLTIuMzctLjcxWiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMSIgZD0iTTYwMy44NiwxNjUuNzdjNS41MiwwLDkuOTQtMS41NywxMy4yNS00LjczLDMuMzEtMy4xNiw1LjcyLTguNzYsNy4yMi0xNi44LDEuNS04LjA0LDIuMjUtMTkuNDEsMi4yNS0zNC4wOHMtLjc1LTI2LjI3LTIuMjUtMzQuMzFjLTEuNS04LjA1LTMuOTEtMTMuNjUtNy4yMi0xNi44MS0zLjMxLTMuMTUtNy43My00LjczLTEzLjI1LTQuNzNzLTkuOTgsMS41OC0xMy4zNyw0LjczYy0zLjQsMy4xNi01Ljg0LDguNzYtNy4zNCwxNi44MS0xLjUsOC4wNC0yLjI1LDE5LjQ4LTIuMjUsMzQuMzFzLjc1LDI2LjA0LDIuMjUsMzQuMDhjMS41LDguMDQsMy45NCwxMy42NSw3LjM0LDE2LjgsMy4zOSwzLjE2LDcuODUsNC43MywxMy4zNyw0LjczTTYwMy44NiwxNzAuNWMtMTEuOTksMC0yMi40LTIuNDgtMzEuMjQtNy40Ni04Ljg0LTQuOTctMTUuNjYtMTIuMDMtMjAuNDgtMjEuMTgtNC44MS05LjE1LTcuMjItMTkuODctNy4yMi0zMi4xOXMyLjU2LTIyLjk2LDcuNjktMzEuOTVjNS4xMi04Ljk5LDEyLjE1LTE1LjkzLDIxLjA3LTIwLjgyLDguOTEtNC44OSwxOC45Ny03LjM0LDMwLjE3LTcuMzRzMjEuMjIsMi40MSwzMC4wNSw3LjIyYzguODQsNC44MSwxNS44MiwxMS43MSwyMC45NSwyMC43MSw1LjEyLDguOTksNy42OSwxOS43Myw3LjY5LDMyLjE5cy0yLjQxLDIzLjI0LTcuMjIsMzIuM2MtNC44Miw5LjA4LTExLjYsMTYuMS0yMC4zNSwyMS4wNy04Ljc1LDQuOTctMTkuMTMsNy40Ni0zMS4xMiw3LjQ2Ii8+CiAgPHBhdGggY2xhc3M9ImNscy0xIiBkPSJNNjcwLjQ0LDE2Ni45NXYtMi4zN2wzLjMxLS45NWM1LjUyLTEuNTcsOC4yOC01LjQ0LDguMjgtMTEuNnYtNzQuMDhjMC0zLjQ3LS41NS02LjAzLTEuNjUtNy42OS0xLjEtMS42Ni0zLjI0LTIuOC02LjM5LTMuNDNsLTMuNTUtLjk1di0yLjM3bDQwLjQ3LTEzLjczLDIuMzcsMi4zNywxLjg5LDE0LjJjNS41My00Ljg5LDExLjc2LTguOTEsMTguNy0xMi4wNyw2Ljk0LTMuMTUsMTMuODEtNC43MywyMC41OS00LjczLDEwLjQxLDAsMTguNDIsMi44NCwyNC4wMiw4LjUyLDUuNiw1LjY4LDguNCwxNC4zNiw4LjQsMjYuMDN2NjguMTZjMCw2LjE2LDIuOTksMTAuMDIsOC45OSwxMS42bDIuMTMuNzF2Mi4zN2gtNTUuODV2LTIuMzdsMy4wOC0uOTVjNS41Mi0xLjc0LDguMjgtNS42LDguMjgtMTEuNnYtNzUuNWMwLTEwLjEtNS4wNS0xNS4xNS0xNS4xNC0xNS4xNS02Ljk0LDAtMTQuNTIsMy40Ny0yMi43MiwxMC40MXY4MC40NmMwLDYuMTYsMi43NiwxMC4wMiw4LjI4LDExLjZsMi4xMy43MXYyLjM3aC01NS42MloiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTEiIGQ9Ik01MDguNDcsMzcuMjZjLTUuMzcsMC05LjkxLTEuNjktMTMuNjEtNS4wOS0zLjcxLTMuMzktNS41Ni03LjY5LTUuNTYtMTIuOXMxLjg1LTkuNyw1LjU2LTEzLjAyYzMuNy0zLjMxLDguMjQtNC45NywxMy42MS00Ljk3czkuODYsMS42NiwxMy40OSw0Ljk3YzMuNjMsMy4zMSw1LjQ0LDcuNjUsNS40NCwxMy4wMnMtMS44Miw5LjUtNS40NCwxMi45Yy0zLjYzLDMuNC04LjEzLDUuMDktMTMuNDksNS4wOSIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTM4LjAyLDI0MS41N2gxMC44NWMxLjYxLDAsMy4yLS4xMyw0Ljc4LS4zOSwxLjU4LS4yNiwyLjk4LS43Myw0LjIyLTEuNDIsMS4yMy0uNjksMi4yMi0xLjY4LDIuOTctMi45Ny43NS0xLjI5LDEuMTItMi45NywxLjEyLTUuMDRzLS4zNy0zLjc1LTEuMTItNS4wNGMtLjc0LTEuMjktMS43NC0yLjI4LTIuOTctMi45Ny0xLjI0LS42OS0yLjY0LTEuMTYtNC4yMi0xLjQyLTEuNTgtLjI2LTMuMTctLjM5LTQuNzgtLjM5aC0xMC44NXYxOS42NFpNMjkuNzUsMjE0LjdoMjEuNDVjMy45LDAsNy4xMi41Myw5LjY0LDEuNTksMi41MywxLjA2LDQuNTIsMi40MSw1Ljk4LDQuMDUsMS40NywxLjY0LDIuNDgsMy40OCwzLjA2LDUuNTEuNTcsMi4wNC44Niw0LjAxLjg2LDUuOXMtLjI5LDMuODYtLjg2LDUuOWMtLjU4LDIuMDQtMS41OSwzLjg4LTMuMDYsNS41MS0xLjQ2LDEuNjQtMy40NiwyLjk5LTUuOTgsNC4wNXMtNS43NCwxLjU5LTkuNjQsMS41OWgtMTMuMTh2MjYuODdoLTguMjd2LTYwLjk3WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTEwNi43NCwyNTEuOTFjLS4wNi0xLjcyLS4zMy0zLjMtLjgyLTQuNzQtLjQ5LTEuNDMtMS4yMi0yLjY4LTIuMTktMy43NS0uOTgtMS4wNi0yLjItMS44OS0zLjY2LTIuNS0xLjQ2LS42LTMuMTctLjktNS4xMi0uOXMtMy42My4zNi01LjIxLDEuMDdjLTEuNTguNzItMi45MSwxLjY1LTQsMi44LTEuMDksMS4xNS0xLjk0LDIuNDMtMi41NCwzLjgzLS42LDEuNDEtLjksMi43OS0uOSw0LjE4aDI0LjQ2Wk04Mi4yOCwyNTguMTFjMCwxLjc4LjM5LDMuNCwxLjE2LDQuODYuNzgsMS40NiwxLjc5LDIuNzEsMy4wNiwzLjc1LDEuMjYsMS4wMywyLjczLDEuODQsNC4zOSwyLjQxLDEuNjcuNTgsMy4zOS44Niw1LjE3Ljg2LDIuNDEsMCw0LjUtLjU2LDYuMjktMS42OCwxLjc4LTEuMTIsMy40Mi0yLjYsNC45MS00LjQzbDUuODYsNC40OGMtNC4zMSw1LjU3LTEwLjM0LDguMzUtMTguMDksOC4zNS0zLjIyLDAtNi4xMy0uNTQtOC43NC0xLjYzLTIuNjItMS4wOS00LjgyLTIuNi02LjYzLTQuNTItMS44MS0xLjkzLTMuMi00LjE5LTQuMTctNi44MS0uOTgtMi42MS0xLjQ2LTUuNDQtMS40Ni04LjQ4cy41My01Ljg4LDEuNTktOC40OWMxLjA2LTIuNjEsMi41My00Ljg4LDQuMzktNi44LDEuODctMS45Myw0LjA5LTMuNDMsNi42OC00LjUyLDIuNTgtMS4wOSw1LjM5LTEuNjQsOC40NC0xLjY0LDMuNjIsMCw2LjY3LjYzLDkuMTcsMS44OSwyLjUsMS4yNyw0LjU1LDIuOTIsNi4xNiw0Ljk1LDEuNjEsMi4wNCwyLjc3LDQuMzQsMy40OSw2Ljg5LjcyLDIuNTYsMS4wNyw1LjE1LDEuMDcsNy44djIuNzZoLTMyLjcyWiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTEyNC4yNSwyMzQuODVoNy43NXY2LjI5aC4xN2MuNTItMS4wOSwxLjIxLTIuMDksMi4wNy0yLjk4Ljg2LS44OSwxLjgyLTEuNjUsMi44OC0yLjI4LDEuMDctLjYzLDIuMjItMS4xNCwzLjQ5LTEuNTEsMS4yNi0uMzcsMi41Mi0uNTYsMy43OS0uNTZzMi40MS4xNywzLjQ1LjUybC0uMzQsOC4zNWMtLjYzLS4xNy0xLjI2LS4zMS0xLjktLjQzLS42My0uMTItMS4yNi0uMTctMS45LS4xNy0zLjc5LDAtNi42OSwxLjA2LTguNywzLjE5LTIuMDEsMi4xMi0zLjAyLDUuNDMtMy4wMiw5Ljl2MjAuNWgtNy43NXYtNDAuODJaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0yIiBkPSJNMTY0LjAxLDI0MS41N2gtOC43OXYtNi43Mmg4Ljc5di05LjEzYzAtNS40NiwxLjA1LTkuNTIsMy4xNC0xMi4xOCwyLjEtMi42Nyw1LjctNC4wMSwxMC44MS00LjAxLjg2LDAsMS43Ny4wMywyLjcyLjA5Ljk1LjA2LDEuOTYuMjMsMy4wNS41MmwtLjg2LDYuODljLS43NS0uMjgtMS40Ni0uNDgtMi4xNS0uNi0uNjktLjEyLTEuNDQtLjE3LTIuMjQtLjE3LTEuNDMsMC0yLjU4LjIyLTMuNDQuNjUtLjg2LjQzLTEuNTQsMS4wNS0yLjAzLDEuODUtLjQ4LjgxLS44LDEuNzctLjk1LDIuODgtLjE0LDEuMTItLjIyLDIuNC0uMjIsMy44M3Y5LjM5aDkuMjJ2Ni43MmgtOS4zMXYzNC4xaC03Ljc1di0zNC4xWiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTE5MS4zOCwyNTUuMjdjMCwyLjA3LjMyLDMuOTcuOTUsNS43My42MywxLjc1LDEuNTIsMy4yNCwyLjY3LDQuNDcsMS4xNSwxLjI0LDIuNTUsMi4yMiw0LjIyLDIuOTMsMS42Ni43MiwzLjUzLDEuMDgsNS42LDEuMDhzMy45My0uMzYsNS42LTEuMDhjMS42Ny0uNzEsMy4wNy0xLjY5LDQuMjItMi45MywxLjE1LTEuMjMsMi4wNC0yLjcyLDIuNjctNC40Ny42My0xLjc2Ljk1LTMuNjYuOTUtNS43M3MtLjMyLTMuOTgtLjk1LTUuNzNjLS42NC0xLjc1LTEuNTItMy4yNC0yLjY3LTQuNDgtMS4xNS0xLjI0LTIuNTUtMi4yMS00LjIyLTIuOTMtMS42Ni0uNzItMy41My0xLjA3LTUuNi0xLjA3cy0zLjkzLjM2LTUuNiwxLjA3Yy0xLjY3LjcyLTMuMDcsMS42OS00LjIyLDIuOTMtMS4xNSwxLjI0LTIuMDQsMi43My0yLjY3LDQuNDgtLjYzLDEuNzUtLjk1LDMuNjYtLjk1LDUuNzNNMTgzLjExLDI1NS4yN2MwLTIuOTkuNTYtNS43NywxLjY4LTguMzYsMS4xMi0yLjU4LDIuNjYtNC44NSw0LjYxLTYuODEsMS45NS0xLjk1LDQuMjUtMy40OSw2Ljg5LTQuNjFzNS40OC0xLjY4LDguNTMtMS42OCw1Ljg5LjU2LDguNTMsMS42OCw0Ljk0LDIuNjYsNi44OSw0LjYxYzEuOTUsMS45NSwzLjQ5LDQuMjIsNC42MSw2LjgxLDEuMTIsMi41OCwxLjY4LDUuMzcsMS42OCw4LjM2cy0uNTYsNS43OC0xLjY4LDguNGMtMS4xMiwyLjYxLTIuNjYsNC44OC00LjYxLDYuOC0xLjk1LDEuOTMtNC4yNSwzLjQ1LTYuODksNC41Ny0yLjY0LDEuMTItNS40OCwxLjY4LTguNTMsMS42OHMtNS44OS0uNTYtOC41My0xLjY4Yy0yLjY0LTEuMTItNC45NC0yLjY0LTYuODktNC41Ny0xLjk1LTEuOTItMy40OS00LjE5LTQuNjEtNi44LTEuMTItMi42Mi0xLjY4LTUuNDEtMS42OC04LjQiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik0yMzUuOTMsMjM0Ljg1aDcuNzV2Ni4yOWguMTdjLjUyLTEuMDksMS4yMS0yLjA5LDIuMDctMi45OC44Ni0uODksMS44Mi0xLjY1LDIuODgtMi4yOCwxLjA3LS42MywyLjIyLTEuMTQsMy40OS0xLjUxLDEuMjYtLjM3LDIuNTMtLjU2LDMuNzktLjU2czIuNDEuMTcsMy40NS41MmwtLjM0LDguMzVjLS42My0uMTctMS4yNi0uMzEtMS44OS0uNDMtLjY0LS4xMi0xLjI2LS4xNy0xLjktLjE3LTMuNzksMC02LjY5LDEuMDYtOC43LDMuMTktMi4wMSwyLjEyLTMuMDIsNS40My0zLjAyLDkuOXYyMC41aC03Ljc1di00MC44MloiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik0yNjcuMDIsMjM0Ljg1aDcuMjR2Ni4zOGguMTdjLjE3LS41Ny42Mi0xLjI5LDEuMzMtMi4xNS43Mi0uODYsMS42NC0xLjY4LDIuNzYtMi40NSwxLjEyLS43OCwyLjQ0LTEuNDQsMy45Ni0xLjk4LDEuNTItLjU0LDMuMi0uODIsNS4wNC0uODIsMy4wNCwwLDUuNi42NCw3LjY3LDEuOSwyLjA3LDEuMjYsMy43NiwzLjE2LDUuMDgsNS42OSwxLjMyLTIuNTMsMy4xOS00LjQyLDUuNi01LjY5LDIuNDEtMS4yNiw0Ljg1LTEuOSw3LjMyLTEuOSwzLjE1LDAsNS43NC41Miw3Ljc1LDEuNTUsMi4wMSwxLjAzLDMuNTksMi40LDQuNzQsNC4wOSwxLjE1LDEuNjksMS45MywzLjYyLDIuMzcsNS43Ny40MywyLjE2LjY0LDQuMzguNjQsNi42OHYyMy43N2gtNy43NXYtMjIuNzRjMC0xLjU1LS4xLTMuMDQtLjMtNC40OC0uMi0xLjQzLS42Mi0yLjctMS4yNS0zLjc5LS42NC0xLjA5LTEuNTItMS45Ni0yLjY3LTIuNjItMS4xNS0uNjYtMi42Ny0uOTktNC41Ni0uOTktMy43MywwLTYuNDEsMS4xNS04LjAxLDMuNDUtMS42MSwyLjI5LTIuNDEsNS4yNS0yLjQxLDguODd2MjIuMzFoLTcuNzV2LTIxLjM2YzAtMS45NS0uMS0zLjczLS4zLTUuMzQtLjItMS42MS0uNi0zLTEuMjEtNC4xOC0uNi0xLjE3LTEuNDYtMi4wOS0yLjU4LTIuNzUtMS4xMi0uNjYtMi42My0uOTktNC41Mi0uOTktMS4zOCwwLTIuNzEuMjctNCwuODItMS4yOS41NS0yLjQzLDEuMzctMy40LDIuNDUtLjk4LDEuMDktMS43NiwyLjQ5LTIuMzMsNC4xOC0uNTcsMS42OS0uODYsMy42OS0uODYsNS45OXYyMS4xOWgtNy43NXYtNDAuODJaIi8+CiAgPHBhdGggY2xhc3M9ImNscy0yIiBkPSJNMzYxLjY5LDI1Ni4wNGMtMS44NCwwLTMuNzIuMS01LjY0LjMtMS45My4yLTMuNjguNTktNS4yNiwxLjE2LTEuNTguNTctMi44NywxLjM4LTMuODgsMi40MS0xLDEuMDMtMS41MSwyLjM2LTEuNTEsMy45NiwwLDIuMzUuNzksNC4wNSwyLjM3LDUuMDgsMS41OCwxLjAzLDMuNzIsMS41NSw2LjQyLDEuNTUsMi4xMiwwLDMuOTMtLjM2LDUuNDItMS4wOCwxLjUtLjcyLDIuNy0xLjY1LDMuNjItMi44LjkyLTEuMTUsMS41OC0yLjQzLDEuOTgtMy44My40LTEuNDEuNi0yLjguNi00LjE4di0yLjU4aC00LjE0Wk0zMzkuODIsMjM5Ljg1YzIuMTgtMi4wMSw0LjcxLTMuNTIsNy41OC00LjUyLDIuODctMS4wMSw1Ljc0LTEuNTEsOC42Mi0xLjUxczUuNTUuMzcsNy43LDEuMTJjMi4xNS43NCwzLjkyLDEuNzUsNS4zLDMuMDEsMS4zOCwxLjI2LDIuNCwyLjcxLDMuMDYsNC4zNS42NiwxLjY0Ljk5LDMuMzUuOTksNS4xM3YyMC44NGMwLDEuNDQuMDMsMi43Ni4wOSwzLjk2LjA1LDEuMjEuMTQsMi4zNi4yNiwzLjQ1aC02Ljg5Yy0uMTctMi4wNy0uMjYtNC4xNC0uMjYtNi4yaC0uMTdjLTEuNzIsMi42NC0zLjc2LDQuNTEtNi4xMiw1LjYtMi4zNSwxLjA5LTUuMDgsMS42My04LjE4LDEuNjMtMS44OSwwLTMuNy0uMjYtNS40My0uNzctMS43Mi0uNTItMy4yMi0xLjI5LTQuNTItMi4zMy0xLjI5LTEuMDMtMi4zMS0yLjMxLTMuMDUtMy44My0uNzUtMS41Mi0xLjEyLTMuMjktMS4xMi01LjMsMC0yLjY0LjU5LTQuODUsMS43Ny02LjYzLDEuMTctMS43OCwyLjc4LTMuMjMsNC44Mi00LjM1LDIuMDQtMS4xMiw0LjQyLTEuOTIsNy4xNS0yLjQxLDIuNzItLjQ4LDUuNjQtLjczLDguNzQtLjczaDUuNjl2LTEuNzJjMC0xLjAzLS4yLTIuMDctLjYtMy4xLS40LTEuMDMtMS0xLjk2LTEuODEtMi44LS44MS0uODMtMS44MS0xLjUtMy4wMi0xLjk4LTEuMjEtLjQ5LTIuNjQtLjczLTQuMzEtLjczLTEuNSwwLTIuOC4xNC0zLjkyLjQzLTEuMTIuMjktMi4xNC42NC0zLjA1LDEuMDgtLjkyLjQzLTEuNzYuOTMtMi41LDEuNS0uNzUuNTgtMS40NiwxLjEyLTIuMTUsMS42NGwtNC42NS00LjgzWiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTM4NC4zMiwyMzQuODVoNy43NXY2LjI5aC4xN2MuOTgtMi4xOSwyLjY3LTMuOTUsNS4wOC01LjMsMi40MS0xLjM1LDUuMTktMi4wMyw4LjM1LTIuMDMsMS45NSwwLDMuODMuMzEsNS42NC45MSwxLjgxLjYsMy4zOSwxLjUzLDQuNzQsMi44LDEuMzUsMS4yNiwyLjQzLDIuODgsMy4yMyw0Ljg3LjgsMS45OCwxLjIxLDQuMzIsMS4yMSw3LjAydjI2LjI3aC03Ljc1di0yNC4xMWMwLTEuOS0uMjYtMy41Mi0uNzgtNC44Ny0uNTItMS4zNS0xLjIxLTIuNDQtMi4wNy0zLjI3LS44Ni0uODMtMS44NS0xLjQzLTIuOTctMS44MS0xLjEyLS4zOC0yLjI5LS41Ni0zLjQ5LS41Ni0xLjYxLDAtMy4xLjI2LTQuNDguNzgtMS4zOC41Mi0yLjU5LDEuMzMtMy42MiwyLjQ1LTEuMDMsMS4xMi0xLjg0LDIuNTQtMi40MSw0LjI2LS41NywxLjcyLS44NiwzLjc2LS44Niw2LjEydjIxLjAyaC03Ljc1di00MC44MloiLz4KICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik00NTkuMTYsMjQ1LjcxYy0xLjQ0LTEuNS0yLjk1LTIuNjMtNC41Mi0zLjQtMS41OC0uNzgtMy40Ni0xLjE2LTUuNjQtMS4xNnMtMy45OC4zOS01LjU1LDEuMTYtMi45LDEuODQtMy45NiwzLjE5Yy0xLjA3LDEuMzUtMS44NywyLjktMi40MSw0LjY1LS41NCwxLjc1LS44MiwzLjU3LS44Miw1LjQ3cy4zMiwzLjY5Ljk1LDUuMzhjLjYzLDEuNjksMS41MiwzLjE3LDIuNjcsNC40MywxLjE1LDEuMjcsMi41MywyLjI2LDQuMTQsMi45NywxLjYuNzIsMy40MSwxLjA4LDUuNDIsMS4wOCwyLjE4LDAsNC4wNS0uMzksNS42LTEuMTYsMS41NS0uNzgsMi45OC0xLjkxLDQuMzEtMy40bDUuNTEsNS41MWMtMi4wMSwyLjI0LTQuMzUsMy44NS03LjAyLDQuODMtMi42Ny45OC01LjUsMS40Ni04LjQ4LDEuNDYtMy4xNiwwLTYuMDQtLjUyLTguNjUtMS41NS0yLjYyLTEuMDMtNC44Ny0yLjQ4LTYuNzYtNC4zNS0xLjktMS44Ny0zLjM2LTQuMS00LjM5LTYuNzItMS4wMy0yLjYxLTEuNTUtNS41LTEuNTUtOC42NXMuNTItNi4wNiwxLjU1LTguN2MxLjAzLTIuNjQsMi40OC00LjkxLDQuMzUtNi44LDEuODYtMS45LDQuMS0zLjM3LDYuNzItNC40NCwyLjYxLTEuMDYsNS41My0xLjU5LDguNzQtMS41OSwyLjk5LDAsNS44NC41Myw4LjU3LDEuNTksMi43MiwxLjA3LDUuMDksMi42OSw3LjEsNC44N2wtNS44Niw1LjM0WiIvPgogIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTUwMy4xMiwyNTEuOTFjLS4wNi0xLjcyLS4zMy0zLjMtLjgyLTQuNzQtLjQ5LTEuNDMtMS4yMi0yLjY4LTIuMTktMy43NS0uOTgtMS4wNi0yLjItMS44OS0zLjY2LTIuNS0xLjQ2LS42LTMuMTctLjktNS4xMi0uOXMtMy42My4zNi01LjIxLDEuMDdjLTEuNTguNzItMi45MSwxLjY1LTQsMi44LTEuMDksMS4xNS0xLjk0LDIuNDMtMi41NCwzLjgzLS42LDEuNDEtLjksMi43OS0uOSw0LjE4aDI0LjQ2Wk00NzguNjYsMjU4LjExYzAsMS43OC4zOSwzLjQsMS4xNiw0Ljg2Ljc4LDEuNDYsMS43OSwyLjcxLDMuMDYsMy43NSwxLjI2LDEuMDMsMi43MywxLjg0LDQuMzksMi40MSwxLjY3LjU4LDMuMzkuODYsNS4xNy44NiwyLjQxLDAsNC41LS41Niw2LjI5LTEuNjgsMS43OC0xLjEyLDMuNDItMi42LDQuOTEtNC40M2w1Ljg2LDQuNDhjLTQuMzEsNS41Ny0xMC4zNCw4LjM1LTE4LjA5LDguMzUtMy4yMiwwLTYuMTMtLjU0LTguNzQtMS42My0yLjYyLTEuMDktNC44Mi0yLjYtNi42My00LjUyLTEuODEtMS45My0zLjItNC4xOS00LjE3LTYuODEtLjk4LTIuNjEtMS40Ni01LjQ0LTEuNDYtOC40OHMuNTMtNS44OCwxLjU5LTguNDljMS4wNi0yLjYxLDIuNTMtNC44OCw0LjM5LTYuOCwxLjg3LTEuOTMsNC4wOS0zLjQzLDYuNjgtNC41MiwyLjU4LTEuMDksNS4zOS0xLjY0LDguNDQtMS42NCwzLjYyLDAsNi42Ny42Myw5LjE3LDEuODksMi41LDEuMjcsNC41NSwyLjkyLDYuMTYsNC45NSwxLjYxLDIuMDQsMi43Nyw0LjM0LDMuNDksNi44OS43MiwyLjU2LDEuMDgsNS4xNSwxLjA4LDcuOHYyLjc2aC0zMi43M1oiLz4KICA8cG9seWdvbiBjbGFzcz0iY2xzLTIiIHBvaW50cz0iNTQ4LjQzIDIxNC43IDU1Ni43IDIxNC43IDU1Ni43IDI0MC4wMiA1ODguMyAyNDAuMDIgNTg4LjMgMjE0LjcgNTk2LjU3IDIxNC43IDU5Ni41NyAyNzUuNjggNTg4LjMgMjc1LjY4IDU4OC4zIDI0Ny43OCA1NTYuNyAyNDcuNzggNTU2LjcgMjc1LjY4IDU0OC40MyAyNzUuNjggNTQ4LjQzIDIxNC43Ii8+CiAgPGc+CiAgICA8cGF0aCBjbGFzcz0iY2xzLTIiIGQ9Ik02MzguMzQsMjUxLjkxYy0uMDYtMS43Mi0uMzMtMy4zLS44Mi00Ljc0LS40OS0xLjQzLTEuMjItMi42OC0yLjE5LTMuNzUtLjk4LTEuMDYtMi4yLTEuODktMy42Ni0yLjUtMS40Ni0uNi0zLjE3LS45LTUuMTItLjlzLTMuNjMuMzYtNS4yMSwxLjA3Yy0xLjU4LjcyLTIuOTEsMS42NS00LDIuOC0xLjA5LDEuMTUtMS45NCwyLjQzLTIuNTQsMy44My0uNiwxLjQxLS45LDIuNzktLjksNC4xOGgyNC40NlpNNjEzLjg4LDI1OC4xMWMwLDEuNzguMzksMy40LDEuMTYsNC44Ni43OCwxLjQ2LDEuNzksMi43MSwzLjA2LDMuNzUsMS4yNiwxLjAzLDIuNzMsMS44NCw0LjM5LDIuNDEsMS42Ny41OCwzLjM5Ljg2LDUuMTcuODYsMi40MSwwLDQuNS0uNTYsNi4yOS0xLjY4LDEuNzgtMS4xMiwzLjQyLTIuNiw0LjkxLTQuNDNsNS44Niw0LjQ4Yy00LjMxLDUuNTctMTAuMzQsOC4zNS0xOC4wOSw4LjM1LTMuMjIsMC02LjEzLS41NC04Ljc0LTEuNjMtMi42Mi0xLjA5LTQuODItMi42LTYuNjMtNC41Mi0xLjgxLTEuOTMtMy4yMS00LjE5LTQuMTgtNi44MS0uOTgtMi42MS0xLjQ2LTUuNDQtMS40Ni04LjQ4cy41My01Ljg4LDEuNTktOC40OWMxLjA2LTIuNjEsMi41My00Ljg4LDQuMzktNi44LDEuODctMS45Myw0LjA5LTMuNDMsNi42OC00LjUyLDIuNTgtMS4wOSw1LjM5LTEuNjQsOC40NC0xLjY0LDMuNjIsMCw2LjY3LjYzLDkuMTcsMS44OSwyLjUsMS4yNyw0LjU1LDIuOTIsNi4xNiw0Ljk1LDEuNjEsMi4wNCwyLjc3LDQuMzQsMy40OSw2Ljg5LjcyLDIuNTYsMS4wNyw1LjE1LDEuMDcsNy44djIuNzZoLTMyLjcyWiIvPgogICAgPHBhdGggY2xhc3M9ImNscy0yIiBkPSJNNjc4LjAzLDI1Ni4wNGMtMS44NCwwLTMuNzIuMS01LjY0LjMtMS45My4yLTMuNjguNTktNS4yNiwxLjE2LTEuNTguNTctMi44NywxLjM4LTMuODgsMi40MS0xLDEuMDMtMS41MSwyLjM2LTEuNTEsMy45NiwwLDIuMzUuNzksNC4wNSwyLjM3LDUuMDgsMS41OCwxLjAzLDMuNzIsMS41NSw2LjQyLDEuNTUsMi4xMiwwLDMuOTMtLjM2LDUuNDMtMS4wOCwxLjQ5LS43MiwyLjctMS42NSwzLjYyLTIuOC45Mi0xLjE1LDEuNTgtMi40MywxLjk4LTMuODMuNC0xLjQxLjYtMi44LjYtNC4xOHYtMi41OGgtNC4xNFpNNjU2LjE1LDIzOS44NWMyLjE4LTIuMDEsNC43MS0zLjUyLDcuNTgtNC41MiwyLjg3LTEuMDEsNS43NC0xLjUxLDguNjItMS41MXM1LjU1LjM3LDcuNywxLjEyYzIuMTUuNzQsMy45MiwxLjc1LDUuMywzLjAxLDEuMzgsMS4yNiwyLjQsMi43MSwzLjA2LDQuMzUuNjYsMS42NC45OSwzLjM1Ljk5LDUuMTN2MjAuODRjMCwxLjQ0LjAzLDIuNzYuMDksMy45Ni4wNSwxLjIxLjE0LDIuMzYuMjYsMy40NWgtNi44OWMtLjE3LTIuMDctLjI2LTQuMTQtLjI2LTYuMmgtLjE3Yy0xLjcyLDIuNjQtMy43Niw0LjUxLTYuMTEsNS42LTIuMzYsMS4wOS01LjA4LDEuNjMtOC4xOSwxLjYzLTEuODksMC0zLjctLjI2LTUuNDMtLjc3LTEuNzItLjUyLTMuMjItMS4yOS00LjUyLTIuMzMtMS4yOS0xLjAzLTIuMzEtMi4zMS0zLjA2LTMuODMtLjc1LTEuNTItMS4xMi0zLjI5LTEuMTItNS4zLDAtMi42NC41OS00Ljg1LDEuNzctNi42MywxLjE3LTEuNzgsMi43OC0zLjIzLDQuODItNC4zNSwyLjA0LTEuMTIsNC40Mi0xLjkyLDcuMTUtMi40MSwyLjcyLS40OCw1LjY0LS43Myw4Ljc0LS43M2g1LjY5di0xLjcyYzAtMS4wMy0uMi0yLjA3LS42LTMuMS0uNC0xLjAzLTEtMS45Ni0xLjgxLTIuOC0uODEtLjgzLTEuODEtMS41LTMuMDItMS45OC0xLjIxLS40OS0yLjY0LS43My00LjMxLS43My0xLjUsMC0yLjguMTQtMy45Mi40My0xLjEyLjI5LTIuMTQuNjQtMy4wNSwxLjA4LS45Mi40My0xLjc2LjkzLTIuNSwxLjUtLjc1LjU4LTEuNDYsMS4xMi0yLjE1LDEuNjRsLTQuNjUtNC44M1oiLz4KICA8L2c+CiAgPHJlY3QgY2xhc3M9ImNscy0yIiB4PSI3MDAuMTYiIHk9IjIxMC41NyIgd2lkdGg9IjcuNzUiIGhlaWdodD0iNjUuMTEiLz4KICA8Zz4KICAgIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTc0Mi4zLDI0MS41N2gtMTEuMTF2MTguNTJjMCwxLjE1LjAzLDIuMjguMDksMy40LjA2LDEuMTIuMjgsMi4xMi42NSwzLjAyLjM4Ljg5Ljk1LDEuNiwxLjcyLDIuMTUuNzcuNTUsMS45MS44MiwzLjQuODIuOTIsMCwxLjg2LS4wOSwyLjg0LS4yNi45Ny0uMTcsMS44Ni0uNDgsMi42Ny0uOTV2Ny4wNmMtLjkyLjUyLTIuMTEuODgtMy41OCwxLjA4LTEuNDYuMi0yLjYuMy0zLjQuMy0yLjk5LDAtNS4zLS40MS02LjkzLTEuMjUtMS42NC0uODMtMi44NC0xLjkxLTMuNjItMy4yMy0uNzgtMS4zMi0xLjIzLTIuOC0xLjM4LTQuNDMtLjE1LTEuNjQtLjIyLTMuMjktLjIyLTQuOTV2LTIxLjI3aC04Ljk2di02LjcyaDguOTZ2LTExLjQ2aDcuNzV2MTEuNDZoMTEuMTF2Ni43MloiLz4KICAgIDxwYXRoIGNsYXNzPSJjbHMtMiIgZD0iTTc1MC44LDIxMC41N2g3Ljc1djMwLjU3aC4xN2MuOTgtMi4xOCwyLjY3LTMuOTUsNS4wOC01LjMsMi40MS0xLjM1LDUuMTktMi4wMiw4LjM1LTIuMDIsMS45NSwwLDMuODMuMyw1LjY0LjksMS44MS42LDMuMzksMS41Myw0Ljc0LDIuOCwxLjM1LDEuMjYsMi40MywyLjg4LDMuMjMsNC44Ni44LDEuOTgsMS4yMSw0LjMyLDEuMjEsNy4wMnYyNi4yN2gtNy43NXYtMjQuMTFjMC0xLjktLjI2LTMuNTItLjc4LTQuODctLjUyLTEuMzUtMS4yMS0yLjQ0LTIuMDctMy4yNy0uODYtLjgzLTEuODUtMS40NC0yLjk3LTEuODEtMS4xMi0uMzctMi4yOC0uNTYtMy40OS0uNTYtMS42MSwwLTMuMS4yNi00LjQ4Ljc4LTEuMzguNTItMi41OCwxLjM0LTMuNjIsMi40Ni0xLjAzLDEuMTItMS44NCwyLjU0LTIuNDEsNC4yNi0uNTcsMS43Mi0uODYsMy43Ni0uODYsNi4xMXYyMS4wMmgtNy43NXYtNjUuMTFaIi8+CiAgPC9nPgo8L3N2Zz4=';
     var logoAlt = 'Ovation Performance Health logo';
 
     var css =
       '<style>' +
-      'body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;color:#1f2933;background:#ffffff;}' +
+      // Google-hosted fonts matching the docx: Open Sans for body text, Libre
+      // Baskerville as the serif accent for big numbers and sub-headings.
+      // System-font fallbacks cover the case where the print context has no
+      // network access.
+      '@import url(\'https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Libre+Baskerville:wght@400;700&display=swap\');' +
+      ':root{--ink:#2F2828;--magenta:#792960;--green:#306E5B;--eggplant:#2E1426;--taupe:#6F675D;--offwhite:#FFFBF6;--tan:#F0E6DC;--mint:#90ECD1;--darktan:#BCAD9E;}' +
+      'body{font-family:\'Open Sans\',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:#ffffff;}' +
       '@page{size:Letter portrait;margin:14mm;}' +
       '*,*::before,*::after{-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
-      '.report-header{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-bottom:8mm;border-bottom:2px solid #004080;padding-bottom:8px;background:#f3f7ff;}' +
-      '.report-logo img{height:76px;width:auto;display:block;}' +
-      '.report-title-block{display:flex;flex-direction:column;gap:2px;}' +
-      '.report-company{font-size:11pt;font-weight:600;color:#004080;text-transform:uppercase;letter-spacing:.10em;}' +
-      '.report-title{font-size:20pt;font-weight:800;margin:0;color:#004080;}' +
-      '.report-title sup{font-size:60%;font-weight:700;vertical-align:super;}' +
-      '.report-intro{font-size:9pt;line-height:1.25;margin:0 0 6pt 0;color:#374151;}.report-intro-block .report-intro:last-child{margin-bottom:0;}' +
-      '.report-intro-block{margin:6px 0 3mm;}' +
-      '.report-body{font-size:12pt;line-height:1.45;margin:8pt 0 10pt;color:#374151;}' +
-      '.inputs-legend{font-size:9pt;margin-top:6px;color:#6b7280;font-style:italic;}' +
-      '.results-legend{font-size:9pt;margin-top:6px;color:#6b7280;font-style:italic;}' +
-      '.summary-card{border:1px solid #cbd5e1;border-radius:12px;padding:14px 16px;margin:4px 0 10px;background:#f8fafc;}' +
-      '.summary-hero{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px;}' +
-      '.summary-hero-main{display:flex;align-items:baseline;gap:8px;}' +
-      '.summary-label{font-size:11pt;color:#4b5563;}' +
-      '.summary-value{font-size:24pt;font-weight:800;color:#004080;}' +
-      '.summary-hero-side{display:flex;flex-direction:column;gap:2px;font-size:10pt;color:#374151;}' +
-      '.summary-delta{font-size:10pt;color:#004080;}' +
-      '.summary-sex{font-size:9.5pt;color:#4b5563;}' +
-      '.summary-message{font-size:10.5pt;line-height:1.5;margin:4px 0 8px;color:#374151;}' +
-      '.summary-tests{margin:4px 0 8px;}' +
-      '.summary-tests-heading{font-size:10.5pt;font-weight:600;color:#004080;margin-bottom:4px;}' +
-      '.summary-tests ul{list-style:none;margin:0;padding:0;}' +
-      '.summary-tests li{display:flex;justify-content:space-between;align-items:center;font-size:9.5pt;border-bottom:1px solid #e5e7eb;padding:4px 0;}' +
-      '.summary-tests li:last-child{border-bottom:none;}' +
-      '.test-line-main{display:flex;gap:8px;align-items:baseline;}' +
-      '.test-name{font-weight:500;color:#111827;}' +
-      '.test-mae{font-size:9.5pt;color:#374151;}' +
-      '.test-line-status{font-size:9pt;}' +
-      '.summary-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:9pt;font-weight:600;}' +
-      '.badge-good{background:#def7ec;color:#03543f;}' +
-      '.badge-neutral{background:#e5e7eb;color:#374151;}' +
-      '.badge-focus{background:#fde8e8;color:#9b1c1c;}' +
-      '.summary-tests-note{font-size:9pt;color:#6b7280;margin-top:4px;}' +
-      '.summary-text{font-size:10pt;line-height:1.5;color:#374151;margin-top:6px;}' +
-      '.summary-text p{margin:3px 0;}' +
-      'section,fieldset,.card{border:1px solid #d1d5db;border-radius:10px;padding:12px 14px;margin:8px 0;background:#f9fafb;}' +
+      '.report-header{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-bottom:6mm;border:none;background:none;padding:0;}' +
+      '.report-logo img{height:66px;width:auto;display:block;}' +
+      '.report-title-block{display:flex;flex-direction:column;gap:2px;margin-top:6px;}' +
+      '.report-company{font-size:11pt;font-weight:600;color:var(--magenta);text-transform:uppercase;letter-spacing:.10em;}' +
+      '.report-title{font-size:19pt;font-weight:700;margin:0;color:var(--magenta);}' +
+      '.report-title sup{font-size:55%;font-weight:700;vertical-align:super;}' +
+      '.report-intro{font-size:9.5pt;line-height:1.5;margin:0 0 6pt 0;color:var(--ink);}.report-intro-block .report-intro:last-child{margin-bottom:0;}' +
+      '.report-intro-block{margin:8px 0 4mm;}' +
+      '.report-body{font-size:12pt;line-height:1.45;margin:8pt 0 10pt;color:var(--ink);}' +
+      '.inputs-legend{font-size:9pt;margin-top:6px;color:var(--taupe);font-style:italic;}' +
+      '.results-legend{font-size:9pt;margin-top:6px;color:var(--taupe);font-style:italic;}' +
+      // The docx is a flowing document, not a set of bordered cards, so the
+      // print output drops the boxed/background "card" look entirely.
+      'section,fieldset,.card,.summary-card{border:none;border-radius:0;padding:0;margin:0 0 6px;background:transparent;}' +
       '#trajectory.card{border:none !important;background:transparent !important;padding:0 !important;box-shadow:none !important;}' +
-      'h2{font-size:12.5pt;margin:0 0 6px;color:#004080;}' +
+      'h2{font-size:13pt;margin:0 0 6px;color:var(--magenta);font-weight:700;}' +
+      // Top-level section titles (YOUR MOBILITY AGE / YOUR RESULTS / WHAT HAPPENS
+      // NEXT / LOOKING AHEAD / APPENDIX / REFERENCE TABLES & ASSESSMENT INPUTS).
+      // Text content stays title case in the markup; this renders it as caps.
+      '.section-heading{text-transform:uppercase;letter-spacing:.02em;border:none;padding-bottom:0;color:var(--magenta);}' +
+      // Thin rule used only where two sections share a page with no natural
+      // page break between them (e.g. "Your Results" into "What Happens Next").
+      '.section-divider{border:none;border-top:1px solid var(--darktan);margin:14px 0;}' +
+      // Sub-heading within a section (e.g. "How your six tests compare to
+      // others your age and gender", "Methodology & full results"), set in
+      // the serif accent face to match the docx.
+      '.summary-sub{font-family:\'Libre Baskerville\',Georgia,serif;font-size:14.5pt;font-weight:700;color:var(--eggplant);margin:6px 0 6px;}' +
+      // Smaller plain-bold sub-labels above the Men/Women VO2 tables (not the
+      // big serif sub-heading treatment used for section subheadings).
+      '.table-label{font-size:10.5pt;font-weight:700;color:var(--ink);margin:0 0 4px;}' +
+      '.summary-text-block{font-size:10pt;line-height:1.55;color:var(--ink);margin:6px 0;}' +
+      'p{orphans:3;widows:3;}' +
+      // Big "Mobility Age" hero number + delta line + (retained) sex line.
+      '.mobility-age-value{font-family:\'Libre Baskerville\',Georgia,serif;font-weight:700;font-size:42pt;color:var(--eggplant);line-height:1;margin:6px 0 6px;}' +
+      '.mobility-age-delta{font-size:12.5pt;font-weight:700;color:var(--green);margin:0 0 4px;}' +
+      '.mobility-age-delta-muted{color:var(--taupe);}' +
+      '.mobility-age-sex{font-size:9.5pt;color:var(--taupe);margin:0 0 8px;}' +
+      '.summary-message{font-size:10pt;line-height:1.55;margin:6px 0 4px;color:var(--ink);}' +
+      // Base table look: no full grid, taupe small-caps column headers, thin
+      // per-row rule; individual tables below narrow or remove these as needed.
       'table{width:100%;border-collapse:collapse;margin-top:4px;font-size:9.5pt;}' +
-      'th,td{border:1px solid #e5e7eb;padding:5px 6px;text-align:left;vertical-align:top;}' +
-      'th{background:#d9e8ff;color:#102a43;font-weight:600;}' +
+      'th,td{border:none;padding:6px 8px;text-align:left;vertical-align:top;}' +
+      'thead th{color:var(--taupe);font-weight:700;font-size:8pt;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--darktan);}' +
+      'tbody th{font-weight:700;color:var(--ink);}' +
+      'tbody td{border-bottom:1px solid #e4dccf;}' +
       '.inputs-table th{width:38%;}' +
-      '.traj-plot-title{break-before:page !important;page-break-before:always !important;}' +
-      '#report-inputs{break-before:page !important;page-break-before:always !important;}' +
-      '' +
+      '.inputs-table td:last-child,.inputs-table th:last-child{text-align:right;}' +
+      // Six-test "Your Results" summary table: serif MAE numbers + a solid
+      // colored Result cell per test (Younger=mint/green, On Track=tan/magenta,
+      // Older=darker tan/ink) instead of the old blue pill badges.
+      '.results-summary-table thead th:nth-child(2),.results-summary-table thead th:nth-child(3){text-align:right;}' +
+      '.results-summary-table td.rt-test{font-weight:700;color:var(--ink);}' +
+      '.results-summary-table td.rt-mae{font-family:\'Libre Baskerville\',Georgia,serif;font-size:13pt;color:var(--ink);text-align:right;}' +
+      '.results-summary-table td.rt-result{font-weight:700;font-size:9.5pt;text-align:right;}' +
+      '.results-summary-table td.rt-result.rt-younger{background:var(--mint);color:var(--green);}' +
+      '.results-summary-table td.rt-result.rt-ontrack{background:var(--tan);color:var(--magenta);}' +
+      '.results-summary-table td.rt-result.rt-older{background:var(--darktan);color:var(--ink);}' +
+      '.results-summary-table td:last-child,.results-appendix-table td:last-child{white-space:nowrap;}' +
+      // Appendix (full Z-score/MAE breakdown) table: minimal — a thick rule
+      // under the header and above the Final Mobility Age row, no per-row
+      // dividers, right-aligned numeric columns, plain (uncolored) Result text.
+      '.results-appendix-table thead th{border-bottom:1.5px solid var(--eggplant);}' +
+      '.results-appendix-table tbody td{border-bottom:none;}' +
+      '.results-appendix-table thead th:nth-child(2),.results-appendix-table thead th:nth-child(3),.results-appendix-table thead th:nth-child(4),' +
+      '.results-appendix-table td:nth-child(2),.results-appendix-table td:nth-child(3),.results-appendix-table td:nth-child(4){text-align:right;}' +
+      '.results-appendix-table tbody tr:last-child th{border-top:1.5px solid var(--eggplant);padding-top:8px;text-transform:none;font-size:9.5pt;letter-spacing:normal;}' +
+      // Methodology callout: tan box, italic text (matches docx); the trajectory
+      // spread-callout paragraph stays plain (no box) as in the docx.
+      '.mae-floor-note{background:var(--tan);padding:12px 14px;border-radius:4px;font-style:italic;font-size:9.5pt;line-height:1.5;color:var(--ink);margin:10px 0;}' +
+      '.traj-summary-block{font-size:10.5pt;line-height:1.55;color:var(--ink);margin:8px 0;}' +
+      '.traj-plot-title{font-size:9pt;font-weight:700;color:var(--taupe);text-align:center;margin-bottom:4px;text-transform:none;}' +
+      // Strengths / opportunities two-column callout under the six-test table:
+      // tan boxes, no border, heading color keyed to strength (green) vs.
+      // opportunity (magenta).
+      '.strengths-box{display:flex;gap:14px;margin:10px 0 4px;flex-wrap:wrap;}' +
+      '.strengths-col{flex:1 1 240px;border:none;border-radius:4px;padding:12px 14px;background:var(--tan);}' +
+      '.strengths-col-heading{font-size:10.5pt;font-weight:700;margin-bottom:6px;}' +
+      '.strengths-col-good .strengths-col-heading{color:var(--green);}' +
+      '.strengths-col-focus .strengths-col-heading{color:var(--magenta);}' +
+      '.strengths-col p{font-size:9.5pt;line-height:1.5;color:var(--ink);margin:0;}' +
+      '.traj-scenarios{margin:6px 0;padding-left:20px;font-size:10pt;line-height:1.5;color:var(--ink);}' +
+      '.traj-scenarios li{margin-bottom:6px;}' +
+      // Keep the chart title and the chart itself together so the title
+      // never gets orphaned at the bottom of a page with the chart pushed
+      // to the next one.
+      '.traj-chart-block{break-inside:avoid;page-break-inside:avoid;}' +
       '@media print{#traj_decade_checkpoints > div:nth-of-type(2){overflow:visible !important;}}' +
       '@media print{#traj_decade_checkpoints{break-inside:avoid !important;page-break-inside:avoid !important;}}' +
       '@media print{#traj_decade_checkpoints table{min-width:0 !important;width:100% !important;table-layout:fixed !important;font-size:8.25pt !important;}}' +
       '@media print{#traj_decade_checkpoints th,#traj_decade_checkpoints td{padding:4px 4px !important;overflow-wrap:anywhere;word-break:break-word;}}' +
       '@media print{#traj_decade_checkpoints th{white-space:normal !important;}}' +
-
-
-
-      '#results{break-inside:avoid;page-break-inside:avoid;}' +
-      '#vo2-norms{break-inside:avoid;page-break-inside:avoid;}' +
-      '#vo2-norms table{font-size:8.5pt;}' +
-      '#vo2-norms th,#vo2-norms td{padding:4px 5px;}' +
-      '#results table{break-inside:avoid;page-break-inside:avoid;}' +
-      '#results h2,#results #who{break-after:avoid-page;page-break-after:avoid;}' +
+      // Individual tables shouldn't split mid-row, but the surrounding cards
+      // (Appendix / Reference Tables) are long enough now that forcing the
+      // whole card onto one page would leave large blank gaps, so only the
+      // tables themselves (and the strengths callout / scenario list) get
+      // break-avoid treatment.
+      '.appendix-card table,.reference-card table{break-inside:avoid;page-break-inside:avoid;}' +
+      '.strengths-box{break-inside:avoid;page-break-inside:avoid;}' +
+      '.traj-scenarios{break-inside:avoid;page-break-inside:avoid;}' +
+      '.reference-card table{font-size:8.5pt;}' +
+      '.reference-card th,.reference-card td{padding:4px 5px;}' +
+      '.reference-card{break-before:page !important;page-break-before:always !important;}' +
+      // Reference Tables' VO2 category tables: dark eggplant header row +
+      // simple two-tone zebra striping (replaces the live app's inline
+      // per-category red/amber/green cell coloring, stripped above).
+      '.vo2-table{width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:6px;}' +
+      '.vo2-table th{background:var(--eggplant);color:var(--offwhite);font-weight:700;text-align:center;border-bottom:none;text-transform:none;letter-spacing:normal;padding:5px 6px;}' +
+      '.vo2-table th:first-child{text-align:left;}' +
+      '.vo2-table td{text-align:center;padding:5px 6px;border-bottom:none;}' +
+      '.vo2-table td:first-child{text-align:left;font-weight:700;}' +
+      '.vo2-table tbody tr:nth-child(odd){background:var(--offwhite);}' +
+      '.vo2-table tbody tr:nth-child(even){background:var(--tan);}' +
       '</style>';
 
     var header = ''
@@ -4392,12 +4613,12 @@ function syncControlValues(clone){
       +     (logoSrc ? '<img src="'+esc(logoSrc)+'" alt="'+esc(logoAlt)+'">' : '')
       +   '</div>'
       +   '<div class="report-title-block">'
-      +     '<h1 class="report-title">HEALTH SPAN MOBILITY INDEX<sup>™</sup> Report</h1>'
+      +     '<h1 class="report-title">Your Health Span Mobility Index<sup>™</sup> Report</h1>'
       +   '</div>'
       + '</div>'
       + '<div class="report-intro-block">'
-+   '<p class="report-intro">The Ovation Performance Health Wellness Program includes CCPHP’s Longevity Program, designed to support your health and wellbeing by testing and using your personal fitness and mobility metrics in conjunction with expert health coaching on holistic lifestyle factors of sleep, nutrition, and stress management. Our Longevity program offers a dimension that takes your specific data to a new level: longevity coaching built around a patent-pending mobility assessment called the Health Span Mobility Index<sup>™</sup>.</p>'
-+   '<p class="report-intro">Imagine your body has two ages: your birthday age (how many years you\u2019ve been alive) and your Mobility Age (how \u201Cold\u201D your body actually moves). Our HSMI figures out your Mobility Age by giving you six quick physical tests including balance, muscular strength, cardiovascular capacity, and how fast you can get up and walk, then comparing your scores to many thousands of other people your age and gender. If you do better than average, your Mobility Age comes out younger than your real age (great news!); if you do worse, it comes out older, which is a friendly nudge to work on endurance, strength, flexibility and balance. It\u2019s basically a fun, science-based report card that turns \u201Chow mobile are you for your age?\u201D into one single, easy-to-understand number and six individual, component numbers.</p>'
++   '<p class="report-intro">The Ovation Performance Health Program includes CCPHP\u2019s Longevity Program, which combines your personal fitness and mobility metrics with expert health coaching on sleep, nutrition, and stress management to support your health and well-being. Our Longevity Program offers a dimension that takes your specific data to a new level: longevity coaching built around a patented mobility assessment called the Health Span Mobility Index<sup>™</sup>.</p>'
++   '<p class="report-intro">Imagine your body has two ages: your chronological age\u2014the number of years you\u2019ve been alive\u2014and your Mobility Age\u2014how old your body performs based on your mobility and fitness. The Health Span Mobility Index<sup>™</sup> calculates your Mobility Age using six physical tests, including balance, muscular strength, cardiovascular capacity, flexibility, and the speed at which you can rise and walk, then compares your results to thousands of others of your age and gender.</p>'
 + '</div>';
 
     return '<!doctype html><html><head><meta charset="utf-8">'+css+'</head><body>'+header+frag.innerHTML+'</body></html>';
@@ -4569,9 +4790,11 @@ function hideLegacyPrintButtons(){
 
   // ---- Build alternate printable HTML (member copy) ----
   // Differences from buildPrintableHTML:
-  //   1. Inputs table is placed LAST (after Trajectory), not first
-  //   2. Trajectory section: multiplier dropdown + all decline-rate inputs are stripped;
-  //      only the <h2> title and the "Scenario forecast…" <p> are kept
+  //   1. Trajectory section: multiplier dropdown + all decline-rate inputs are stripped;
+  //      only the section text and the SVG chart are kept
+  //   2. The Assessment Inputs table (now folded into the "Reference Tables &
+  //      Assessment Inputs" section by buildPrintableHTML itself, already last)
+  //      is trimmed of tester/location/name/sex fields not meant for the member
   function buildPrintableHTML_v2(){
     // Re-use the standard builder to get the fully assembled HTML string,
     // then post-process the resulting DOM before serialising.
@@ -4582,16 +4805,6 @@ function hideLegacyPrintButtons(){
     var standardHTML = buildPrintableHTML();
     var parser = new DOMParser();
     var doc2 = parser.parseFromString(standardHTML, 'text/html');
-
-    // --- Step 2: Move Inputs card to the very end ---
-    var inputsCard = doc2.getElementById('report-inputs');
-    if (inputsCard) {
-      // Keep the forced page-break so Inputs still lands on its own page
-      // even after being relocated to the end of the document.
-      // Remove from current position and append at end of body
-      inputsCard.parentNode.removeChild(inputsCard);
-      doc2.body.appendChild(inputsCard);
-    }
 
     // --- Step 3: In the Trajectory card, strip ONLY the controls ---
     // Remove: (a) the multiplier scenario grid (contains #decl_scn)
@@ -4610,14 +4823,14 @@ function hideLegacyPrintButtons(){
     // Remove the now-empty page-break div (the .traj-plot-title rule forces the break instead)
     doc2.querySelectorAll('.print-only').forEach(function(el){ el.parentNode && el.parentNode.removeChild(el); });
 
-    // --- Step 4: Trim the Inputs table for member copy ---
+    // --- Step 4: Trim the Assessment Inputs table for member copy ---
     // Drop these fields by label text match:
     var DROP_LABELS = [
       'location', 'first name', 'last name', 'phone', 'sex',
       'multiplier scenario',
       'grip strength change', 'postural sway change', 'mid-thigh pull change'
     ];
-    var inputsTable = doc2.querySelector('#report-inputs table');
+    var inputsTable = doc2.getElementById('assessment-inputs-table');
     if (inputsTable) {
       var rows = Array.prototype.slice.call(inputsTable.querySelectorAll('tbody tr'));
       rows.forEach(function(row) {
@@ -4628,9 +4841,6 @@ function hideLegacyPrintButtons(){
         if (shouldDrop) { row.parentNode.removeChild(row); }
       });
     }
-
-    // --- Step 5: (removed) Inputs keeps the base stylesheet's forced page-break,
-    // so it lands on its own page at the end of the report.
 
     // --- Step 6: Serialise back to an HTML string ---
     return '<!doctype html>' + doc2.documentElement.outerHTML;
