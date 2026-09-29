@@ -965,6 +965,7 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
   // Positive maeDelta means the retest MAE is HIGHER (older/worse); negative
   // means younger/better. Same convention for the overall Mobility Age delta.
   var STABLE_BAND = 1.0; // years; within this band we call it "stable" rather than a real change
+  var COHORT_MIN_N = 5; // "Cohort at a glance" only means something once several members are compared in the same file pair; below this it's suppressed as noise (e.g. one-off individual retests)
   function classify(delta){
     if (!Number.isFinite(delta)) return 'flat';
     if (delta <= -STABLE_BAND) return 'good';
@@ -1112,6 +1113,24 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
     }
   }
 
+  function downloadBlob(content, mime, filename){
+    var b = new Blob([content], { type: mime });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+  function slug(s){
+    return String(s == null ? '' : s).trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'member';
+  }
+  function todayStamp(){
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
   function csvEscape(v){
     var s = (v == null) ? '' : String(v);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
@@ -1190,7 +1209,11 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
     }
 
     // ---- cohort distribution ----
-    if (comparisons.length){
+    // Suppressed below COHORT_MIN_N: with only a handful of members in the
+    // current file pair, a per-test "cohort" average is just noise, not a
+    // real population signal. Reappears automatically once a batch of
+    // retests is run together in one baseline/retest file pair.
+    if (comparisons.length >= COHORT_MIN_N){
       html += '<section class="card">'
         + '<h2 style="font-size:16px;margin-bottom:4px;">Cohort at a glance</h2>'
         + '<p class="hint" style="margin-bottom:14px;">Change per test, in age-equivalent years. “Stable” means the change was within &plusmn;' + STABLE_BAND.toFixed(0) + ' year.</p>'
@@ -1215,7 +1238,7 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
     // ---- member cards ----
     if (comparisons.length){
       html += '<div style="display:flex;justify-content:flex-end;">'
-        + '<button class="btn btn-accent" type="button" data-action="copy-all">Copy full comparison (CSV)</button>'
+        + '<button class="btn btn-accent" type="button" data-action="copy-all">Download full comparison (CSV)</button>'
         + '</div>';
       comparisons.forEach(function(cmp, idx){
         html += memberCard(cmp, idx);
@@ -1320,7 +1343,7 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
         + '<tbody>' + primaryRows + '</tbody>'
       + '</table></div>'
       + '<div class="card-footer" style="justify-content:flex-end;">'
-        + '<button class="btn btn-sm" type="button" data-action="copy-member" data-idx="' + idx + '">Copy this row (CSV)</button>'
+        + '<button class="btn btn-sm" type="button" data-action="copy-member" data-idx="' + idx + '">Download this row (CSV)</button>'
       + '</div>'
       + '</section>';
   }
@@ -1329,10 +1352,10 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
     var btn = e.target.closest('[data-action]');
     if (!btn) return;
     if (btn.dataset.action === 'copy-all'){
-      copyText(buildExportCSV(lastComparisons));
+      downloadBlob(buildExportCSV(lastComparisons), 'text/csv;charset=utf-8', 'hsmi_retest_batch_' + todayStamp() + '.csv');
     } else if (btn.dataset.action === 'copy-member'){
       var idx = Number(btn.dataset.idx);
-      if (lastComparisons[idx]) copyText(buildExportCSV([lastComparisons[idx]]));
+      if (lastComparisons[idx]) downloadBlob(buildExportCSV([lastComparisons[idx]]), 'text/csv;charset=utf-8', 'hsmi_retest_' + slug(lastComparisons[idx].name) + '_' + todayStamp() + '.csv');
     }
   });
 
