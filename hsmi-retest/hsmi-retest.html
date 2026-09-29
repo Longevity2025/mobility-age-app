@@ -239,6 +239,47 @@ footer.note{ font-size:12px; color:var(--ink-3); line-height:1.6; max-width:70ch
   font-size: 1rem;
   color: #555;
 }
+
+/* ── Print report ── */
+.print-cover{ display:none; }
+@media print {
+  @page { size: Letter portrait; margin: 14mm; }
+  *, *::before, *::after { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { background:#fff !important; margin:0 !important; }
+
+  /* Hide everything that isn't the report itself */
+  .site-header, .masthead, #uploadCard, .sample-banner, footer.note,
+  .copy-toast, #nlf-gate, #netlify-identity-widget,
+  .kpi-row, .card-footer, [data-action="copy-all"], [data-action="print-report"] {
+    display: none !important;
+  }
+
+  .wrap{ max-width:none !important; margin:0 !important; padding:0 !important; gap:14px !important; }
+
+  .print-cover{ display:block !important; margin-bottom:10px; }
+  .print-cover .print-title{ font-size:18pt; font-weight:900; margin:0 0 3px; }
+  .print-cover .print-meta{ font-size:10pt; color:#374151 !important; }
+
+  section.card, .card{ border:1px solid #000 !important; box-shadow:none !important; break-inside:avoid; page-break-inside:avoid; }
+  .member-card{ break-inside:avoid; page-break-inside:avoid; }
+
+  /* The 7-column raw/Z table has a 680px min-width for on-screen horizontal
+     scrolling — printed pages can't scroll, so force it to the page width. */
+  .table-scroll{ overflow:visible !important; border-radius:0 !important; }
+  table.cmp{ width:100% !important; min-width:0 !important; table-layout:fixed !important; border-collapse:collapse !important; font-size:9.5pt !important; }
+  table.cmp th, table.cmp td{ border:1px solid #000 !important; white-space:normal !important; word-break:break-word !important; padding:5px 6px !important; }
+
+  /* Force the raw/Z detail table open and drop the button styling on its toggle */
+  details{ display:block !important; }
+  details > summary{
+    display:block !important; cursor:default !important;
+    background:none !important; border:0 !important; padding:0 !important;
+    font-size:11px !important; font-weight:700 !important; text-transform:uppercase !important;
+    letter-spacing:.05em !important; color:#374151 !important; margin:10px 0 4px !important;
+  }
+  details > summary::-webkit-details-marker{ display:none; }
+  details > summary::marker{ content:''; }
+}
 </style>
 </head>
 <body>
@@ -252,6 +293,11 @@ footer.note{ font-size:12px; color:var(--ink-3); line-height:1.6; max-width:70ch
 </header>
 
 <div class="wrap">
+
+  <div class="print-cover">
+    <div class="print-title">Healthspan Mobility Index&trade; Test-Retest Comparison</div>
+    <div class="print-meta" id="printMeta"></div>
+  </div>
 
   <div class="masthead">
     <div class="eyebrow">Healthspan Mobility Index &middot; Retest Tool</div>
@@ -1237,7 +1283,8 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
 
     // ---- member cards ----
     if (comparisons.length){
-      html += '<div style="display:flex;justify-content:flex-end;">'
+      html += '<div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">'
+        + '<button class="btn" type="button" data-action="print-report">Print report</button>'
         + '<button class="btn btn-accent" type="button" data-action="copy-all">Download full comparison (CSV)</button>'
         + '</div>';
       comparisons.forEach(function(cmp, idx){
@@ -1248,6 +1295,14 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
     }
 
     resultsEl.innerHTML = html;
+
+    var metaEl = document.getElementById('printMeta');
+    if (metaEl){
+      var genDate = new Date().toLocaleDateString(undefined, { year:'numeric', month:'long', day:'numeric' });
+      metaEl.textContent = (comparisons.length
+        ? (comparisons.length + (comparisons.length === 1 ? ' member' : ' members') + ' compared')
+        : 'No members matched') + ' — generated ' + genDate;
+    }
   }
 
   function kpi(n, label, flagged){
@@ -1356,8 +1411,19 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
     } else if (btn.dataset.action === 'copy-member'){
       var idx = Number(btn.dataset.idx);
       if (lastComparisons[idx]) downloadBlob(buildExportCSV([lastComparisons[idx]]), 'text/csv;charset=utf-8', 'hsmi_retest_' + slug(lastComparisons[idx].name) + '_' + todayStamp() + '.csv');
+    } else if (btn.dataset.action === 'print-report'){
+      printReport();
     }
   });
+
+  var origTitle = document.title;
+  function printReport(){
+    // Open every "Raw values & Z-scores" panel so it's included in the printout.
+    resultsEl.querySelectorAll('details').forEach(function(d){ d.open = true; });
+    document.title = 'HSMI Test-Retest Comparison — ' + todayStamp();
+    window.print();
+  }
+  window.addEventListener('afterprint', function(){ document.title = origTitle; });
 
   render();
 })();
