@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HSMI Retest Comparison - CCPHP</title>
+<style>
+:root{
+  --bg:#f8fafc;
+  --surface:#ffffff;
+  --surface-2:#eef2f7;
+  --border:#cbd5e1;
+  --ink:#0b141a;
+  --ink-2:#4a5f6e;
+  --ink-3:#7c8c95;
+  --accent:#0052cc;
+  --accent-ink:#ffffff;
+  --accent-soft:#e8f0fe;
+  --good:#0f7b3d;
+  --good-soft:#e5f5ec;
+  --bad:#b3261e;
+  --bad-soft:#fbe9e7;
+  --warn:#8a5a00;
+  --warn-soft:#fdf1da;
+  --shadow:0 1px 2px rgba(11,20,26,0.05), 0 6px 16px rgba(11,20,26,0.06);
+  color-scheme:light;
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:"Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  padding-inline:16px;
+  padding-block:0 60px;
+}
+.wrap{max-width:960px; margin:0 auto; display:flex; flex-direction:column; gap:28px;}
+
+h1,h2,h3{font-family:inherit; font-weight:900; margin:0; text-wrap:balance;}
+.eyebrow{
+  font-size:11.5px; letter-spacing:0.09em;
+  text-transform:uppercase; color:var(--accent); font-weight:700;
+}
+.tabular{font-variant-numeric:tabular-nums;}
+
+/* ---------- CCPHP site header (matches the launcher page) ---------- */
+.site-header{
+  background:var(--surface); border-bottom:2px solid var(--border);
+  padding:1.25rem 1.5rem; display:flex; align-items:center; justify-content:space-between;
+  gap:1rem; margin:0 -16px 28px;
+}
+.site-header h1{ font-size:1.25rem; letter-spacing:.2px; }
+.site-header .back{ font-size:.85rem; font-weight:700; color:var(--ink-2); text-decoration:none; }
+.site-header .back:hover{ color:var(--accent); }
+#logout-btn{
+  cursor:pointer; background:transparent; border:2px solid var(--border); border-radius:10px;
+  padding:6px 14px; font-size:.9rem; font-weight:700; color:var(--ink-2);
+  transition:border-color .15s, color .15s; font-family:inherit;
+}
+#logout-btn:hover{ border-color:var(--accent); color:var(--accent); }
+#logout-btn.hidden{ display:none; }
+
+.masthead{display:flex; flex-direction:column; gap:10px;}
+.masthead h1{font-size:clamp(22px,3.6vw,28px);}
+.masthead p{margin:0; color:var(--ink-2); font-size:15px; max-width:62ch; line-height:1.5; font-weight:600;}
+
+/* ---------- cards ---------- */
+.card{
+  background:var(--surface); border:2px solid var(--border); border-radius:16px;
+  box-shadow:var(--shadow); padding:20px;
+}
+.card-tight{padding:16px;}
+@media (max-width:480px){ .card{ padding:16px 12px; } }
+
+/* ---------- upload ---------- */
+.upload-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+@media (max-width:620px){ .upload-grid{grid-template-columns:1fr;} }
+.dropzone{
+  border:1.5px dashed var(--border); border-radius:12px; padding:18px;
+  display:flex; flex-direction:column; gap:10px; align-items:flex-start;
+  background:var(--surface-2); transition:border-color .15s, background .15s;
+  position:relative;
+}
+.dropzone.drag-over{ border-color:var(--accent); background:var(--accent-soft); }
+.dropzone .slot-label{ font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); }
+.dropzone .slot-title{ font-weight:600; font-size:15px; }
+.dropzone .slot-meta{ font-size:13px; color:var(--ink-2); line-height:1.5; }
+.dropzone .pill{
+  display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600;
+  padding:2px 8px; border-radius:99px; background:var(--accent-soft); color:var(--accent);
+  letter-spacing:.02em;
+}
+.dz-actions{display:flex; gap:10px; margin-top:2px; flex-wrap:wrap;}
+input[type=file]{ display:none; }
+.btn{
+  font:inherit; font-weight:600; font-size:13.5px; padding:8px 14px; border-radius:9px;
+  border:1px solid var(--border); background:var(--surface); color:var(--ink); cursor:pointer;
+  transition:background .12s, border-color .12s;
+}
+.btn:hover{ border-color:var(--accent); }
+.btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+.btn-accent{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+.btn-accent:hover{ opacity:0.92; }
+.btn-ghost{ border-color:transparent; background:transparent; color:var(--ink-2); text-decoration:underline; padding:8px 4px; }
+.btn-sm{ padding:5px 10px; font-size:12.5px; }
+
+.sample-banner{
+  display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+  background:var(--accent-soft); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; font-size:13.5px; color:var(--ink);
+}
+.sample-banner strong{ color:var(--accent); }
+
+/* ---------- KPI strip ---------- */
+.kpi-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+@media (max-width:620px){ .kpi-row{grid-template-columns:repeat(2,1fr);} }
+.kpi{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px;
+  display:flex; flex-direction:column; gap:4px;
+}
+.kpi .n{ font-size:26px; font-weight:600; line-height:1; }
+.kpi .lbl{ font-size:12.5px; color:var(--ink-2); }
+.kpi.flagged .n{ color:var(--warn); }
+
+/* ---------- warnings ---------- */
+.warn-list{ display:flex; flex-direction:column; gap:8px; }
+.warn-item{
+  display:flex; gap:10px; align-items:flex-start; font-size:13.5px; line-height:1.5;
+  background:var(--warn-soft); border:1px solid var(--border); border-radius:9px; padding:10px 12px;
+  color:var(--ink);
+}
+.warn-item .dot{ flex:0 0 auto; width:7px; height:7px; border-radius:50%; background:var(--warn); margin-top:6px; }
+.warn-item.unmatched{ background:var(--surface-2); }
+.warn-item.unmatched .dot{ background:var(--ink-3); }
+
+/* ---------- distribution bars (cohort) ---------- */
+.dist-table{ display:flex; flex-direction:column; gap:10px; }
+.dist-row{ display:grid; grid-template-columns:130px 1fr 88px; gap:12px; align-items:center; }
+@media (max-width:620px){ .dist-row{grid-template-columns:96px 1fr 72px;} }
+.dist-row .name{ font-size:13px; font-weight:600; }
+.dist-bar{ display:flex; height:14px; border-radius:4px; overflow:hidden; background:var(--surface-2); gap:2px; }
+.dist-seg{ height:100%; }
+.dist-seg.improved{ background:var(--good); }
+.dist-seg.stable{ background:var(--ink-3); opacity:.55; }
+.dist-seg.declined{ background:var(--bad); }
+.dist-seg.capped{ background:repeating-linear-gradient(45deg, var(--ink-3) 0 3px, transparent 3px 6px); opacity:.7; }
+.chip.capped{ background:var(--surface-2); color:var(--ink-3); font-style:italic; font-weight:600; }
+.dist-count{ font-size:12px; text-align:right; color:var(--ink-2); }
+.legend-row{ display:flex; gap:16px; font-size:12px; color:var(--ink-2); flex-wrap:wrap; }
+.legend-row .lg{ display:inline-flex; align-items:center; gap:6px; }
+.legend-row .sw{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+
+/* ---------- member cards ---------- */
+.member-card{ display:flex; flex-direction:column; gap:14px; }
+.member-head{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
+.member-head h3{ font-size:19px; }
+.member-sub{ font-size:12.5px; color:var(--ink-2); margin-top:2px; }
+.age-badge{
+  font-size:11.5px; padding:2px 8px; border-radius:99px;
+  background:var(--surface-2); color:var(--ink-2); white-space:nowrap;
+}
+
+.mobility-hero{
+  display:flex; align-items:center; gap:18px; flex-wrap:wrap;
+  background:var(--surface-2); border-radius:11px; padding:14px 16px;
+}
+.mobility-hero .val{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+.mobility-hero .val .lbl{ font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); }
+.mobility-hero .val .n{ font-size:28px; font-weight:600; }
+.mobility-hero .arrow{ font-size:20px; color:var(--ink-3); }
+.mobility-hero .delta{
+  margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+}
+.delta-badge{
+  font-weight:600; font-size:14px; padding:4px 10px;
+  border-radius:8px; display:inline-flex; align-items:center; gap:5px;
+}
+.delta-badge.good{ background:var(--good-soft); color:var(--good); }
+.delta-badge.bad{ background:var(--bad-soft); color:var(--bad); }
+.delta-badge.flat{ background:var(--surface); color:var(--ink-2); border:1px solid var(--border); }
+.delta-note{ font-size:11.5px; color:var(--ink-3); }
+
+.table-scroll{ overflow-x:auto; border:1px solid var(--border); border-radius:10px; }
+table.cmp{ border-collapse:collapse; width:100%; min-width:680px; font-size:13px; }
+table.cmp.compact{ min-width:0; }
+@media (max-width:480px){
+  table.cmp.compact th, table.cmp.compact td{ padding:7px 5px; font-size:11.5px; }
+}
+table.cmp th, table.cmp td{ padding:8px 10px; text-align:right; border-bottom:1px solid var(--border); white-space:nowrap; }
+table.cmp th:first-child, table.cmp td:first-child{ text-align:left; }
+table.cmp thead th{
+  background:var(--surface-2); color:var(--ink-2); font-weight:600; font-size:11.5px;
+  text-transform:uppercase; letter-spacing:.04em; position:sticky; top:0;
+}
+table.cmp thead tr.group th{ font-size:11px; color:var(--ink-3); border-bottom:none; padding-bottom:2px; }
+table.cmp tbody tr:last-child td{ border-bottom:none; }
+table.cmp td.num{ font-variant-numeric:tabular-nums; }
+table.cmp td.cap{ position:relative; }
+table.cmp .cap-flag{ color:var(--warn); font-weight:700; margin-left:3px; cursor:help; }
+.chip{ display:inline-block; font-size:11px; padding:1px 6px; border-radius:6px; font-weight:600; }
+.chip.good{ background:var(--good-soft); color:var(--good); }
+.chip.bad{ background:var(--bad-soft); color:var(--bad); }
+.chip.flat{ background:var(--surface-2); color:var(--ink-2); }
+
+.match-warnings{ display:flex; flex-direction:column; gap:6px; }
+.match-warnings .wi{ font-size:12.5px; color:var(--warn); display:flex; gap:6px; }
+
+.card-footer{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+details summary{ cursor:pointer; list-style:none; }
+details summary::-webkit-details-marker{ display:none; }
+details summary::before{ content:'\25b8\00a0'; }
+details[open] summary::before{ content:'\25be\00a0'; }
+.hint{ font-size:12px; color:var(--ink-3); }
+
+.empty-state{
+  text-align:center; padding:36px 20px; color:var(--ink-2); font-size:14px; line-height:1.6;
+}
+
+.copy-toast{
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  background:var(--ink); color:var(--bg); font-size:13px; font-weight:600; padding:9px 16px;
+  border-radius:99px; box-shadow:var(--shadow); opacity:0; pointer-events:none;
+  transition:opacity .18s, transform .18s; z-index:50;
+}
+.copy-toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+
+footer.note{ font-size:12px; color:var(--ink-3); line-height:1.6; max-width:70ch; }
+[hidden]{ display:none !important; }
+
+/* ── Netlify Identity gate (identical pattern to HSMI app) ── */
+#nlf-gate {
+  position: fixed; inset: 0;
+  background: #fff;
+  z-index: 98;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: sans-serif;
+  font-size: 1rem;
+  color: #555;
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <h1>HSMI Retest Comparison</h1>
+  <div style="display:flex; align-items:center; gap:14px;">
+    <a class="back" href="/">&larr; All tools</a>
+    <button id="logout-btn" class="hidden">Log out</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="eyebrow">Healthspan Mobility Index &middot; Retest Tool</div>
+    <p>Upload a baseline export and a retest export for the same members. Every score is recomputed from the six raw test inputs using the current scoring formula — not read from each file's own saved columns — so a baseline and a retest taken months apart, possibly under different app versions, land on the same basis.</p>
+  </div>
+
+  <section class="card upload-grid" id="uploadCard">
+    <div class="dropzone" id="dz-baseline" data-slot="baseline">
+      <span class="slot-label">Baseline file</span>
+      <span class="slot-title" id="dz-baseline-title">Drop a CSV, or choose a file</span>
+      <span class="slot-meta" id="dz-baseline-meta">Waiting for a file&hellip;</span>
+      <div class="dz-actions">
+        <button class="btn" type="button" data-choose="baseline">Choose file&hellip;</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-clear="baseline" id="dz-baseline-clear" hidden>Clear</button>
+      </div>
+      <input type="file" accept=".csv,text/csv" id="file-baseline">
+    </div>
+    <div class="dropzone" id="dz-retest" data-slot="retest">
+      <span class="slot-label">Retest file</span>
+      <span class="slot-title" id="dz-retest-title">Drop a CSV, or choose a file</span>
+      <span class="slot-meta" id="dz-retest-meta">Waiting for a file&hellip;</span>
+      <div class="dz-actions">
+        <button class="btn" type="button" data-choose="retest">Choose file&hellip;</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-clear="retest" id="dz-retest-clear" hidden>Clear</button>
+      </div>
+      <input type="file" accept=".csv,text/csv" id="file-retest">
+    </div>
+  </section>
+
+  <div class="sample-banner" id="sampleBanner">
+    <span><strong>Showing example data</strong> — four sample members, so you can see how a comparison reads. Upload your own two files above to replace it.</span>
+    <button class="btn btn-sm" type="button" id="clearSampleBtn">Start with empty files</button>
+  </div>
+
+  <div id="results"></div>
+
+  <footer class="note">
+    Matching prefers a <span class="tabular">member_id</span> column when both files have one; otherwise it matches by normalized name + date of birth, and flags anything ambiguous below rather than guessing silently. Per-test deltas use each test's uncapped Z-score and uncapped age-equivalent (MAE) — not the 21–95, cap-limited values shown on the printed report — so real improvement or decline at the very top or bottom of the scale isn't hidden by the display floor/ceiling. A test flagged with * hit the ±2.5 Z-score cap used in the composite, meaning the true change may be larger than shown. This runs entirely in your browser; no file is uploaded anywhere.
+  </footer>
+</div>
+
+<div class="copy-toast" id="copyToast">Copied to clipboard</div>
+
+<!-- Netlify Identity widget -->
+<script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+
+<!-- Gate overlay -->
+<div id="nlf-gate">Checking login&hellip;</div>
+
+<script>
+(function () {
+  var gate   = document.getElementById('nlf-gate');
+  var logBtn = document.getElementById('logout-btn');
+  var opened = false;
+
+  function unlock() {
+    gate.style.display = 'none';
+    logBtn.classList.remove('hidden');
+  }
+  function lock() {
+    gate.style.display = 'flex';
+    logBtn.classList.add('hidden');
+  }
+
+  logBtn.addEventListener('click', function () { netlifyIdentity.logout(); });
+
+  netlifyIdentity.on('login',  function () { unlock(); netlifyIdentity.close(); });
+  netlifyIdentity.on('logout', function () { window.location.reload(); });
+
+  // Let the widget handle invite / recovery tokens without blocking
+  if (window.location.hash && (
+      window.location.hash.indexOf('invite_token')    !== -1 ||
+      window.location.hash.indexOf('recovery_token')  !== -1 ||
+      window.location.hash.indexOf('access_token')    !== -1
+  )) {
+    unlock();
+    return;
+  }
+
+  // Poll until widget has initialised and user state is known
+  var poll = setInterval(function () {
+    if (typeof netlifyIdentity.currentUser !== 'function') return;
+    clearInterval(poll);
+    var iframe = document.getElementById('netlify-identity-widget');
+    if (iframe) iframe.style.zIndex = '2147483647';
+    var user = netlifyIdentity.currentUser();
+    if (user) {
+      unlock();
+    } else if (!opened) {
+      opened = true;
+      netlifyIdentity.open('login');
+    }
+  }, 200);
+})();
+</script>
+
+<script>
+/* =========================================================================
+   1) SCORING CORE — ported from the Mobility Age app's index.html
+   ========================================================================= */
+/* HSMI scoring core — ported line-for-line from the Mobility Age app's
+   index.html (verified against the uploaded file, norm tables read
+   directly from its embedded <script id="sr_json">/"tug_json"/"vo2_json">
+   JSON blocks and formula logic read directly from its calculate() function,
+   not from memory). Restricted to what's needed to recompute CURRENT-STATE
+   z-scores and per-test MAE from a completed test record — does not include
+   the Trajectory/expected-decline projection system (GS/SWAY/MTP year-keyed
+   raw-value tables, getAutoDeclines), since the CSV export already contains
+   mtp/sway/grip as percentiles, not raw kg/cm, so current-state scoring
+   never needs those raw-value tables.
+
+   IMPORTANT: if the app's scoring logic (weights, ZCAP, norm tables, floor)
+   is ever changed, this module must be re-synced by hand — there is no
+   shared source of truth between the two files.
+*/
+
+var SIT = {"Male": {"20-29": {"mean": 14.4, "sd": 4.0, "mid": 24.5}, "30-39": {"mean": 14.2, "sd": 3.9, "mid": 34.5}, "40-49": {"mean": 13.8, "sd": 3.7, "mid": 44.5}, "50-59": {"mean": 13.3, "sd": 3.5, "mid": 54.5}, "60-69": {"mean": 12.9, "sd": 3.2, "mid": 64.5}, "70-79": {"mean": 12.4, "sd": 3.2, "mid": 74.5}, "80-89": {"mean": 12.0, "sd": 3.2, "mid": 84.5}}, "Female": {"20-29": {"mean": 17.0, "sd": 3.8, "mid": 24.5}, "30-39": {"mean": 16.9, "sd": 4.0, "mid": 34.5}, "40-49": {"mean": 16.5, "sd": 4.1, "mid": 44.5}, "50-59": {"mean": 16.2, "sd": 4.1, "mid": 54.5}, "60-69": {"mean": 16.1, "sd": 4.2, "mid": 64.5}, "70-79": {"mean": 15.9, "sd": 4.2, "mid": 74.5}, "80-89": {"mean": 15.7, "sd": 4.2, "mid": 84.5}}};
+var TUG = {"Male": {"20-29": {"mean": 6.0, "sd": 1.0, "mid": 24.5}, "30-39": {"mean": 7.0, "sd": 1.0, "mid": 34.5}, "40-49": {"mean": 8.0, "sd": 1.0, "mid": 44.5}, "50-59": {"mean": 9.0, "sd": 1.0, "mid": 54.5}, "60-69": {"mean": 10.0, "sd": 1.0, "mid": 64.5}, "70-79": {"mean": 11.0, "sd": 1.0, "mid": 74.5}, "80-89": {"mean": 12.0, "sd": 1.0, "mid": 84.5}}, "Female": {"20-29": {"mean": 6.5, "sd": 1.0, "mid": 24.5}, "30-39": {"mean": 7.5, "sd": 1.0, "mid": 34.5}, "40-49": {"mean": 8.5, "sd": 1.0, "mid": 44.5}, "50-59": {"mean": 9.5, "sd": 1.0, "mid": 54.5}, "60-69": {"mean": 10.5, "sd": 1.0, "mid": 64.5}, "70-79": {"mean": 11.5, "sd": 1.0, "mid": 74.5}, "80-89": {"mean": 12.5, "sd": 1.0, "mid": 84.5}}};
+var VO2 = {"Male": {"20-29": {"mean": 50.0, "sd": 5.0, "mid": 24.5}, "30-39": {"mean": 46.0, "sd": 5.0, "mid": 34.5}, "40-49": {"mean": 42.0, "sd": 5.0, "mid": 44.5}, "50-59": {"mean": 38.0, "sd": 5.0, "mid": 54.5}, "60-69": {"mean": 34.0, "sd": 5.0, "mid": 64.5}, "70-79": {"mean": 30.0, "sd": 5.0, "mid": 74.5}, "80-89": {"mean": 26.0, "sd": 5.0, "mid": 84.5}}, "Female": {"20-29": {"mean": 40.0, "sd": 4.5, "mid": 24.5}, "30-39": {"mean": 36.5, "sd": 4.5, "mid": 34.5}, "40-49": {"mean": 33.0, "sd": 4.5, "mid": 44.5}, "50-59": {"mean": 29.5, "sd": 4.5, "mid": 54.5}, "60-69": {"mean": 26.0, "sd": 4.5, "mid": 64.5}, "70-79": {"mean": 22.5, "sd": 4.5, "mid": 74.5}, "80-89": {"mean": 19.0, "sd": 4.5, "mid": 84.5}}};
+
+// slopes_json is always {sit_reach:0, tug:0, vo2:0} in the app, and
+// slopeOverrideOrAuto() treats 0/null/undefined as "auto" -- so the
+// override path never actually fires. Auto (autoSlopeForBin) is the only
+// path implemented here.
+
+var WEIGHTS = { sit: 1.0, tug: 1.25, mtp: 1.0, sway: 1.0, grip: 1.0, vo2: 1.5 };
+var SUM_W = WEIGHTS.sit + WEIGHTS.tug + WEIGHTS.mtp + WEIGHTS.sway + WEIGHTS.grip + WEIGHTS.vo2; // 6.75
+var ZCAP = 2.5;
+
+function parseRange(label) {
+  if (!label) return null;
+  var s = label.toString().trim().replace(/[–—]/g, '-');
+  var m = s.match(/(\d+)\s*-\s*(\d+)/);
+  if (m) return [parseInt(m[1], 10), parseInt(m[2], 10)];
+  m = s.match(/(\d+)\D+(\d+)/);
+  if (m) return [parseInt(m[1], 10), parseInt(m[2], 10)];
+  m = s.match(/(\d+)\s*\+$/);
+  if (m) return [parseInt(m[1], 10), parseInt(m[1], 10) + 9];
+  m = s.match(/(\d+)/);
+  if (m) return [parseInt(m[1], 10), parseInt(m[1], 10)];
+  return null;
+}
+
+function pickAgeGroup(age, node) {
+  var keys = Object.keys(node || {});
+  var best = null, bestDist = Infinity;
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var r = parseRange(k);
+    if (!r) continue;
+    var mid = (r[0] + r[1]) / 2;
+    if (age >= r[0] && age <= r[1]) return { label: k, mid: mid, r: r };
+    var d = Math.abs(age - mid);
+    if (d < bestDist) { bestDist = d; best = { label: k, mid: mid, r: r }; }
+  }
+  return best;
+}
+
+function nodeFor(pick, map) {
+  if (!pick) return { mean: 0, sd: 1, mid: 0 };
+  var d = map[pick.label] || {};
+  return { mean: d.mean || 0, sd: d.sd || 1, mid: (d.mid != null ? d.mid : pick.mid) };
+}
+
+function parseMidFromLabel(lbl) {
+  if (!lbl) return NaN;
+  var m = String(lbl).match(/(\d+)\s*[-–]\s*(\d+)/);
+  if (!m) return NaN;
+  return (Number(m[1]) + Number(m[2])) / 2;
+}
+
+// Within-bin smoothing: centered (or edge forward/backward) difference
+// between neighboring decade-bucket means, so scores don't jump at bucket
+// edges. Ported verbatim from index.html.
+function autoSlopeForBin(map, label) {
+  if (!map || !label) return 0;
+  var arr = Object.keys(map).map(function (k) {
+    var d = map[k] || {};
+    var mid = (d.mid != null ? Number(d.mid) : parseMidFromLabel(k));
+    var mean = Number(d.mean);
+    return { k: k, mid: mid, mean: mean };
+  }).filter(function (o) {
+    return Number.isFinite(o.mid) && Number.isFinite(o.mean);
+  }).sort(function (a, b) { return a.mid - b.mid; });
+
+  if (!arr.length) return 0;
+
+  var idx = -1;
+  for (var i = 0; i < arr.length; i++) { if (arr[i].k === label) { idx = i; break; } }
+  if (idx < 0) {
+    var best = 0, bestD = Infinity;
+    var targetMid = parseMidFromLabel(label);
+    for (var j = 0; j < arr.length; j++) {
+      var d2 = Math.abs((Number.isFinite(targetMid) ? targetMid : arr[j].mid) - arr[j].mid);
+      if (d2 < bestD) { bestD = d2; best = j; }
+    }
+    idx = best;
+  }
+
+  var cur = arr[idx];
+  var prev = idx > 0 ? arr[idx - 1] : null;
+  var next = idx < arr.length - 1 ? arr[idx + 1] : null;
+
+  if (prev && next && (next.mid - prev.mid) !== 0) return (next.mean - prev.mean) / (next.mid - prev.mid);
+  if (next && (next.mid - cur.mid) !== 0) return (next.mean - cur.mean) / (next.mid - cur.mid);
+  if (prev && (cur.mid - prev.mid) !== 0) return (cur.mean - prev.mean) / (cur.mid - prev.mid);
+  return 0;
+}
+
+// Acklam's approximation to the inverse standard normal CDF — ported
+// verbatim (same coefficients) from index.html's normSInv().
+function normSInv(p) {
+  if (!(p > 0 && p < 1)) return NaN;
+  var a = [-39.69683028665376, 220.9460984245205, -275.9285104469687, 138.3577518672690, -30.66479806614716, 2.506628277459239];
+  var b = [-54.47609879822406, 161.5858368580409, -155.6989798598866, 66.80131188771972, -13.28068155288572];
+  var c = [-0.007784894002430293, -0.3223964580411365, -2.400758277161838, -2.549732539343734, 4.374664141464968, 2.938163982698783];
+  var d = [0.007784695709041462, 0.3224671290700398, 2.445134137142996, 3.754408661907416];
+  var plow = 0.02425, phigh = 1 - plow, q, r;
+  if (p < plow) {
+    q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  } else if (p > phigh) {
+    q = Math.sqrt(-2 * Math.log(1 - p));
+    return -((((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+  } else {
+    q = p - 0.5; r = q * q;
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+  }
+}
+
+function zFromRaw(raw, mean, sd, invert) {
+  if (!isFinite(sd) || sd === 0) return 0;
+  var z = (raw - mean) / sd;
+  if (invert) z = -z;
+  return z;
+}
+function zFromPct(p) { return normSInv(p / 100); }
+function clamp(x, lo, hi) { if (x < lo) return lo; if (x > hi) return hi; return x; }
+function capZ(z) { return clamp(z, -ZCAP, ZCAP); }
+
+/* computeScores(rec)
+   rec: { age:Number, sex:'Male'|'Female', sit:Number, tug:Number, vo2:Number,
+          mtp_r_pct:Number, mtp_l_pct:Number, sway_r_pct:Number, sway_l_pct:Number,
+          grip_r_pct:Number, grip_l_pct:Number }
+
+   Returns raw (uncapped, un-floor/ceiling'd) per-test MAE -- "maeRaw" in the
+   app -- which is what change-over-time deltas should be computed from
+   (the app's own displayed MAE clamps each test to 21-95 for the results
+   table, which would hide real improvement/decline at either tail), plus
+   the overall Mobility Age (the app floors ONLY the final blended number
+   at 21, never a per-test ceiling/floor going into the blend -- reproduced
+   here exactly to match). */
+function computeScores(rec) {
+  var age = rec.age, sex = rec.sex;
+
+  var srPick = pickAgeGroup(age, SIT[sex] || {});
+  var tgPick = pickAgeGroup(age, TUG[sex] || {});
+  var v2Pick = pickAgeGroup(age, VO2[sex] || {});
+  var sr = nodeFor(srPick, SIT[sex] || {});
+  var tg = nodeFor(tgPick, TUG[sex] || {});
+  var v2 = nodeFor(v2Pick, VO2[sex] || {});
+
+  var srSlope = autoSlopeForBin(SIT[sex] || {}, srPick && srPick.label);
+  var tgSlope = autoSlopeForBin(TUG[sex] || {}, tgPick && tgPick.label);
+  var v2Slope = autoSlopeForBin(VO2[sex] || {}, v2Pick && v2Pick.label);
+
+  var srMeanAdj = sr.mean + srSlope * (age - sr.mid);
+  var tgMeanAdj = tg.mean + tgSlope * (age - tg.mid);
+  var v2MeanAdj = v2.mean + v2Slope * (age - v2.mid);
+
+  var z_sit = zFromRaw(rec.sit, srMeanAdj, sr.sd, false);
+  var z_tug_raw = zFromRaw(rec.tug, tgMeanAdj, tg.sd, true);
+  var z_vo2_raw = zFromRaw(rec.vo2, v2MeanAdj, v2.sd, false);
+  var z_mtp = zFromPct((rec.mtp_r_pct + rec.mtp_l_pct) / 2.0);
+  var z_sway = zFromPct((rec.sway_r_pct + rec.sway_l_pct) / 2.0);
+  var z_grip = zFromPct((rec.grip_r_pct + rec.grip_l_pct) / 2.0);
+
+  var z_tug = capZ(z_tug_raw);
+  var z_vo2 = capZ(z_vo2_raw);
+
+  var wz = {
+    sit: z_sit * WEIGHTS.sit,
+    tug: z_tug * WEIGHTS.tug,
+    mtp: z_mtp * WEIGHTS.mtp,
+    sway: z_sway * WEIGHTS.sway,
+    grip: z_grip * WEIGHTS.grip,
+    vo2: z_vo2 * WEIGHTS.vo2
+  };
+
+  var maeRaw = {
+    sit: age - 15 * wz.sit,
+    tug: age - 15 * wz.tug,
+    mtp: age - 15 * wz.mtp,
+    sway: age - 15 * wz.sway,
+    grip: age - 15 * wz.grip,
+    vo2: age - 15 * wz.vo2
+  };
+
+  // Display-only clamp, reproduced so the tool can cross-check against the
+  // app's own exported mae_* columns as a validation step.
+  var maeDisplay = {
+    sit: Math.min(95, Math.max(21, maeRaw.sit)),
+    tug: Math.min(95, Math.max(21, maeRaw.tug)),
+    mtp: Math.min(95, Math.max(21, maeRaw.mtp)),
+    sway: Math.min(95, Math.max(21, maeRaw.sway)),
+    grip: Math.min(95, Math.max(21, maeRaw.grip)),
+    vo2: Math.min(95, Math.max(21, maeRaw.vo2))
+  };
+
+  var compZ = (wz.sit + wz.tug + wz.mtp + wz.sway + wz.grip + wz.vo2) / SUM_W;
+  var mobilityAge = Math.max(21, age - 15 * compZ);
+
+  return {
+    z: { sit: z_sit, tug: z_tug, mtp: z_mtp, sway: z_sway, grip: z_grip, vo2: z_vo2 },
+    zUncapped: { tug: z_tug_raw, vo2: z_vo2_raw },
+    maeRaw: maeRaw,
+    maeDisplay: maeDisplay,
+    compZ: compZ,
+    mobilityAge: mobilityAge
+  };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    SIT: SIT, TUG: TUG, VO2: VO2, WEIGHTS: WEIGHTS, ZCAP: ZCAP,
+    pickAgeGroup: pickAgeGroup, autoSlopeForBin: autoSlopeForBin, normSInv: normSInv,
+    zFromRaw: zFromRaw, zFromPct: zFromPct, capZ: capZ, computeScores: computeScores
+  };
+}
+
+/* =========================================================================
+   2) CSV PARSING + MEMBER MATCHING + DELTA ASSEMBLY
+   ========================================================================= */
+/* Core CSV parsing + member matching + delta logic for the HSMI retest
+   comparison tool. Depends on computeScores() etc. from hsmi_scoring.js
+   being present in the same scope (window in the browser, or required
+   separately in Node for tests). */
+
+// ---------- CSV parsing (RFC4180-ish: quoted fields, embedded commas/quotes/newlines) ----------
+function parseCSV(text) {
+  var rows = [];
+  var row = [];
+  var field = '';
+  var inQuotes = false;
+  var i = 0;
+  var n = text.length;
+  // Normalize line endings but only OUTSIDE quotes matters for row breaks;
+  // simplest robust approach: scan char by char.
+  while (i < n) {
+    var c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i += 2; continue; }
+        inQuotes = false; i++; continue;
+      }
+      field += c; i++; continue;
+    } else {
+      if (c === '"') { inQuotes = true; i++; continue; }
+      if (c === ',') { row.push(field); field = ''; i++; continue; }
+      if (c === '\r') { i++; continue; }
+      if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; continue; }
+      field += c; i++; continue;
+    }
+  }
+  // last field/row (file may or may not end with newline)
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  // Drop fully-empty trailing rows
+  while (rows.length && rows[rows.length - 1].length === 1 && rows[rows.length - 1][0] === '') rows.pop();
+  return rows;
+}
+
+function csvToRecords(text) {
+  var rows = parseCSV(text);
+  if (!rows.length) return { headers: [], records: [] };
+  var headers = rows[0].map(function (h) { return h.trim(); });
+  var records = [];
+  for (var r = 1; r < rows.length; r++) {
+    var row = rows[r];
+    if (row.length === 1 && row[0].trim() === '') continue;
+    var rec = {};
+    for (var c = 0; c < headers.length; c++) {
+      rec[headers[c]] = row[c] !== undefined ? row[c] : '';
+    }
+    rec.__rowNum = r + 1; // 1-based, includes header row offset for user-facing messages
+    records.push(rec);
+  }
+  return { headers: headers, records: records };
+}
+
+// ---------- normalization ----------
+function normName(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(' ');
+}
+
+// Accepts MM/DD/YYYY, M/D/YYYY, YYYY-MM-DD. Returns 'YYYY-MM-DD' or '' if unparseable.
+function normDob(s) {
+  s = String(s || '').trim();
+  if (!s) return '';
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    var mm = m[1].padStart(2, '0'), dd = m[2].padStart(2, '0'), yyyy = m[3];
+    return yyyy + '-' + mm + '-' + dd;
+  }
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+  return '';
+}
+
+function normSex(s) {
+  s = String(s || '').trim().toLowerCase();
+  if (s.indexOf('f') === 0) return 'Female';
+  if (s.indexOf('m') === 0) return 'Male';
+  return '';
+}
+
+function num(v) {
+  if (v === '' || v === null || v === undefined) return NaN;
+  var n = Number(v);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+// ---------- matching ----------
+// Builds a lookup key for a record: prefers an explicit member_id column
+// (any of these header spellings) when present and non-empty; otherwise
+// falls back to normalized-name + normalized-DOB.
+var MEMBER_ID_HEADERS = ['member_id', 'memberid', 'member id', 'id'];
+
+function findMemberIdHeader(headers) {
+  for (var i = 0; i < headers.length; i++) {
+    if (MEMBER_ID_HEADERS.indexOf(headers[i].trim().toLowerCase()) !== -1) return headers[i];
+  }
+  return null;
+}
+
+function recordKey(rec, memberIdHeader) {
+  if (memberIdHeader && rec[memberIdHeader] && String(rec[memberIdHeader]).trim() !== '') {
+    return { type: 'member_id', key: 'id:' + String(rec[memberIdHeader]).trim().toLowerCase() };
+  }
+  var nn = normName(rec.name_full);
+  var nd = normDob(rec.dob);
+  if (nn && nd) return { type: 'name_dob', key: 'nd:' + nn + '|' + nd };
+  if (nn) return { type: 'name_only', key: 'n:' + nn };
+  return { type: 'none', key: 'row:' + (rec.__rowNum || Math.random()) };
+}
+
+/* matchDatasets(baseline, retest)
+   baseline/retest: { headers, records } from csvToRecords()
+   Returns {
+     pairs: [{ baseline, retest, matchType, warnings:[...] }],
+     unmatchedBaseline: [...],
+     unmatchedRetest: [...],
+     fileWarnings: [...]   // dedup / header-level issues
+   }
+*/
+function matchDatasets(baseline, retest) {
+  var fileWarnings = [];
+  var bIdHeader = findMemberIdHeader(baseline.headers);
+  var rIdHeader = findMemberIdHeader(retest.headers);
+  var usingMemberId = !!(bIdHeader && rIdHeader);
+
+  if ((bIdHeader && !rIdHeader) || (!bIdHeader && rIdHeader)) {
+    fileWarnings.push('Only one file has a member_id column -- falling back to name+DOB matching for everyone. Add member_id to both files to make matching robust.');
+  }
+
+  function indexBy(dataset, idHeader) {
+    var map = {}; // key -> array of records
+    dataset.records.forEach(function (rec) {
+      var k = recordKey(rec, idHeader).key;
+      (map[k] = map[k] || []).push(rec);
+    });
+    return map;
+  }
+
+  var bMap = indexBy(baseline, usingMemberId ? bIdHeader : null);
+  var rMap = indexBy(retest, usingMemberId ? rIdHeader : null);
+
+  // Collapse same-key duplicates within one file down to the most recent by
+  // timestamp_local (a member tested twice the same season, or a re-entered
+  // row). If timestamps are missing/tied, keep the last row and flag it.
+  function collapseDuplicates(map, label) {
+    var out = {};
+    Object.keys(map).forEach(function (k) {
+      var arr = map[k];
+      if (arr.length === 1) { out[k] = arr[0]; return; }
+      var sorted = arr.slice().sort(function (a, b) {
+        var ta = Date.parse(a.timestamp_local || '') || 0;
+        var tb = Date.parse(b.timestamp_local || '') || 0;
+        return ta - tb;
+      });
+      out[k] = sorted[sorted.length - 1];
+      fileWarnings.push('Duplicate ' + label + ' rows for the same person (' +
+        (sorted[0].name_full || 'unnamed') + ') -- using the most recent by timestamp (row ' +
+        sorted[sorted.length - 1].__rowNum + '), ignoring ' + (arr.length - 1) + ' older row(s).');
+    });
+    return out;
+  }
+
+  var bByKey = collapseDuplicates(bMap, 'baseline');
+  var rByKey = collapseDuplicates(rMap, 'retest');
+
+  var pairs = [];
+  var unmatchedBaseline = [];
+  var usedRetestKeys = {};
+
+  Object.keys(bByKey).forEach(function (k) {
+    var bRec = bByKey[k];
+    var rRec = rByKey[k];
+    if (rRec) {
+      usedRetestKeys[k] = true;
+      var warnings = [];
+      var matchType = usingMemberId ? 'member_id' : (k.indexOf('nd:') === 0 ? 'name_dob' : 'name_only');
+      if (matchType === 'name_only') {
+        warnings.push('Matched by name only (one or both files is missing a usable DOB) -- verify this is the same person.');
+      }
+      var bSex = normSex(bRec.sex), rSex = normSex(rRec.sex);
+      if (bSex && rSex && bSex !== rSex) {
+        warnings.push('Sex differs between files (' + bRec.sex + ' vs ' + rRec.sex + ') -- check these are the same person before trusting this comparison.');
+      }
+      var bDob = normDob(bRec.dob), rDob = normDob(rRec.dob);
+      if (matchType === 'member_id' && bDob && rDob && bDob !== rDob) {
+        warnings.push('Matched by member_id, but DOB differs between files (' + bRec.dob + ' vs ' + rRec.dob + ').');
+      }
+      pairs.push({ baseline: bRec, retest: rRec, matchType: matchType, warnings: warnings });
+    } else {
+      unmatchedBaseline.push(bRec);
+    }
+  });
+
+  var unmatchedRetest = Object.keys(rByKey)
+    .filter(function (k) { return !usedRetestKeys[k]; })
+    .map(function (k) { return rByKey[k]; });
+
+  // Second pass: try to rescue unmatched-by-name_dob rows via name-only,
+  // in case DOB was mistyped on one side (e.g. transposed month/day).
+  if (!usingMemberId && unmatchedBaseline.length && unmatchedRetest.length) {
+    var rNameIndex = {};
+    unmatchedRetest.forEach(function (rec, idx) { (rNameIndex[normName(rec.name_full)] = rNameIndex[normName(rec.name_full)] || []).push(idx); });
+    var stillUnmatchedBaseline = [];
+    var rescuedRetestIdx = {};
+    unmatchedBaseline.forEach(function (bRec) {
+      var nn = normName(bRec.name_full);
+      var candidates = (rNameIndex[nn] || []).filter(function (idx) { return !rescuedRetestIdx[idx]; });
+      if (nn && candidates.length === 1) {
+        var rRec = unmatchedRetest[candidates[0]];
+        rescuedRetestIdx[candidates[0]] = true;
+        pairs.push({
+          baseline: bRec, retest: rRec, matchType: 'name_only_dob_mismatch',
+          warnings: ['DOB does not match between files (' + bRec.dob + ' vs ' + rRec.dob + ') but name does -- matched anyway; verify DOB.']
+        });
+      } else {
+        stillUnmatchedBaseline.push(bRec);
+      }
+    });
+    unmatchedBaseline = stillUnmatchedBaseline;
+    unmatchedRetest = unmatchedRetest.filter(function (rec, idx) { return !rescuedRetestIdx[idx]; });
+  }
+
+  return { pairs: pairs, unmatchedBaseline: unmatchedBaseline, unmatchedRetest: unmatchedRetest, fileWarnings: fileWarnings, usingMemberId: usingMemberId };
+}
+
+// ---------- scoring + delta assembly for a matched pair ----------
+var TEST_DEFS = [
+  { key: 'sit', label: 'Sit & Reach', unit: 'in', raw: function (r) { return num(r.sitreach_in); }, exportedMae: 'mae_sitreach', higherRawIsBetter: true },
+  { key: 'tug', label: 'TUG', unit: 's', raw: function (r) { return num(r.tug_s); }, exportedMae: 'mae_tug', higherRawIsBetter: false },
+  { key: 'mtp', label: 'Mid-Thigh Pull', unit: '%ile', raw: function (r) { return (num(r.mtp_r_pct) + num(r.mtp_l_pct)) / 2; }, exportedMae: 'mae_mtp', higherRawIsBetter: true },
+  { key: 'sway', label: 'Postural Sway', unit: '%ile', raw: function (r) { return (num(r.sway_r_pct) + num(r.sway_l_pct)) / 2; }, exportedMae: 'mae_sway', higherRawIsBetter: true },
+  { key: 'grip', label: 'Grip Strength', unit: '%ile', raw: function (r) { return (num(r.grip_r_pct) + num(r.grip_l_pct)) / 2; }, exportedMae: 'mae_grip', higherRawIsBetter: true },
+  { key: 'vo2', label: 'VO₂ Max', unit: 'mL/kg/min', raw: function (r) { return num(r.vo2_mlkgmin); }, exportedMae: 'mae_vo2', higherRawIsBetter: true }
+];
+
+function toScoreInput(rec) {
+  return {
+    age: num(rec.age),
+    sex: normSex(rec.sex) || rec.sex,
+    sit: num(rec.sitreach_in),
+    tug: num(rec.tug_s),
+    vo2: num(rec.vo2_mlkgmin),
+    mtp_r_pct: num(rec.mtp_r_pct), mtp_l_pct: num(rec.mtp_l_pct),
+    sway_r_pct: num(rec.sway_r_pct), sway_l_pct: num(rec.sway_l_pct),
+    grip_r_pct: num(rec.grip_r_pct), grip_l_pct: num(rec.grip_l_pct)
+  };
+}
+
+function buildComparison(pair) {
+  // computeScores() comes from hsmi_scoring.js, loaded into the same scope
+  // (a global function in the browser; assigned onto `global` in Node tests).
+  var bIn = toScoreInput(pair.baseline);
+  var rIn = toScoreInput(pair.retest);
+  var bOut = computeScores(bIn);
+  var rOut = computeScores(rIn);
+
+  var tests = TEST_DEFS.map(function (def) {
+    var bRaw = def.raw(pair.baseline), rRaw = def.raw(pair.retest);
+    var bZ = bOut.z[def.key], rZ = rOut.z[def.key];
+    var bMae = bOut.maeRaw[def.key], rMae = rOut.maeRaw[def.key];
+    return {
+      key: def.key, label: def.label, unit: def.unit, higherRawIsBetter: def.higherRawIsBetter,
+      baselineRaw: bRaw, retestRaw: rRaw, rawDelta: rRaw - bRaw,
+      baselineZ: bZ, retestZ: rZ, zDelta: rZ - bZ,
+      baselineMaeRaw: bMae, retestMaeRaw: rMae, maeDelta: rMae - bMae,
+      cappedAtBaseline: (def.key === 'tug' || def.key === 'vo2') && Math.abs(bZ) >= 2.5 - 1e-9,
+      cappedAtRetest: (def.key === 'tug' || def.key === 'vo2') && Math.abs(rZ) >= 2.5 - 1e-9
+    };
+  });
+
+  var exportCheck = [];
+  TEST_DEFS.forEach(function (def) {
+    [['baseline', pair.baseline, bOut], ['retest', pair.retest, rOut]].forEach(function (pairInfo) {
+      var which = pairInfo[0], rec = pairInfo[1], out = pairInfo[2];
+      var exported = num(rec[def.exportedMae]);
+      var recomputedDisplay = out.maeDisplay[def.key];
+      if (Number.isFinite(exported) && Number.isFinite(recomputedDisplay) && Math.abs(exported - recomputedDisplay) > 0.05) {
+        exportCheck.push({ which: which, test: def.label, exported: exported, recomputed: recomputedDisplay, appVersion: rec.app_version || '(unknown)' });
+      }
+    });
+  });
+  ['baseline', 'retest'].forEach(function (which) {
+    var rec = which === 'baseline' ? pair.baseline : pair.retest;
+    var out = which === 'baseline' ? bOut : rOut;
+    var exported = num(rec.mobility_age);
+    if (Number.isFinite(exported) && Math.abs(exported - out.mobilityAge) > 0.05) {
+      exportCheck.push({ which: which, test: 'Mobility Age', exported: exported, recomputed: out.mobilityAge, appVersion: rec.app_version || '(unknown)' });
+    }
+  });
+
+  return {
+    name: pair.baseline.name_full || pair.retest.name_full || '(no name)',
+    matchType: pair.matchType,
+    matchWarnings: pair.warnings,
+    baselineAge: bIn.age, retestAge: rIn.age,
+    baselineDate: pair.baseline.timestamp_local, retestDate: pair.retest.timestamp_local,
+    sex: bIn.sex || rIn.sex,
+    tests: tests,
+    baselineMobilityAge: bOut.mobilityAge, retestMobilityAge: rOut.mobilityAge,
+    mobilityAgeDelta: rOut.mobilityAge - bOut.mobilityAge,
+    baselineCompZ: bOut.compZ, retestCompZ: rOut.compZ,
+    exportCheck: exportCheck
+  };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    parseCSV: parseCSV, csvToRecords: csvToRecords,
+    normName: normName, normDob: normDob, normSex: normSex,
+    recordKey: recordKey, findMemberIdHeader: findMemberIdHeader,
+    matchDatasets: matchDatasets, buildComparison: buildComparison, TEST_DEFS: TEST_DEFS
+  };
+}
+
+/* =========================================================================
+   3) SAMPLE DATA — one real record (from the uploaded CSV, kept verbatim,
+      including its own stale mobility_age -- a real app-version-drift
+      example) plus three synthetic members to show a mixed result set.
+   ========================================================================= */
+var HSMI_HEADER_LINE = 'timestamp_local,app_version,name_full,phone,tester,location,sex,age,dob,body_weight_lbs,body_weight_kg,tug_s,vo2_mlkgmin,sitreach_in,mtp_kg,mtp_r_pct,mtp_l_pct,sway_r_cms,sway_r_pct,sway_l_cms,sway_l_pct,grip_r_kg,grip_r_pct,grip_l_kg,grip_l_pct,mae_sitreach,mae_tug,mae_mtp,mae_sway,mae_grip,mae_vo2,mobility_age';
+
+var SAMPLE_BASELINE_CSV = HSMI_HEADER_LINE + '\n' +
+'2026-09-09 15:04:32 EDT,2026.09.09,"Palen, Hallie",917-648-7082,Liz,NYC,Female,50,11/13/1975,128.5,58.3,4.3,52,24,127.5,56,54,4.58,56,4.27,47,26.5,75,24.1,63,21,21,48.12,49.44,42.56,21,26.18\n' +
+'2026-09-10 09:20:00 EDT,2026.09.19,"Doran, James",312-555-0142,Marco,Chicago,Male,62,06/02/1964,182.0,82.6,11.5,30,11.0,142.0,40,38,6.10,35,6.35,40,38.0,45,41.5,50,71.43,94.81,66.19,66.78,62.94,84.50,73.06\n' +
+'2026-09-11 13:45:00 EDT,2026.09.19,"Cole, Renata",646-555-0199,Liz,NYC,Female,45,04/10/1981,146.0,66.2,7.2,34,15.5,150.0,58,56,4.10,62,3.95,60,29.0,66,27.0,60,48.59,21.00,42.35,40.81,40.02,39.13,39.16\n';
+
+var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
+'2027-01-15 10:05:00 EST,2027.01.12,"Palen, Hallie",917-648-7082,Liz,NYC,Female,51,11/13/1975,126.0,57.2,4.0,54,25,131.0,60,58,4.25,60,4.55,50,27.5,78,25.0,66,21,21,47.59,49.12,42.26,21,28.91\n' +
+'2027-01-16 09:30:00 EST,2027.01.12,"Doran, James",312-555-0142,Marco,Chicago,Male,62,06/02/1964,179.0,81.2,10.4,33,11.0,143.0,41,39,6.05,34,6.28,38,40.0,38,42.0,43,71.43,74.19,65.80,67.38,65.61,71.00,68.43\n' +
+'2027-01-17 14:00:00 EST,2027.01.12,"Diallo, Marcus",773-555-0110,Marco,Chicago,Male,58,09/01/1968,201.0,91.2,9.0,31,11.8,139.0,48,46,5.50,44,5.70,42,33.5,52,36.0,55,63.75,51.44,59.13,60.65,56.68,83.20,61.98\n';
+
+/* =========================================================================
+   4) APP: upload handling, matching, rendering
+   ========================================================================= */
+(function(){
+  'use strict';
+
+  var state = {
+    baseline: { ds: null, name: '', isSample: true },
+    retest:   { ds: null, name: '', isSample: true },
+    sampleMode: true
+  };
+
+  function parseSample(){
+    state.baseline = { ds: csvToRecords(SAMPLE_BASELINE_CSV), name: 'sample-baseline.csv', isSample: true };
+    state.retest   = { ds: csvToRecords(SAMPLE_RETEST_CSV),   name: 'sample-retest.csv',   isSample: true };
+  }
+  parseSample();
+
+  var $ = function(id){ return document.getElementById(id); };
+  var resultsEl = $('results');
+  var sampleBanner = $('sampleBanner');
+
+  function fmt(x, d){
+    if (!Number.isFinite(x)) return '—';
+    return x.toFixed(d == null ? 1 : d);
+  }
+  function fmtSigned(x, d){
+    if (!Number.isFinite(x)) return '—';
+    var s = x.toFixed(d == null ? 1 : d);
+    if (x > 0) s = '+' + s;
+    return s;
+  }
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  // Positive maeDelta means the retest MAE is HIGHER (older/worse); negative
+  // means younger/better. Same convention for the overall Mobility Age delta.
+  var STABLE_BAND = 1.0; // years; within this band we call it "stable" rather than a real change
+  function classify(delta){
+    if (!Number.isFinite(delta)) return 'flat';
+    if (delta <= -STABLE_BAND) return 'good';
+    if (delta >= STABLE_BAND) return 'bad';
+    return 'flat';
+  }
+  function deltaBadge(delta, opts){
+    opts = opts || {};
+    var cls = classify(delta);
+    var arrow = delta < 0 ? '↓' : (delta > 0 ? '↑' : '→');
+    var label = Number.isFinite(delta) ? (fmtSigned(delta, opts.decimals == null ? 1 : opts.decimals) + (opts.unit || '')) : '—';
+    return '<span class="delta-badge ' + cls + '">' + arrow + ' ' + label + '</span>';
+  }
+  function chip(delta, decimals){
+    var cls = classify(delta);
+    return '<span class="chip ' + cls + '">' + fmtSigned(delta, decimals == null ? 2 : decimals) + '</span>';
+  }
+  // When a test hit the ±2.5 Z-score cap on BOTH baseline and retest, its
+  // MAE/Z delta stops reflecting real performance change and starts just
+  // tracking the age difference between the two test dates -- coloring
+  // that "older" or "younger" would misreport a member who is actually
+  // still improving but pinned at the cap both times. Show it as
+  // unmeasurable instead of a colored delta.
+  function chipOrCapped(delta, capped, decimals){
+    if (capped) return '<span class="chip capped" title="Both tests hit the ±2.5 Z-score cap — the real change here isn’t measurable from this test alone.">capped</span>';
+    return chip(delta, decimals);
+  }
+
+  /* ---------------- dropzone wiring ---------------- */
+  ['baseline','retest'].forEach(function(slot){
+    var dz = $('dz-' + slot);
+    var input = $('file-' + slot);
+    var chooseBtn = dz.querySelector('[data-choose="' + slot + '"]');
+    var clearBtn = $('dz-' + slot + '-clear');
+
+    chooseBtn.addEventListener('click', function(){ input.click(); });
+    input.addEventListener('change', function(){
+      if (input.files && input.files[0]) loadFile(slot, input.files[0]);
+    });
+    clearBtn.addEventListener('click', function(){
+      state[slot] = { ds: null, name: '', isSample: false };
+      state.sampleMode = false;
+      sampleBanner.hidden = true;
+      updateDropzoneUI(slot);
+      render();
+    });
+
+    dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', function(){ dz.classList.remove('drag-over'); });
+    dz.addEventListener('drop', function(e){
+      e.preventDefault(); dz.classList.remove('drag-over');
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) loadFile(slot, f);
+    });
+  });
+
+  function loadFile(slot, file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var ds = csvToRecords(String(reader.result || ''));
+        if (!ds.records.length){
+          updateDropzoneUI(slot, 'That file parsed but has no data rows.');
+          return;
+        }
+        state[slot] = { ds: ds, name: file.name, isSample: false };
+        state.sampleMode = false;
+        sampleBanner.hidden = true;
+        updateDropzoneUI(slot);
+        render();
+      } catch(err){
+        updateDropzoneUI(slot, 'Could not read that file as CSV (' + err.message + ').');
+      }
+    };
+    reader.onerror = function(){ updateDropzoneUI(slot, 'Could not read that file.'); };
+    reader.readAsText(file);
+  }
+
+  function updateDropzoneUI(slot, errorMsg){
+    var titleEl = $('dz-' + slot + '-title');
+    var metaEl = $('dz-' + slot + '-meta');
+    var clearBtn = $('dz-' + slot + '-clear');
+    var data = state[slot];
+    if (errorMsg){
+      titleEl.textContent = 'Could not load file';
+      metaEl.textContent = errorMsg;
+      clearBtn.hidden = !data.ds;
+      return;
+    }
+    if (!data.ds){
+      titleEl.textContent = 'Drop a CSV, or choose a file';
+      metaEl.textContent = 'Waiting for a file…';
+      clearBtn.hidden = true;
+      return;
+    }
+    var n = data.ds.records.length;
+    titleEl.innerHTML = esc(data.name) + (data.isSample ? ' <span class="pill">sample</span>' : '');
+    metaEl.textContent = n + (n === 1 ? ' member row' : ' member rows');
+    clearBtn.hidden = false;
+  }
+  updateDropzoneUI('baseline');
+  updateDropzoneUI('retest');
+
+  $('clearSampleBtn').addEventListener('click', function(){
+    state.baseline = { ds: null, name: '', isSample: false };
+    state.retest   = { ds: null, name: '', isSample: false };
+    state.sampleMode = false;
+    sampleBanner.hidden = true;
+    updateDropzoneUI('baseline');
+    updateDropzoneUI('retest');
+    render();
+  });
+
+  /* ---------------- clipboard ---------------- */
+  var toastEl = $('copyToast');
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 1800);
+  }
+  function copyText(text){
+    function fallback(){
+      try{
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('Copied to clipboard');
+      } catch(e){
+        showToast('Could not copy — select the text manually');
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){
+        showToast('Copied to clipboard');
+      }).catch(fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  function csvEscape(v){
+    var s = (v == null) ? '' : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  }
+
+  function buildExportCSV(comparisons){
+    var cols = ['name','sex','baseline_age','retest_age','baseline_date','retest_date'];
+    TEST_DEFS.forEach(function(def){
+      cols.push(def.key+'_baseline_raw', def.key+'_retest_raw', def.key+'_delta_raw',
+                 def.key+'_baseline_z', def.key+'_retest_z', def.key+'_delta_z',
+                 def.key+'_baseline_mae', def.key+'_retest_mae', def.key+'_delta_mae');
+    });
+    cols.push('baseline_mobility_age','retest_mobility_age','mobility_age_delta');
+    var lines = [cols.join(',')];
+    comparisons.forEach(function(cmp){
+      var row = [cmp.name, cmp.sex, cmp.baselineAge, cmp.retestAge, cmp.baselineDate, cmp.retestDate];
+      cmp.tests.forEach(function(t){
+        row.push(t.baselineRaw.toFixed(2), t.retestRaw.toFixed(2), t.rawDelta.toFixed(2),
+                  t.baselineZ.toFixed(3), t.retestZ.toFixed(3), t.zDelta.toFixed(3),
+                  t.baselineMaeRaw.toFixed(2), t.retestMaeRaw.toFixed(2), t.maeDelta.toFixed(2));
+      });
+      row.push(cmp.baselineMobilityAge.toFixed(2), cmp.retestMobilityAge.toFixed(2), cmp.mobilityAgeDelta.toFixed(2));
+      lines.push(row.map(csvEscape).join(','));
+    });
+    return lines.join('\n');
+  }
+
+  /* ---------------- rendering ---------------- */
+  var lastComparisons = [];
+
+  function render(){
+    var b = state.baseline.ds, r = state.retest.ds;
+    if (!b || !r){
+      resultsEl.innerHTML = '<div class="card empty-state">Add both a baseline and a retest file above to run the comparison.</div>';
+      lastComparisons = [];
+      return;
+    }
+
+    var match = matchDatasets(b, r);
+    var comparisons = match.pairs.map(buildComparison);
+    lastComparisons = comparisons;
+
+    var html = '';
+
+    // ---- KPI strip ----
+    var flagCount = comparisons.reduce(function(n,c){ return n + c.matchWarnings.length + c.exportCheck.length; }, 0)
+                    + match.fileWarnings.length;
+    html += '<div class="kpi-row">'
+      + kpi(comparisons.length, comparisons.length === 1 ? 'member matched' : 'members matched')
+      + kpi(match.unmatchedBaseline.length, 'baseline-only (no retest yet)')
+      + kpi(match.unmatchedRetest.length, 'retest-only (no baseline)')
+      + kpi(flagCount, flagCount === 1 ? 'flag to review' : 'flags to review', flagCount > 0)
+      + '</div>';
+
+    // ---- warnings ----
+    var warnItems = [];
+    match.fileWarnings.forEach(function(w){ warnItems.push({ text: w, cls: '' }); });
+    comparisons.forEach(function(c){
+      c.matchWarnings.forEach(function(w){ warnItems.push({ text: c.name + ': ' + w, cls: '' }); });
+      c.exportCheck.forEach(function(x){
+        warnItems.push({ text: c.name + ' — ' + x.which + ' ' + x.test + ': the file\'s own saved value (' + fmt(x.exported,2) + ', app ' + esc(x.appVersion) + ') doesn’t match recomputing it from that row’s raw test inputs (' + fmt(x.recomputed,2) + '). Likely an app-version formula change between exports — this tool uses the recomputed value throughout.', cls: '' });
+      });
+    });
+    match.unmatchedBaseline.forEach(function(rec){
+      warnItems.push({ text: (rec.name_full || '(no name)') + ': in the baseline file only — no matching retest row yet.', cls: 'unmatched' });
+    });
+    match.unmatchedRetest.forEach(function(rec){
+      warnItems.push({ text: (rec.name_full || '(no name)') + ': in the retest file only — no matching baseline row.', cls: 'unmatched' });
+    });
+    if (warnItems.length){
+      html += '<section class="card"><h2 style="font-size:16px;margin-bottom:12px;">Flags &amp; unmatched rows</h2><div class="warn-list">'
+        + warnItems.map(function(w){
+            return '<div class="warn-item ' + w.cls + '"><span class="dot"></span><span>' + w.text + '</span></div>';
+          }).join('')
+        + '</div></section>';
+    }
+
+    // ---- cohort distribution ----
+    if (comparisons.length){
+      html += '<section class="card">'
+        + '<h2 style="font-size:16px;margin-bottom:4px;">Cohort at a glance</h2>'
+        + '<p class="hint" style="margin-bottom:14px;">Change per test, in age-equivalent years. “Stable” means the change was within &plusmn;' + STABLE_BAND.toFixed(0) + ' year.</p>'
+        + '<div class="dist-table">'
+        + TEST_DEFS.map(function(def){
+            return distRow(def.label, comparisons.map(function(c){
+              var t = c.tests.find(function(t2){ return t2.key === def.key; });
+              return { delta: t.maeDelta, capped: t.cappedAtBaseline && t.cappedAtRetest };
+            }));
+          }).join('')
+        + distRow('Overall Mobility Age', comparisons.map(function(c){ return { delta: c.mobilityAgeDelta, capped: false }; }), true)
+        + '</div>'
+        + '<div class="legend-row" style="margin-top:12px;">'
+        + '<span class="lg"><span class="sw" style="background:var(--good);"></span>Improved (younger)</span>'
+        + '<span class="lg"><span class="sw" style="background:var(--ink-3);opacity:.55;"></span>Stable</span>'
+        + '<span class="lg"><span class="sw" style="background:var(--bad);"></span>Declined (older)</span>'
+        + '<span class="lg"><span class="sw" style="background:repeating-linear-gradient(45deg,var(--ink-3) 0 2px, transparent 2px 4px);"></span>Capped (not measurable)</span>'
+        + '</div>'
+        + '</section>';
+    }
+
+    // ---- member cards ----
+    if (comparisons.length){
+      html += '<div style="display:flex;justify-content:flex-end;">'
+        + '<button class="btn btn-accent" type="button" data-action="copy-all">Copy full comparison (CSV)</button>'
+        + '</div>';
+      comparisons.forEach(function(cmp, idx){
+        html += memberCard(cmp, idx);
+      });
+    } else if (!warnItems.length) {
+      html += '<div class="card empty-state">No members matched between the two files.</div>';
+    }
+
+    resultsEl.innerHTML = html;
+  }
+
+  function kpi(n, label, flagged){
+    return '<div class="kpi' + (flagged ? ' flagged' : '') + '"><span class="n tabular">' + n + '</span><span class="lbl">' + esc(label) + '</span></div>';
+  }
+
+  function distRow(label, entries, isOverall){
+    var improved = 0, stable = 0, declined = 0, capped = 0;
+    entries.forEach(function(e){
+      if (e.capped){ capped++; return; }
+      var c = classify(e.delta);
+      if (c === 'good') improved++; else if (c === 'bad') declined++; else stable++;
+    });
+    var total = entries.length || 1;
+    var measurable = entries.filter(function(e){ return !e.capped && Number.isFinite(e.delta); });
+    var avg = measurable.length
+      ? measurable.reduce(function(a,e){ return a + e.delta; }, 0) / measurable.length
+      : NaN;
+    var avgText = Number.isFinite(avg) ? ('avg ' + fmtSigned(avg,1) + 'y') : '—';
+    return '<div class="dist-row">'
+      + '<span class="name"' + (isOverall ? ' style="color:var(--accent);"' : '') + '>' + esc(label) + '</span>'
+      + '<div class="dist-bar">'
+      + (improved ? '<div class="dist-seg improved" style="width:' + (improved/total*100) + '%"></div>' : '')
+      + (stable ? '<div class="dist-seg stable" style="width:' + (stable/total*100) + '%"></div>' : '')
+      + (declined ? '<div class="dist-seg declined" style="width:' + (declined/total*100) + '%"></div>' : '')
+      + (capped ? '<div class="dist-seg capped" style="width:' + (capped/total*100) + '%"></div>' : '')
+      + '</div>'
+      + '<span class="dist-count">' + avgText + (capped ? ' <span class="hint" style="display:inline;">(' + capped + ' capped)</span>' : '') + '</span>'
+      + '</div>';
+  }
+
+  function memberCard(cmp, idx){
+    var mDelta = cmp.mobilityAgeDelta;
+    var elapsedNote = '';
+    if (cmp.baselineDate && cmp.retestDate){
+      var t0 = Date.parse(cmp.baselineDate), t1 = Date.parse(cmp.retestDate);
+      if (Number.isFinite(t0) && Number.isFinite(t1) && t1 > t0){
+        elapsedNote = Math.round((t1-t0)/86400000) + ' days between tests';
+      }
+    }
+    var ageNote = cmp.baselineAge === cmp.retestAge ? ('age ' + cmp.baselineAge) : ('age ' + cmp.baselineAge + ' → ' + cmp.retestAge);
+
+    var primaryRows = cmp.tests.map(function(t){
+      var capFlag = (t.cappedAtBaseline || t.cappedAtRetest) ? '<span class="cap-flag" title="Hit the ±2.5 Z-score cap at ' + (t.cappedAtBaseline && t.cappedAtRetest ? 'both tests' : (t.cappedAtBaseline ? 'baseline' : 'retest')) + ' — true change may be larger than shown.">*</span>' : '';
+      var bothCapped = t.cappedAtBaseline && t.cappedAtRetest;
+      return '<tr>'
+        + '<td>' + esc(t.label) + capFlag + '</td>'
+        + '<td class="num">' + fmt(t.baselineMaeRaw,1) + '</td>'
+        + '<td class="num">' + fmt(t.retestMaeRaw,1) + '</td>'
+        + '<td class="num">' + chipOrCapped(t.maeDelta, bothCapped, 1) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    var detailRows = cmp.tests.map(function(t){
+      var bothCapped = t.cappedAtBaseline && t.cappedAtRetest;
+      return '<tr>'
+        + '<td>' + esc(t.label) + (t.unit ? ' <span class="hint" style="display:inline;">(' + esc(t.unit) + ')</span>' : '') + '</td>'
+        + '<td class="num">' + fmt(t.baselineRaw,1) + '</td>'
+        + '<td class="num">' + fmt(t.retestRaw,1) + '</td>'
+        + '<td class="num">' + fmtSigned(t.rawDelta,1) + '</td>'
+        + '<td class="num">' + fmt(t.baselineZ,2) + '</td>'
+        + '<td class="num">' + fmt(t.retestZ,2) + '</td>'
+        + '<td class="num">' + chipOrCapped(t.zDelta, bothCapped, 2) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    var warningsHtml = cmp.matchWarnings.length
+      ? '<div class="match-warnings">' + cmp.matchWarnings.map(function(w){ return '<div class="wi">⚠ ' + esc(w) + '</div>'; }).join('') + '</div>'
+      : '';
+
+    return '<section class="card member-card">'
+      + '<div class="member-head">'
+        + '<div><h3>' + esc(cmp.name) + '</h3><div class="member-sub">' + esc(cmp.sex || '') + ' &middot; ' + ageNote + (elapsedNote ? ' &middot; ' + elapsedNote : '') + '</div></div>'
+        + '<span class="age-badge">' + esc(cmp.matchType.replace(/_/g,' ')) + ' match</span>'
+      + '</div>'
+      + warningsHtml
+      + '<div class="mobility-hero">'
+        + '<div class="val"><span class="lbl">Baseline Mobility Age</span><span class="n tabular">' + fmt(cmp.baselineMobilityAge,1) + '</span></div>'
+        + '<span class="arrow">→</span>'
+        + '<div class="val"><span class="lbl">Retest Mobility Age</span><span class="n tabular">' + fmt(cmp.retestMobilityAge,1) + '</span></div>'
+        + '<div class="delta">' + deltaBadge(mDelta, {unit:'y'}) + '<span class="delta-note">' + (classify(mDelta)==='good' ? 'younger' : classify(mDelta)==='bad' ? 'older' : 'about the same') + '</span></div>'
+      + '</div>'
+      + '<details>'
+        + '<summary class="btn btn-sm" style="display:inline-block;">Raw values &amp; Z-scores</summary>'
+        + '<div class="table-scroll" style="margin-top:10px;"><table class="cmp">'
+          + '<thead><tr><th>Test</th><th>Base raw</th><th>Retest raw</th><th>&Delta; raw</th><th>Base Z</th><th>Retest Z</th><th>&Delta; Z</th></tr></thead>'
+          + '<tbody>' + detailRows + '</tbody>'
+        + '</table></div>'
+      + '</details>'
+      + '<p class="hint" style="margin:0;">Per-test age-equivalent (MAE), uncapped &mdash; not the 21&ndash;95 display range. * = Z hit the &plusmn;2.5 composite cap.</p>'
+      + '<div class="table-scroll"><table class="cmp compact">'
+        + '<thead><tr><th>Test</th><th>Base MAE</th><th>Retest MAE</th><th>&Delta; (yrs)</th></tr></thead>'
+        + '<tbody>' + primaryRows + '</tbody>'
+      + '</table></div>'
+      + '<div class="card-footer" style="justify-content:flex-end;">'
+        + '<button class="btn btn-sm" type="button" data-action="copy-member" data-idx="' + idx + '">Copy this row (CSV)</button>'
+      + '</div>'
+      + '</section>';
+  }
+
+  resultsEl.addEventListener('click', function(e){
+    var btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'copy-all'){
+      copyText(buildExportCSV(lastComparisons));
+    } else if (btn.dataset.action === 'copy-member'){
+      var idx = Number(btn.dataset.idx);
+      if (lastComparisons[idx]) copyText(buildExportCSV([lastComparisons[idx]]));
+    }
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
