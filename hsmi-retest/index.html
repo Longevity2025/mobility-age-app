@@ -167,6 +167,7 @@ input[type=file]{ display:none; }
 .mobility-hero .val{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
 .mobility-hero .val .lbl{ font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); }
 .mobility-hero .val .n{ font-size:28px; font-weight:600; }
+.mobility-hero .val .test-date{ font-size:11.5px; color:var(--ink-2); }
 .mobility-hero .arrow{ font-size:20px; color:var(--ink-3); }
 .mobility-hero .delta{
   margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:2px;
@@ -990,6 +991,12 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
     if (x > 0) s = '+' + s;
     return s;
   }
+  function fmtDate(s){
+    if (!s) return '';
+    var t = Date.parse(s);
+    if (!Number.isFinite(t)) return '';
+    return new Date(t).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' });
+  }
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
       return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
@@ -1354,11 +1361,16 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
       + '</div>'
       + warningsHtml
       + '<div class="mobility-hero">'
-        + '<div class="val"><span class="lbl">Baseline Mobility Age</span><span class="n tabular">' + fmt(cmp.baselineMobilityAge,1) + '</span></div>'
+        + '<div class="val"><span class="lbl">Baseline Mobility Age</span><span class="n tabular">' + fmt(cmp.baselineMobilityAge,1) + '</span>' + (fmtDate(cmp.baselineDate) ? '<span class="test-date">Tested ' + esc(fmtDate(cmp.baselineDate)) + '</span>' : '') + '</div>'
         + '<span class="arrow">→</span>'
-        + '<div class="val"><span class="lbl">Retest Mobility Age</span><span class="n tabular">' + fmt(cmp.retestMobilityAge,1) + '</span></div>'
+        + '<div class="val"><span class="lbl">Retest Mobility Age</span><span class="n tabular">' + fmt(cmp.retestMobilityAge,1) + '</span>' + (fmtDate(cmp.retestDate) ? '<span class="test-date">Tested ' + esc(fmtDate(cmp.retestDate)) + '</span>' : '') + '</div>'
         + '<div class="delta">' + deltaBadge(mDelta, {unit:'y'}) + '<span class="delta-note">' + (classify(mDelta)==='good' ? 'younger' : classify(mDelta)==='bad' ? 'older' : 'about the same') + '</span></div>'
       + '</div>'
+      + '<p class="hint" style="margin:0;">Per-test age-equivalent (MAE), uncapped &mdash; not the 21&ndash;95 display range. * = Z hit the &plusmn;2.5 composite cap.</p>'
+      + '<div class="table-scroll"><table class="cmp compact">'
+        + '<thead><tr><th>Test</th><th>Base MAE</th><th>Retest MAE</th><th>&Delta; (yrs)</th></tr></thead>'
+        + '<tbody>' + primaryRows + '</tbody>'
+      + '</table></div>'
       + '<details>'
         + '<summary class="btn btn-sm" style="display:inline-block;">Raw values &amp; Z-scores</summary>'
         + '<div class="table-scroll" style="margin-top:10px;"><table class="cmp">'
@@ -1366,11 +1378,6 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
           + '<tbody>' + detailRows + '</tbody>'
         + '</table></div>'
       + '</details>'
-      + '<p class="hint" style="margin:0;">Per-test age-equivalent (MAE), uncapped &mdash; not the 21&ndash;95 display range. * = Z hit the &plusmn;2.5 composite cap.</p>'
-      + '<div class="table-scroll"><table class="cmp compact">'
-        + '<thead><tr><th>Test</th><th>Base MAE</th><th>Retest MAE</th><th>&Delta; (yrs)</th></tr></thead>'
-        + '<tbody>' + primaryRows + '</tbody>'
-      + '</table></div>'
       + '<div class="card-footer" style="justify-content:flex-end;">'
         + '<button class="btn btn-sm" type="button" data-action="copy-member" data-idx="' + idx + '">Download this row (CSV)</button>'
       + '</div>'
