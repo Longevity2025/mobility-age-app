@@ -327,11 +327,6 @@ footer.note{ font-size:12px; color:var(--ink-3); line-height:1.6; max-width:70ch
     </div>
   </section>
 
-  <div class="sample-banner" id="sampleBanner">
-    <span><strong>Showing example data</strong> — four sample members, so you can see how a comparison reads. Upload your own two files above to replace it.</span>
-    <button class="btn btn-sm" type="button" id="clearSampleBtn">Start with empty files</button>
-  </div>
-
   <div id="results"></div>
 
   <footer class="note">
@@ -977,20 +972,13 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
   'use strict';
 
   var state = {
-    baseline: { ds: null, name: '', isSample: true },
-    retest:   { ds: null, name: '', isSample: true },
-    sampleMode: true
+    baseline: { ds: null, name: '', isSample: false },
+    retest:   { ds: null, name: '', isSample: false },
+    sampleMode: false
   };
-
-  function parseSample(){
-    state.baseline = { ds: csvToRecords(SAMPLE_BASELINE_CSV), name: 'sample-baseline.csv', isSample: true };
-    state.retest   = { ds: csvToRecords(SAMPLE_RETEST_CSV),   name: 'sample-retest.csv',   isSample: true };
-  }
-  parseSample();
 
   var $ = function(id){ return document.getElementById(id); };
   var resultsEl = $('results');
-  var sampleBanner = $('sampleBanner');
 
   function fmt(x, d){
     if (!Number.isFinite(x)) return '—';
@@ -1053,8 +1041,6 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
     });
     clearBtn.addEventListener('click', function(){
       state[slot] = { ds: null, name: '', isSample: false };
-      state.sampleMode = false;
-      sampleBanner.hidden = true;
       updateDropzoneUI(slot);
       render();
     });
@@ -1078,8 +1064,6 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
           return;
         }
         state[slot] = { ds: ds, name: file.name, isSample: false };
-        state.sampleMode = false;
-        sampleBanner.hidden = true;
         updateDropzoneUI(slot);
         render();
       } catch(err){
@@ -1114,16 +1098,6 @@ var SAMPLE_RETEST_CSV = HSMI_HEADER_LINE + '\n' +
   }
   updateDropzoneUI('baseline');
   updateDropzoneUI('retest');
-
-  $('clearSampleBtn').addEventListener('click', function(){
-    state.baseline = { ds: null, name: '', isSample: false };
-    state.retest   = { ds: null, name: '', isSample: false };
-    state.sampleMode = false;
-    sampleBanner.hidden = true;
-    updateDropzoneUI('baseline');
-    updateDropzoneUI('retest');
-    render();
-  });
 
   /* ---------------- clipboard ---------------- */
   var toastEl = $('copyToast');
