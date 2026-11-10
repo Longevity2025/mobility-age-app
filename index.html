@@ -136,6 +136,8 @@
     font-size: 1rem;
     color: #555;
   }
+  #nlf-gate-inner { width: min(86vw, 340px); text-align: center; }
+  #nlf-gate-msg { margin-bottom: 4px; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -210,27 +212,82 @@
 <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
 
 <!-- Gate overlay -->
-<div id="nlf-gate">Checking login…</div>
+<div id="nlf-gate"><div id="nlf-gate-inner"><div id="nlf-gate-msg">Checking login…</div><div id="nlf-gate-actions" style="display:none"></div><pre id="nlf-gate-diag" style="margin-top:14px;font:11px/1.35 monospace;color:#888;text-align:left;white-space:pre-wrap;word-break:break-all"></pre></div></div>
 
 <script>
 (function () {
   var gate   = document.getElementById('nlf-gate');
+  var msg    = document.getElementById('nlf-gate-msg');
+  var actions= document.getElementById('nlf-gate-actions');
+  var diagEl = document.getElementById('nlf-gate-diag');
   var logBtn = document.getElementById('logout-btn');
   var opened = false;
+  var resolved = false;
+  var events = [];
+  var t0 = Date.now();
 
   function unlock() {
+    resolved = true;
     gate.style.display = 'none';
     logBtn.classList.remove('hidden');
   }
-  function lock() {
-    gate.style.display = 'flex';
-    logBtn.classList.add('hidden');
+
+  // Remove ONLY Netlify Identity's saved session keys
+  function clearSavedLogin() {
+    try {
+      var del = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && (k.indexOf('gotrue') === 0 || k === 'nf_jwt')) del.push(k);
+      }
+      del.forEach(function (k) { localStorage.removeItem(k); });
+    } catch (e) {}
+    try { sessionStorage.clear(); } catch (e) {}
   }
 
-  logBtn.addEventListener('click', function () { netlifyIdentity.logout(); });
+  function btn(label, fn) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.style.cssText = 'display:block;width:100%;margin:10px 0 0;padding:14px 16px;font-size:16px;font-weight:600;border:0;border-radius:10px;background:#0052cc;color:#fff;';
+    b.addEventListener('click', fn);
+    actions.appendChild(b);
+    return b;
+  }
 
-  netlifyIdentity.on('login',  function () { unlock(); netlifyIdentity.close(); });
-  netlifyIdentity.on('logout', function () { window.location.reload(); });
+  // Shown if login never resolves, so you are never stuck on this screen
+  function showRecovery(reason) {
+    if (resolved) return;
+    msg.textContent = reason;
+    actions.innerHTML = '';
+    actions.style.display = 'block';
+    if (window.netlifyIdentity && typeof netlifyIdentity.open === 'function') {
+      btn('Open login', function () {
+        try { netlifyIdentity.open('login'); } catch (e) { location.reload(); }
+      });
+    }
+    btn('Reload', function () { location.reload(); });
+    var b = btn('Clear saved login & reload', function () { clearSavedLogin(); location.reload(); });
+    b.style.background = '#6e7781';
+  }
+
+  if (!window.netlifyIdentity) {
+    showRecovery('Login service could not load. Check content blockers / Private Relay, then reload.');
+    return;
+  }
+
+  try {
+    logBtn.addEventListener('click', function () { netlifyIdentity.logout(); });
+    ['init','open','close','login','logout','error'].forEach(function (ev) {
+      netlifyIdentity.on(ev, function () { events.push(ev); });
+    });
+    netlifyIdentity.on('login',  function () { unlock(); netlifyIdentity.close(); });
+    netlifyIdentity.on('logout', function () { clearSavedLogin(); window.location.reload(); });
+    netlifyIdentity.on('error',  function () { showRecovery('Login error. Try again, or clear the saved login.'); });
+  } catch (e) {
+    showRecovery('Login service error. Try reloading.');
+    return;
+  }
 
   // Let the widget handle invite / recovery tokens without blocking
   if (window.location.hash && (
@@ -242,20 +299,60 @@
     return;
   }
 
-  // Poll until widget has initialised and user state is known
-  var poll = setInterval(function () {
-    if (typeof netlifyIdentity.currentUser !== 'function') return;
-    clearInterval(poll);
+  function decide() {
+    if (resolved) return;
     var iframe = document.getElementById('netlify-identity-widget');
     if (iframe) iframe.style.zIndex = '2147483647';
-    var user = netlifyIdentity.currentUser();
+    var user = null;
+    try { user = netlifyIdentity.currentUser(); } catch (e) {}
     if (user) {
       unlock();
     } else if (!opened) {
       opened = true;
-      netlifyIdentity.open('login');
+      try { netlifyIdentity.open('login'); } catch (e) { showRecovery('Could not open the login form.'); }
     }
+  }
+
+  // Poll until widget has initialised and user state is known
+  var poll = setInterval(function () {
+    if (typeof netlifyIdentity.currentUser !== 'function') return;
+    clearInterval(poll);
+    decide();
   }, 200);
+
+  try {
+    netlifyIdentity.on('init', function (u) {
+      if (u) { unlock(); try { netlifyIdentity.close(); } catch (e) {} }
+      else { decide(); }
+    });
+  } catch (e) {}
+
+  // Temporary diagnostics line (live status on the gate)
+  var diagTimer = setInterval(function () {
+    if (resolved) { clearInterval(diagTimer); return; }
+    var f = document.getElementById('netlify-identity-widget');
+    var line = 'launcher gate v2 | ' + Math.round((Date.now() - t0) / 1000) + 's\n' +
+      'events: ' + (events.join(',') || 'none') + '\n' +
+      'opened-called: ' + opened + '\n' +
+      'iframes in page: ' + document.getElementsByTagName('iframe').length + '\n';
+    if (f) {
+      var r = f.getBoundingClientRect(), cs = getComputedStyle(f);
+      line += 'widget iframe: ' + Math.round(r.width) + 'x' + Math.round(r.height) +
+        ' disp=' + cs.display + ' vis=' + cs.visibility + ' op=' + cs.opacity +
+        ' z=' + cs.zIndex + ' pos=' + cs.position;
+    } else {
+      line += 'widget iframe: NOT FOUND';
+    }
+    var u = null; try { u = netlifyIdentity.currentUser(); } catch (e) { line += '\ncurrentUser threw: ' + e; }
+    line += '\nuser: ' + (u ? 'yes' : 'no');
+    diagEl.textContent = line;
+  }, 500);
+
+  // Safety net: after 8s with no result, show recovery buttons
+  setTimeout(function () {
+    if (resolved) return;
+    showRecovery('Still checking login… If this persists, use an option below.');
+  }, 8000);
 })();
 </script>
 
