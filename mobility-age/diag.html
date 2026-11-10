@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HSMI diag</title>
+<style>
+  body { font: 14px/1.45 -apple-system, sans-serif; margin: 16px; color: #222; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  #out { font: 12px/1.45 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
+  .ok { color: #1a7f37; } .bad { color: #cf222e; font-weight: 700; }
+</style>
+</head>
+<body>
+<h1>HSMI diagnostic (diag v1)</h1>
+<noscript><p class="bad">JavaScript is OFF or blocked for this page.</p></noscript>
+<div id="out">Waiting for JavaScript… (if this line never changes, JS is not running)</div>
+<script>
+(function () {
+  var out = document.getElementById('out');
+  var lines = [];
+  function log(txt, cls) {
+    lines.push(cls ? '<span class="' + cls + '">' + esc(txt) + '</span>' : esc(txt));
+    out.innerHTML = lines.join('\n');
+  }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  window.onerror = function (m, src, ln) { log('JS ERROR: ' + m + ' @' + ln, 'bad'); };
+
+  log('1. JS RUNNING: yes  (' + new Date().toString() + ')', 'ok');
+  log('   page: ' + location.href);
+  log('   UA: ' + navigator.userAgent);
+  log('   cookiesEnabled: ' + navigator.cookieEnabled);
+
+  // 2. storage
+  try { localStorage.setItem('diag', '1'); log('2. localStorage: OK (' + localStorage.length + ' keys)', 'ok'); localStorage.removeItem('diag'); }
+  catch (e) { log('2. localStorage: BLOCKED ' + e, 'bad'); }
+  try { sessionStorage.setItem('diag', '1'); log('   sessionStorage: OK', 'ok'); sessionStorage.removeItem('diag'); }
+  catch (e) { log('   sessionStorage: BLOCKED ' + e, 'bad'); }
+
+  // 3. what does the server send for /index.html?
+  function grab(label, url, opts) {
+    return fetch(url, opts).then(function (r) {
+      var h = ['age', 'etag', 'cache-control', 'server', 'x-nf-request-id'].map(function (k) {
+        return k + '=' + r.headers.get(k);
+      }).join(' | ');
+      return r.text().then(function (t) {
+        log(label + ' status ' + r.status + ', ' + t.length + ' bytes');
+        log('   has "gate v2": ' + (t.indexOf('gate v2') !== -1) +
+            ' | has "nlf-gate-actions": ' + (t.indexOf('nlf-gate-actions') !== -1) +
+            ' | has "Checking login": ' + (t.indexOf('Checking login') !== -1));
+        var m = t.match(/data-app-version="([^"]*)"/);
+        log('   data-app-version: ' + (m ? m[1] : 'none') + '  lines: ' + t.split('\n').length);
+        log('   headers: ' + h);
+      });
+    }).catch(function (e) { log(label + ' FAILED: ' + e, 'bad'); });
+  }
+
+  grab('3. fresh fetch /index.html (no-store):', '/index.html?nc=' + Date.now(), { cache: 'no-store' })
+  .then(function () { return grab('4. default-cache fetch /index.html:', '/index.html'); })
+  .then(function () {
+    // 5. identity endpoint
+    return fetch('/.netlify/identity/settings').then(function (r) {
+      return r.text().then(function (t) { log('5. identity/settings: ' + r.status + ' ' + t.slice(0, 70)); });
+    }).catch(function (e) { log('5. identity/settings FAILED: ' + e, 'bad'); });
+  })
+  .then(function () {
+    // 6. load the widget script and watch it
+    log('6. loading identity widget script…');
+    var s = document.createElement('script');
+    s.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
+    s.onerror = function () { log('   widget script: FAILED to load', 'bad'); };
+    s.onload = function () {
+      log('   widget script: loaded; netlifyIdentity is ' + typeof window.netlifyIdentity, window.netlifyIdentity ? 'ok' : 'bad');
+      if (!window.netlifyIdentity) return;
+      var ev = [];
+      ['init', 'open', 'close', 'login', 'logout', 'error'].forEach(function (n) {
+        try { netlifyIdentity.on(n, function () { ev.push(n); }); } catch (e) {}
+      });
+      setTimeout(function () {
+        var u = null; try { u = netlifyIdentity.currentUser(); } catch (e) { log('   currentUser threw: ' + e, 'bad'); }
+        var f = document.getElementById('netlify-identity-widget');
+        log('   after 5s: events=' + (ev.join(',') || 'none') + ' | user=' + (u ? 'yes' : 'no') +
+            ' | widget iframe=' + (f ? 'present' : 'NOT FOUND'));
+        log('DONE. Screenshot this whole page and send it.', 'ok');
+      }, 5000);
+    };
+    document.head.appendChild(s);
+  });
+})();
+</script>
+</body>
+</html>
