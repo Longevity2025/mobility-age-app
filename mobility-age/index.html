@@ -4942,150 +4942,149 @@ hideLegacyPrintButtons();
   #nlf-gate-inner { width: min(86vw, 340px); text-align: center; }
   #nlf-gate-msg { margin-bottom: 4px; line-height: 1.4; }
 </style>
-<div id="nlf-gate"><div id="nlf-gate-inner"><div id="nlf-gate-msg">Checking login…</div><div id="nlf-gate-actions" style="display:none"></div><pre id="nlf-gate-diag" style="margin-top:14px;font:11px/1.35 monospace;color:#888;text-align:left;white-space:pre-wrap;word-break:break-all"></pre></div></div>
+<div id="nlf-gate"><div id="nlf-gate-inner"><div id="nlf-gate-msg">Checking login…</div><div id="nlf-gate-actions" style="display:none"></div></div></div>
 <script>
-  (function () {
-    var gate = document.getElementById('nlf-gate');
-    var msg = document.getElementById('nlf-gate-msg');
-    var actions = document.getElementById('nlf-gate-actions');
-    var opened = false;
-    var resolved = false;
-    var modalShown = false;
+(function () {
+  var gate    = document.getElementById('nlf-gate');
+  var msg     = document.getElementById('nlf-gate-msg');
+  var actions = document.getElementById('nlf-gate-actions');
+  var opened = false;
+  var resolved = false;
 
-    function unlock() { resolved = true; gate.style.display = 'none'; }
+  function unlock() {
+    resolved = true;
+    gate.style.display = 'none';
+  }
 
-    // Remove ONLY Netlify Identity's saved session keys (never the app's drafts/data)
-    function clearSavedLogin() {
-      try {
-        var del = [];
-        for (var i = 0; i < localStorage.length; i++) {
-          var k = localStorage.key(i);
-          if (k && (k.indexOf('gotrue') === 0 || k === 'nf_jwt')) del.push(k);
-        }
-        del.forEach(function (k) { localStorage.removeItem(k); });
-      } catch (e) {}
-      try { sessionStorage.clear(); } catch (e) {}
-    }
-
-    function btn(label, fn) {
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = label;
-      b.style.cssText = 'display:block;width:100%;margin:10px 0 0;padding:14px 16px;font-size:16px;font-weight:600;border:0;border-radius:10px;background:#1f6feb;color:#fff;';
-      b.addEventListener('click', fn);
-      actions.appendChild(b);
-      return b;
-    }
-
-    // Shown if login never resolves, so you're never stuck on a blank screen
-    function showRecovery(reason) {
-      if (resolved) return;
-      msg.textContent = reason;
-      actions.innerHTML = '';
-      actions.style.display = 'block';
-      if (window.netlifyIdentity && typeof netlifyIdentity.open === 'function') {
-        btn('Open login', function () {
-          try { netlifyIdentity.open('login'); } catch (e) { location.reload(); }
-        });
-      }
-      btn('Reload', function () { location.reload(); });
-      var b = btn('Clear saved login & reload', function () { clearSavedLogin(); location.reload(); });
-      b.style.background = '#6e7781';
-    }
-
-    // Widget script blocked or failed to load (content blocker, Private Relay, etc.)
-    if (!window.netlifyIdentity) {
-      showRecovery('Login service could not load. Check content blockers / Private Relay, then reload.');
-      return;
-    }
-
+  // Remove ONLY Netlify Identity's saved session keys (never the app's own data)
+  function clearSavedLogin() {
     try {
-      netlifyIdentity.on('login', function () { unlock(); netlifyIdentity.close(); });
-      netlifyIdentity.on('logout', function () { clearSavedLogin(); window.location.reload(); });
-      netlifyIdentity.on('open', function () { modalShown = true; });
-      netlifyIdentity.on('error', function () {
-        showRecovery('Login error. Try again, or clear the saved login.');
-      });
-    } catch (e) {
-      showRecovery('Login service error. Try reloading.');
-      return;
-    }
-
-    // If URL contains invite/recovery token, unlock immediately so widget can handle it
-    if (window.location.hash && (
-        window.location.hash.indexOf('invite_token') !== -1 ||
-        window.location.hash.indexOf('recovery_token') !== -1 ||
-        window.location.hash.indexOf('access_token') !== -1
-    )) {
-      unlock();
-      return;
-    }
-
-    function decide() {
-      if (resolved) return;
-      var iframe = document.getElementById('netlify-identity-widget');
-      if (iframe) iframe.style.zIndex = '2147483647';
-      var user = null;
-      try { user = netlifyIdentity.currentUser(); } catch (e) {}
-      if (user) {
-        unlock();
-      } else if (!opened) {
-        opened = true;
-        try { netlifyIdentity.open('login'); } catch (e) {
-          showRecovery('Could not open the login form.');
-        }
+      var del = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && (k.indexOf('gotrue') === 0 || k === 'nf_jwt')) del.push(k);
       }
-    }
-
-    // Poll until the widget has initialised and we know the user state
-    var poll = setInterval(function () {
-      if (typeof netlifyIdentity.currentUser !== 'function') return;
-      clearInterval(poll);
-      decide();
-    }, 200);
-
-    // Widget finished initialising: re-check (covers a saved session that loads late)
-    try {
-      netlifyIdentity.on('init', function (u) {
-        if (u) { unlock(); try { netlifyIdentity.close(); } catch (e) {} }
-        else { decide(); }
-      });
+      del.forEach(function (k) { localStorage.removeItem(k); });
     } catch (e) {}
+    try { sessionStorage.clear(); } catch (e) {}
+  }
 
+  function btn(label, fn, grey) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.style.cssText = 'display:block;width:100%;margin:10px 0 0;padding:14px 16px;font-size:16px;font-weight:600;border:0;border-radius:10px;color:#fff;background:' + (grey ? '#6e7781' : '#0052cc') + ';';
+    b.addEventListener('click', fn);
+    actions.appendChild(b);
+    return b;
+  }
 
-    // ── Diagnostics (temporary): live status shown on the gate ──
-    var events = [];
-    ['init','open','close','login','logout','error'].forEach(function (ev) {
-      try { netlifyIdentity.on(ev, function () { events.push(ev); }); } catch (e) {}
-    });
-    var diagEl = document.getElementById('nlf-gate-diag');
-    var t0 = Date.now();
-    var diagTimer = setInterval(function () {
-      if (resolved) { clearInterval(diagTimer); return; }
-      var f = document.getElementById('netlify-identity-widget');
-      var line = 'gate v2 | ' + Math.round((Date.now() - t0) / 1000) + 's\n' +
-        'events: ' + (events.join(',') || 'none') + '\n' +
-        'opened-called: ' + opened + '\n' +
-        'iframes in page: ' + document.getElementsByTagName('iframe').length + '\n';
-      if (f) {
-        var r = f.getBoundingClientRect(), cs = getComputedStyle(f);
-        line += 'widget iframe: ' + Math.round(r.width) + 'x' + Math.round(r.height) +
-          ' disp=' + cs.display + ' vis=' + cs.visibility + ' op=' + cs.opacity +
-          ' z=' + cs.zIndex + ' pos=' + cs.position;
-      } else {
-        line += 'widget iframe: NOT FOUND';
+  function show(reason) {
+    msg.textContent = reason;
+    actions.innerHTML = '';
+    actions.style.display = 'block';
+  }
+
+  // Browser is blocking site storage (e.g. Safari "Block All Cookies"): login cannot work
+  function storageBlocked() {
+    if (resolved) return;
+    show('Your browser is blocking site storage, which login needs. On iPhone: Settings → Apps → Safari → Advanced → turn off Block All Cookies, then reload. On a computer, allow cookies / site data for this site.');
+    btn('Reload', function () { location.reload(); });
+  }
+
+  // Login did not finish: offer ways out so you are never stuck on this screen
+  function showRecovery(reason) {
+    if (resolved) return;
+    show(reason);
+    if (window.netlifyIdentity && typeof netlifyIdentity.open === 'function') {
+      btn('Open login', function () {
+        try { netlifyIdentity.open('login'); } catch (e) { location.reload(); }
+      });
+    }
+    btn('Reload', function () { location.reload(); });
+    btn('Clear saved login & reload', function () { clearSavedLogin(); location.reload(); }, true);
+  }
+
+  function isSecurityError(e) { return e && (e.name === 'SecurityError' || /insecure/i.test(String(e))); }
+
+  // 1. Can this browser save site data at all?
+  try {
+    localStorage.setItem('__nlf_test', '1');
+    localStorage.removeItem('__nlf_test');
+  } catch (e) {
+    storageBlocked();
+    return;
+  }
+
+  // 2. Did the Netlify login script load?
+  if (!window.netlifyIdentity) {
+    showRecovery('Login service could not load. Check content blockers or Private Relay, then reload.');
+    return;
+  }
+
+  try {
+    netlifyIdentity.on('login',  function () { unlock(); netlifyIdentity.close(); });
+    netlifyIdentity.on('logout', function () { clearSavedLogin(); window.location.reload(); });
+    netlifyIdentity.on('error',  function () { showRecovery('Login error. Try again, or clear the saved login.'); });
+  } catch (e) {
+    if (isSecurityError(e)) { storageBlocked(); return; }
+    showRecovery('Login service error. Try reloading.');
+    return;
+  }
+
+  // Let the widget handle invite / recovery tokens without blocking
+  if (window.location.hash && (
+      window.location.hash.indexOf('invite_token')   !== -1 ||
+      window.location.hash.indexOf('recovery_token') !== -1 ||
+      window.location.hash.indexOf('access_token')   !== -1
+  )) {
+    unlock();
+    return;
+  }
+
+  function decide() {
+    if (resolved) return;
+    var iframe = document.getElementById('netlify-identity-widget');
+    if (iframe) iframe.style.zIndex = '2147483647';
+    var user = null;
+    try { user = netlifyIdentity.currentUser(); }
+    catch (e) { if (isSecurityError(e)) { storageBlocked(); return; } }
+    if (user) {
+      unlock();
+    } else if (!opened) {
+      opened = true;
+      try { netlifyIdentity.open('login'); }
+      catch (e) {
+        if (isSecurityError(e)) storageBlocked();
+        else showRecovery('Could not open the login form.');
       }
-      var u = null; try { u = netlifyIdentity.currentUser(); } catch (e) { line += '\ncurrentUser threw: ' + e; }
-      line += '\nuser: ' + (u ? 'yes' : 'no');
-      diagEl.textContent = line;
-    }, 500);
+    }
+  }
 
-    // Safety net: if nothing resolved after 8s, show recovery buttons
-    setTimeout(function () {
-      if (resolved) return;
-      showRecovery('Still checking login… If this persists, use an option below.');
-    }, 8000);
-  })();
+  // Poll until the widget has initialised and the user state is known
+  var poll = setInterval(function () {
+    if (typeof netlifyIdentity.currentUser !== 'function') return;
+    clearInterval(poll);
+    decide();
+  }, 200);
+
+  // Widget finished initialising: re-check (covers a saved session that loads late)
+  try {
+    netlifyIdentity.on('init', function (u) {
+      if (u) { unlock(); try { netlifyIdentity.close(); } catch (e) {} }
+      else { decide(); }
+    });
+  } catch (e) {}
+
+  // Safety net: nothing resolved after 8s. Check storage once more, else show recovery buttons.
+  setTimeout(function () {
+    if (resolved) return;
+    try { netlifyIdentity.currentUser(); }
+    catch (e) { if (isSecurityError(e)) { storageBlocked(); return; } }
+    if (document.getElementById('netlify-identity-widget')) return; // login form is on screen
+    showRecovery('Still checking login… If this persists, use an option below.');
+  }, 8000);
+})();
 </script>
 
 <!-- ── Scroll-wheel guard for number inputs ──────────────────────────────
