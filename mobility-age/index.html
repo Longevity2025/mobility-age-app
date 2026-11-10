@@ -4942,7 +4942,7 @@ hideLegacyPrintButtons();
   #nlf-gate-inner { width: min(86vw, 340px); text-align: center; }
   #nlf-gate-msg { margin-bottom: 4px; line-height: 1.4; }
 </style>
-<div id="nlf-gate"><div id="nlf-gate-inner"><div id="nlf-gate-msg">Checking login…</div><div id="nlf-gate-actions" style="display:none"></div></div></div>
+<div id="nlf-gate"><div id="nlf-gate-inner"><div id="nlf-gate-msg">Checking login…</div><div id="nlf-gate-actions" style="display:none"></div><pre id="nlf-gate-diag" style="margin-top:14px;font:11px/1.35 monospace;color:#888;text-align:left;white-space:pre-wrap;word-break:break-all"></pre></div></div>
 <script>
   (function () {
     var gate = document.getElementById('nlf-gate');
@@ -5052,10 +5052,37 @@ hideLegacyPrintButtons();
       });
     } catch (e) {}
 
+
+    // ── Diagnostics (temporary): live status shown on the gate ──
+    var events = [];
+    ['init','open','close','login','logout','error'].forEach(function (ev) {
+      try { netlifyIdentity.on(ev, function () { events.push(ev); }); } catch (e) {}
+    });
+    var diagEl = document.getElementById('nlf-gate-diag');
+    var t0 = Date.now();
+    var diagTimer = setInterval(function () {
+      if (resolved) { clearInterval(diagTimer); return; }
+      var f = document.getElementById('netlify-identity-widget');
+      var line = 'gate v2 | ' + Math.round((Date.now() - t0) / 1000) + 's\n' +
+        'events: ' + (events.join(',') || 'none') + '\n' +
+        'opened-called: ' + opened + '\n' +
+        'iframes in page: ' + document.getElementsByTagName('iframe').length + '\n';
+      if (f) {
+        var r = f.getBoundingClientRect(), cs = getComputedStyle(f);
+        line += 'widget iframe: ' + Math.round(r.width) + 'x' + Math.round(r.height) +
+          ' disp=' + cs.display + ' vis=' + cs.visibility + ' op=' + cs.opacity +
+          ' z=' + cs.zIndex + ' pos=' + cs.position;
+      } else {
+        line += 'widget iframe: NOT FOUND';
+      }
+      var u = null; try { u = netlifyIdentity.currentUser(); } catch (e) { line += '\ncurrentUser threw: ' + e; }
+      line += '\nuser: ' + (u ? 'yes' : 'no');
+      diagEl.textContent = line;
+    }, 500);
+
     // Safety net: if nothing resolved after 8s, show recovery buttons
     setTimeout(function () {
       if (resolved) return;
-      if (modalShown) return;
       showRecovery('Still checking login… If this persists, use an option below.');
     }, 8000);
   })();
